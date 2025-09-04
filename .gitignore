@@ -1,1 +1,4 @@
 *.pt
+*.pyc
+*.png
+*.json

@@ -1,4 +1,4 @@
-from dataclasses_json import config
+# from dataclasses_json import config
 import numpy as np
 import matplotlib.pyplot as plt
 import torch.nn.functional as F
@@ -34,8 +34,8 @@ for rrr in Experiment.RADII:
     for ttt in range(len(Experiment.TEMPS)):
         TEMPERATURE = Experiment.TEMPS[ttt]
         RADIUS_INITIAL_CONDITIONS = rrr
-        RESULTS_DIR = f"{Default.RESULTS_DIR}/run_{TEMPERATURE}_{RADIUS_INITIAL_CONDITIONS}/"
-        PLOTS_DIR = f"{Default.RESULTS_DIR}_plots/run_{TEMPERATURE}_{RADIUS_INITIAL_CONDITIONS}/"
+        RESULTS_DIR = f"./run_{TEMPERATURE}_{RADIUS_INITIAL_CONDITIONS}/"
+        PLOTS_DIR = f"./plots/run_{TEMPERATURE}_{RADIUS_INITIAL_CONDITIONS}/"
         os.makedirs(PLOTS_DIR, exist_ok=True)
 
         # =============================================================================
@@ -46,14 +46,15 @@ for rrr in Experiment.RADII:
         # the hidden states corresponding to different initial conditions at a given state form a sort of blob.
         # we look at the hypervolume and the largest axes.
         # you can think of it as a 3d ellipsoid and we look at how it deforms, but in higher dimensions.
-        hypervolumes = torch.load(os.path.join(RESULTS_DIR, "hypervolume.pt"), weights_only=True)
-        axis_lengths = torch.load(os.path.join(RESULTS_DIR, "axis_lengths.pt"), weights_only=True)
+        hypervolumes = torch.load(os.path.join(RESULTS_DIR, "hypervolume.pt"), weights_only=True, map_location=torch.device('cpu'))
+        axis_lengths = torch.load(os.path.join(RESULTS_DIR, "axis_lengths.pt"), weights_only=True, map_location=torch.device('cpu'))
         # k is a parameter that I pick when I run all the cases. Normally 3 or 4
 
         ### These below are all lists and every element of the list corresponds to a different initial condtion
 
         # List of [seq_len, hidden_dim] tensors for each generation. Each tensor contains the hidden state for every generated token at the last layer.
-        trajectories = torch.load(os.path.join(RESULTS_DIR, "trajectories.pt"), weights_only=True)
+        trajectories = torch.load(os.path.join(RESULTS_DIR, "hidden_states_layer_-1.pt"), weights_only=True, map_location=torch.device('cpu'))
+        print(f"trajectories shape: {trajectories.shape}")
         # minimum_trajectory_len = min( [len(t) for t in trajectories] )
 
         # =============================================================================
@@ -86,58 +87,59 @@ for rrr in Experiment.RADII:
         else:
             plt.show()
 
+        for min_var in [0.8, 0.85, 0.9, 0.95, 0.97]:
+            Analysis.MINIMUM_VARIANCE_EXPLANATION = min_var
+            # --- Local Dimensionality via SVD --- (Basically a PCA on a sliding window)
+            # measuring the number of dimensions needed to account for Analysis.MINIMUM_VARIANCE_EXPLANATION for each trajectory
+            local_dims = []
+            for traj_idx, traj in enumerate(trajectories):
+                dim_over_time = []
+                for i in range(0, traj.size(0) - Analysis.SLIDING_WINDOW_SIZE + 1, Analysis.SLIDING_WINDOW_DISPLACEMENT):
+                    window = traj[i:i + Analysis.SLIDING_WINDOW_SIZE]  # shape: (W, D)
+                    window = window - window.mean(dim=0, keepdim=True)
+                    
+                    # SVD
+                    U, S, Vh = torch.linalg.svd(window, full_matrices=False)  # S: (min(W, D),)
 
-        # --- Local Dimensionality via SVD --- (Basically a PCA on a sliding window)
-        # measuring the number of dimensions needed to account for Analysis.MINIMUM_VARIANCE_EXPLANATION for each trajectory
-        local_dims = []
-        for traj_idx, traj in enumerate(trajectories):
-            dim_over_time = []
-            for i in range(0, traj.size(0) - Analysis.SLIDING_WINDOW_SIZE + 1, Analysis.SLIDING_WINDOW_DISPLACEMENT):
-                window = traj[i:i + Analysis.SLIDING_WINDOW_SIZE]  # shape: (W, D)
-                window = window - window.mean(dim=0, keepdim=True)
-                
-                # SVD
-                U, S, Vh = torch.linalg.svd(window, full_matrices=False)  # S: (min(W, D),)
+                    # Variance explained by each component
+                    var_explained = S**2 / (Analysis.SLIDING_WINDOW_SIZE - 1)
+                    cumulative_variance = torch.cumsum(var_explained, dim=0)
+                    total_variance = cumulative_variance[-1]
+                    cumulative_ratio = cumulative_variance / total_variance
 
-                # Variance explained by each component
-                var_explained = S**2 / (Analysis.SLIDING_WINDOW_SIZE - 1)
-                cumulative_variance = torch.cumsum(var_explained, dim=0)
-                total_variance = cumulative_variance[-1]
-                cumulative_ratio = cumulative_variance / total_variance
+                    # Smallest number of components explaining desired variance
+                    num_components = torch.searchsorted(cumulative_ratio, Analysis.MINIMUM_VARIANCE_EXPLANATION) + 1
+                    dim_over_time.append(num_components.item())
 
-                # Smallest number of components explaining desired variance
-                num_components = torch.searchsorted(cumulative_ratio, Analysis.MINIMUM_VARIANCE_EXPLANATION) + 1
-                dim_over_time.append(num_components.item())
+                local_dims.append(dim_over_time)
 
-            local_dims.append(dim_over_time)
+            # Plotting local dimensionality
+            plt.figure(figsize=(8, 5))
 
-        # Plotting local dimensionality
-        plt.figure(figsize=(8, 5))
+            # If you want to plot the dimension for each individual trajectory GG
+            # for idx, dims in enumerate(local_dims):
+            #     plt.plot(np.arange(len(dims)) * Analysis.SLIDING_WINDOW_DISPLACEMENT, dims, label=f"Trajectory {idx}")
 
-        # If you want to plot the dimension for each individual trajectory GG
-        # for idx, dims in enumerate(local_dims):
-        #     plt.plot(np.arange(len(dims)) * Analysis.SLIDING_WINDOW_DISPLACEMENT, dims, label=f"Trajectory {idx}")
+            # If you want to average the dimension needed for different trajectories
+            time_buckets = defaultdict(list)
+            for traj in local_dims:
+                for t, val in enumerate(traj):
+                    time_buckets[t].append(val)
+            local_dims_avg = [np.mean(time_buckets[t]) for t in sorted(time_buckets)]
 
-        # If you want to average the dimension needed for different trajectories
-        time_buckets = defaultdict(list)
-        for traj in local_dims:
-            for t, val in enumerate(traj):
-                time_buckets[t].append(val)
-        local_dims_avg = [np.mean(time_buckets[t]) for t in sorted(time_buckets)]
+            plt.plot(np.arange(len(local_dims_avg)) * Analysis.SLIDING_WINDOW_DISPLACEMENT, local_dims_avg, label=f"Average for all trajectories")
 
-        plt.plot(np.arange(len(local_dims_avg)) * Analysis.SLIDING_WINDOW_DISPLACEMENT, local_dims_avg, label=f"Average for all trajectories")
-
-        plt.title(f"Local Dimensionality (≥{Analysis.MINIMUM_VARIANCE_EXPLANATION * 100:.0f}% Variance)")
-        plt.xlabel("Time step (center of window)")
-        plt.ylabel("# of Components")
-        plt.legend(fontsize="small", loc="upper right")
-        plt.grid(True)
-        plt.tight_layout()
-        if Analysis.SAVE_PLOTS:
-            plt.savefig(os.path.join(PLOTS_DIR, "local_dimensionality.png"))
-            plt.clf()
-        else:
-            plt.show()
+            plt.title(f"Local Dimensionality (≥{Analysis.MINIMUM_VARIANCE_EXPLANATION * 100:.0f}% Variance)")
+            plt.xlabel("Time step (center of window)")
+            plt.ylabel("# of Components")
+            plt.legend(fontsize="small", loc="upper right")
+            plt.grid(True)
+            plt.tight_layout()
+            if Analysis.SAVE_PLOTS:
+                plt.savefig(os.path.join(PLOTS_DIR, f"local_dimensionality_{Analysis.MINIMUM_VARIANCE_EXPLANATION}.png"))
+                plt.clf()
+            else:
+                plt.show()
 
 
 

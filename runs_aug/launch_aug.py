@@ -64,6 +64,9 @@ def analyze_llm_chaos(initial_prompt, model, tokenizer, config):
 
         with open(os.path.join(config.RESULTS_DIR, "results.json"), "w") as f:
             json.dump(generation_results, f, indent=2)
+        
+        with open(os.path.join(config.RESULTS_DIR, "generated_text.json"), "w") as f:
+            json.dump(generated_texts, f, indent=2)
 
         for layer_idx, layer_hidden_states in hidden_states.items():
             torch.save(layer_hidden_states, os.path.join(config.RESULTS_DIR, f"hidden_states_layer_{layer_idx}.pt"))
