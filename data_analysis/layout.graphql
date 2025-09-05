@@ -1,0 +1,43 @@
+llm-trajectory-metrics/
+├─ README.md
+├─ FEATURE_STATUS.md
+├─ requirements.txt        # user already has one; add needed packages if not present
+├─ config.py               # all parameters live here
+├─ run_all.py              # example script: runs the full pipeline
+├─ run_sweep.py            # separate hyperparameter sweep script
+├─ scripts/
+│  └─ example_run.sh
+├─ src/
+│  ├─ __main__.py
+│  ├─ cli.py
+│  ├─ io/
+│  │  ├─ loader.py
+│  │  └─ saver.py
+│  ├─ preproc/
+│  │  ├─ normalization.py
+│  │  └─ whitening.py
+│  ├─ reduce/
+│  │  ├─ base.py
+│  │  ├─ pca.py
+│  │  ├─ whitening_wrapper.py
+│  │  └─ autoencoder_stub.py   # placeholder: contract A (nn.Module encoder)
+│  ├─ metrics/
+│  │  ├─ base.py
+│  │  ├─ cos.py
+│  │  ├─ dtw_fast.py
+│  │  ├─ hausdorff.py
+│  │  └─ frechet.py
+│  ├─ runner/
+│  │  ├─ pair_manager.py
+│  │  ├─ metrics_runner.py
+│  │  └─ lyapunov.py
+│  ├─ viz/
+│  │  └─ plots.py
+│  └─ utils/
+│     ├─ parallel.py
+│     ├─ logging.py
+│     └─ helpers.py
+├─ examples/
+│  ├─ example_data_generator.py
+│  └─ small_example.pt
+└─ results/                 # created per run: results/<run_id>/

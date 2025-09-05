@@ -1,0 +1,567 @@
+A step-by-step implementation plan for a modular Python project that computes multiple pairwise trajectory metrics on LLM hidden states, performs dimensionality reduction (PCA / whitening / AE placeholder), runs a separate hyperparameter sweep script, computes fast Lyapunov estimates (pairwise slope), and saves plots and artifacts. Designed for PyTorch + CPU/GPU (Tesla T4). All runtime parameters live in config.py (no hard-coded values). Output format: .pt for tensors, .png for plots, metrics.json for results.
+
+1. repo layout (DONE IN layout.graphql) and README.md DONE
+
+2. config.py (DONE in congig.py but can be modifies and added to) 
+
+3. Phase-by-phase implementation plan (foundations first)
+
+Implement in phases. Each phase lists files to create and concrete function signatures.
+
+Phase 0 — Repo & minimal foundation (HIGH PRIORITY)
+
+Goal: create repo skeleton, config, logging, basic I/O, FEATURE_STATUS.md, and example script run_all.py that calls stubs. This enables iterative development.
+
+Files & tasks
+
+Update FEATURE_STATUS.md as features are implemented.
+
+src/utils/logging.py — structured logging wrapper. Minimal:
+
+import logging
+from config import CONFIG
+
+def get_logger(name=__name__):
+    level = getattr(logging, CONFIG["logging"]["level"])
+    logger = logging.getLogger(name)
+    if not logger.handlers:
+        ch = logging.StreamHandler()
+        ch.setLevel(level)
+        fmt = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+        ch.setFormatter(fmt)
+        logger.addHandler(ch)
+    logger.setLevel(level)
+    return logger
+
+
+src/io/loader.py — implement load_tensor(path) -> torch.Tensor and assert_shape(tensor); use .pt format.
+
+import torch
+def load_tensor(path: str) -> torch.Tensor: ...
+def save_tensor(tensor, path: str): ...
+
+to load the tensor usetrajectories = torch.load("./hidden_states_layer_-1.pt", weights_only=True, map_location=torch.device('cpu'))
+
+src/__main__.py and src/cli.py — lightweight CLI that calls run_all stub.
+
+run_all.py — top-level example pipeline that calls stubs in correct order. It should:
+
+create run_id, results/<run_id>/
+
+load input tensor
+
+call reduction module (stub)
+
+save reduced tensor .pt
+
+call metrics runner (stub)
+
+call lyapunov (stub)
+
+save metrics.json and plots
+
+print a summary when each task completes (no per-iteration progress bars)
+
+Deliverable for Phase 0: runnable run_all.py that executes but with stubs that log the sequence of operations. Update FEATURE_STATUS.md accordingly.
+
+Phase 1 — I/O, preprocessing, and reduction scaffolding
+
+Goal: Implement reliable loader/saver, normalization, whitening transform, PCA wrapper (GPU optional), and AE placeholder contract.
+
+Files & tasks
+
+src/io/saver.py
+
+save_tensor(tensor: torch.Tensor, path: str) -> .pt
+
+save_npz(data: dict, path: str) for derived arrays
+
+src/preproc/normalization.py
+
+l2_normalize_per_timestep(x: np.ndarray or torch.Tensor) -> same shape
+
+mean_subtract_global(x) -> x_centered
+
+src/preproc/whitening.py
+
+fit_whitening(X_flat: np.ndarray) -> dict{mean, W_inv_sqrt}
+
+apply_whitening(X, whiten_params)
+
+Numeric stability eps from config.
+
+src/reduce/base.py
+
+define class Reducer(Protocol) with methods:
+
+class Reducer:
+    def fit(self, X: np.ndarray): ...
+    def transform(self, X: np.ndarray) -> np.ndarray: ...
+    def fit_transform(self, X: np.ndarray) -> np.ndarray: ...
+
+
+src/reduce/pca.py — implement PCA with two flavors:
+
+IncrementalPCA (scikit-learn) path for memory-safe CPU fallback.
+
+Optional GPU SVD path using torch.svd if CONFIG["reduction"]["pca"]["use_gpu"] and GPU available. Provide function:
+
+def fit_pca(X_flat, r) -> pca_model
+def transform_pca(X, pca_model) -> X_reduced
+
+
+Save pca_model metadata (components, mean) in results/<run_id>/models/.
+
+src/reduce/whitening_wrapper.py — wrapper that returns Reducer-style object using whitening.fit / apply_whitening.
+
+src/reduce/autoencoder_stub.py — placeholder with clear contract A:
+
+class AutoencoderEncoderStub(torch.nn.Module):
+
+expects a state_dict from user later
+
+interface: def encode(self, x: torch.Tensor) -> torch.Tensor
+
+Mark as # TODO: PARTIAL and document in FEATURE_STATUS.md.
+
+Deliverable for Phase 1: PCA and whitening implemented and tested on examples/small_example.pt. Save outputs named per CONFIG["save"]["tensor_names"].
+
+Phase 2 — Metrics module (cos, DTW fast, Hausdorff, Fréchet) & base API
+
+Goal: Implement metric functions with consistent interface. Use fastdtw for DTW, fallback if not present.
+
+Files & tasks
+
+src/metrics/base.py
+
+Define the standard interface:
+
+def compare_trajectories(a: np.ndarray, b: np.ndarray, *, return_timeseries: bool=True, **kwargs) -> (timeseries: np.ndarray | None, aggregate: dict)
+
+
+a, b shape: (T, d) (time major). Return timeseries shape (T_or_aligned_length,) for per-index measures, or None if metric is scalar only. aggregate contains compute scalars (mean/median/std/extra).
+
+src/metrics/cos.py
+
+Implement per-time-step cosine distance:
+
+Compute 1 - cos_sim(x_t, y_t) across t
+
+Optionally compute shifted comparisons: for each shift in CONFIG["metrics"]["cos"]["shifts"], compute per-shift time-series and aggregate across shifts using specified rule (min across shifts, mean across shifts, and per-shift aggregates saved).
+
+Return both time series and aggregates (mean, median, std) as configured.
+
+src/metrics/dtw_fast.py
+
+Implement DTW using fastdtw (pip install fastdtw) or tslearn if available.
+
+Input: (T, d) multivariate sequences.
+
+Use Euclidean local distance on vectors. Provide window optional param (Sakoe–Chiba proportion — convert to radius in steps).
+
+Return scalar DTW distance; optionally return alignment path and per-alignment distance time series if requested.
+
+Use CPU. Mark fastdtw as default; if tslearn installed and user requests exact=True, offer exact DTW.
+
+src/metrics/hausdorff.py
+
+Use scipy.spatial.distance.directed_hausdorff and compute symmetric Hausdorff:
+
+d_ab = directed_hausdorff(a, b)[0]
+d_ba = directed_hausdorff(b, a)[0]
+d_sym = max(d_ab, d_ba)
+
+
+Return scalar and optionally per-point nearest distances (if needed for visualization).
+
+src/metrics/frechet.py
+
+Attempt to import frechetdist or similaritymeasures. If unavailable, include pure-Python discrete Fréchet fallback implementation (dynamic programming O(mn)). Mark fallback with # TODO if optimizations needed.
+
+Deliverable for Phase 2: All metric functions implemented, with unit-like self-checks in examples/example_data_generator.py to validate shapes and ranges. Update FEATURE_STATUS.md.
+
+Phase 3 — Pairing logic, runner, and parallel execution
+
+Goal: Implement pair selection, parallel metric computation, saving of aggregates and optional per-pair timeseries, and a metrics.json descriptor.
+
+Files & tasks
+
+src/runner/pair_manager.py
+
+Given N and config, produce list of pairs to compute. Modes:
+
+ref0: pairs = (0, i) for i=1..N-1
+
+all: all unordered pairs
+
+custom: user-provided list
+
+src/utils/parallel.py
+
+Implement map_pairs(func, pairs, max_workers, use_process) using concurrent.futures. No progress bars. On task completion, print summary: "Completed metrics for X/Y pairs."
+
+On any exception in a worker: capture stack trace, save to results/<run_id>/error.log, save partial results produced so far, then re-raise gracefully.
+
+src/runner/metrics_runner.py
+
+For each pair, call selected metric(s) and save:
+
+aggregates to in-memory dict
+
+per-pair timeseries saved to results/<run_id>/timeseries/<pair_i_j>_<metric>.pt only for reference pairs or explicit pairs as per CONFIG["pairwise"]["save_pairwise_timeseries_for"]. Default: only reference-vs-others.
+
+After finishing all pairs, write metrics.json with:
+
+{
+  "run_id": "...",
+  "config": { ... },
+  "pairs": {
+     "0_1": { "cos": {"mean":0.12,"median":...}, "dtw": {...} },
+     ...
+  },
+  "saved_timeseries": ["0_1_cos.pt", ...]
+}
+
+
+Deliverable for Phase 3: metrics_runner that computes pairwise metrics in parallel and writes metrics.json. Update FEATURE_STATUS.md.
+
+Phase 4 — Lyapunov (fast pairwise slope) and diagnostics
+
+Goal: compute mean log-distance vs time, detect linear region automatically (but produce plots so user can inspect), produce slope estimate + R².
+
+Files & tasks
+
+src/runner/lyapunov.py
+
+compute_pairwise_logdist(trajs_reduced: np.ndarray, pairs, metric="euclidean") -> mean_log_dist(t):
+
+For each t compute distances d_i(t) between reference and other trajectories (or pair-specific)
+
+Compute log(d + eps) and aggregate (mean, median)
+
+auto_detect_linear_window(times, mean_log, config) -> (start_idx, end_idx, r2, slope, intercept):
+
+Heuristic:
+
+examine first initial_time_cutoff_frac * T samples
+
+sliding windows from length min_window_len upward; for each window compute linear fit and R²
+
+pick window with max length where R² >= r2_threshold (but do not be strict — if none meet threshold pick best R²)
+
+Return candidate window and slope. Save R² and window in results.
+
+estimate_lyapunov(trajs_reduced, pairs, config):
+
+Use compute_pairwise_logdist
+
+For each pair compute slope + stats
+
+Aggregate slopes across pairs (mean, std)
+
+Save results/<run_id>/lyapunov.json and a plot mean_log_vs_time.png with raw curves, fitted lines, and shaded linear window.
+
+Plotting requirements:
+
+Use matplotlib. For N up to 64, plot means with shaded area for ±std. For pair-specific overlays allow sparse plotting (e.g., user can request pair 0,1).
+
+Always save the raw time-series used for fitting to results/<run_id>/raw_for_lyapunov.pt.
+
+Deliverable for Phase 4: functionally compute Lyapunov slope(s) and generate plots. Mark auto-detect as PARTIAL in FEATURE_STATUS.md with note that thresholds are heuristics and visible in plots.
+
+Phase 5 — Visualization utilities
+
+Goal: create plotting utilities that produce the required figures.
+
+Files & tasks
+
+src/viz/plots.py — implement functions:
+
+plot_pairwise_distance_distribution(aggregates, outpath) — histogram(s) and summary stats
+
+plot_mean_log_distance_vs_time(mean_log_array, outpath, window=None, slope=None, r2=None)
+
+plot_pca_explained_variance(pca_model, outpath)
+
+plot_hyperparam_sweep(sweep_results, outpath)
+
+plot_time_series_for_pair(pair_timeseries, outpath) — sparse pair plotting
+
+Plot style details:
+
+Use matplotlib; no external styles or colors hard-coded (use defaults).
+
+Save PNG and, optionally, small SVG.
+
+Deliverable for Phase 5: all required plots saved under results/<run_id>/plots/.
+
+Phase 6 — Hyperparameter sweep script (separate)
+
+Goal: run_sweep.py that loads the input, loops across r_values, shifts, dtw windows, etc., runs reduction+metrics+lyapunov for each config, and saves a compact summary for each sweep configuration (do not flood with raw per-pair timeseries unless requested).
+
+Files & tasks
+
+run_sweep.py should:
+
+read config.py for sweep lists
+
+create a unique run_id per sweep configuration (e.g. sweep-<paramset>-<timestamp>)
+
+for each combo:
+
+perform reduction (if same reduction repeated many times, cache reduced data to disk)
+
+compute metrics & lyapunov summary
+
+save sweep_summary.csv with columns: r, metric, shift, dtw_window, mean_lyap, std_lyap, notes
+
+produce plots/sweep_exponent_vs_r.png etc.
+
+Implement caching: cache/reduction/<method>_r<r>.pt to avoid recomputation.
+
+Deliverable for Phase 6: working run_sweep.py that runs basic grid sweep and writes sweep plots. Add note in FEATURE_STATUS.md when complete.
+
+Phase 7 — CLI, examples, and documentation
+
+Goal: final wiring: src/cli.py exposes commands: reduce, metrics, lyapunov, run_all, sweep. run_all.py executes the full pipeline with default config. Provide examples/example_run.sh showing commands.
+
+CLI spec examples
+
+Reduce call:
+
+python -m src.cli reduce --method pca --r 128 --input data/hidden_states.pt --out results/<run_id>/pca_reduced_hidden_states.pt
+
+
+Metrics runner:
+
+python -m src.cli metrics --reduced results/<run_id>/pca_reduced_hidden_states.pt --metrics cos,dtw_fast --pairs ref0
+
+
+Run all:
+
+python run_all.py --input data/hidden_states.pt
+
+
+Implement CLI with argparse and ensure all defaults pulled from config.py.
+
+Deliverable for Phase 7: working CLI and run_all.py and example run_all.py that demonstrates pipeline end-to-end.
+
+4. File naming, run_id, and saving policy (explicit)
+
+run_id = timestamp datetime.now().strftime(CONFIG["run_id_format"]) + - + 6 hex chars (random). Example: 20250903-153012-a3f2b1.
+
+Results layout:
+
+results/<run_id>/
+  models/
+    pca_model_r128.pt
+    whitening_params.pt
+  timeseries/
+    0_1_cos.pt            # stored as torch tensor shape (T,)
+  plots/
+    mean_log_vs_time.png
+    pairwise_distance_hist.png
+    pca_explained_variance.png
+    sweep_exponent_vs_r.png
+  metrics.json
+  lyapunov.json
+  raw_for_lyapunov.pt
+  error.log   # on failure
+
+
+Tensor saves:
+
+use torch.save(obj, path) and name files per CONFIG["save"]["tensor_names"].
+
+pca_reduced_hidden_states.pt shape: (N, T, r) if reduction applied to full dataset.
+
+metrics.json format described earlier. lyapunov.json contains slope per pair and aggregate.
+
+5. Status / feature-tracking requirement
+
+Implementers must update FEATURE_STATUS.md when a file or function is implemented, partially implemented, or removed. Use one-line markers in each module's top-level docstring:
+
+# STATUS: PARTIAL  # or DONE / TODO
+
+
+This must match FEATURE_STATUS.md. The supervising developer (you) will review these markers.
+
+6. Implementation nitty-gritty & important algorithmic details
+PCA (GPU SVD)
+
+If CONFIG["reduction"]["pca"]["use_gpu"]:
+
+Flatten input X_flat shape (N*T, D) in float32.
+
+Transfer to GPU in chunks if necessary (watch VRAM).
+
+For full SVD: use torch.linalg.svd(X_centered, full_matrices=False) or torch.svd depending on torch version. If OOM risk, use sklearn.decomposition.IncrementalPCA on CPU.
+
+Whitening
+
+Compute covariance C = cov(X_flat) with numerical stability.
+
+Compute eigen-decomposition using np.linalg.eigh(C) (CPU) or torch.linalg.eigh on GPU.
+
+Compute W_inv_sqrt = V @ diag(1/sqrt(λ+eps)) @ V.T.
+
+Save whiten params to results/<run_id>/models/whitening_params.pt.
+
+Autoencoder placeholder
+
+Contract A (you chose): implement a stub AutoencoderEncoderStub that loads a state_dict from disk and exposes .encode(x) to map (batch, D) -> (batch, r). Document how user will supply their trained state_dict later.
+
+Cos distance with shifts
+
+For each shift s in shifts:
+
+For shift > 0, align a[t] with b[t+s] for overlapping indices; pad missing with NaN and ignore in aggregates.
+
+Compute per-alignment time-series and then aggregate across shifts by taking minimum per time-step (or mean across shifts) — make this behavior configurable.
+
+DTW (fastdtw)
+
+Use fastdtw algorithm with Euclidean distance between vectors. For fastdtw, install via pip install fastdtw.
+
+If user requests exact DTW with a window, use tslearn.metrics.dtw if installed (optional). Provide an API compute_dtw(a,b, window=None, exact=False).
+
+Hausdorff & Fréchet
+
+Hausdorff: symmetric version as above. Return scalar.
+
+Fréchet: discrete dynamic programming algorithm fallback. Complexity O(T^2) — avoid for huge T unless user requests. In sweep script, treat Fréchet as expensive and optional.
+
+Lyapunov pairwise slope
+
+For each pair compute d(t) = ||x1(t) - x0(t)|| (Euclidean in reduced space), then logd(t) = log(d + eps).
+
+For N > 2, compute mean_logd(t) across all non-reference trajectories for reference-based mode.
+
+Fit a linear model logd = a t + b in selected window. Report a as largest Lyapunov per time-step. Compute R² and standard error from linear regression.
+
+Save raw logd(t) and the fitted line parameters.
+
+7. Parallelization & error handling
+
+Use concurrent.futures.ProcessPoolExecutor with max_workers=CONFIG["parallel"]["max_workers"]. Wrap worker function with try/except to capture exceptions and write results/<run_id>/error.log. If a worker fails, save partial results up to that point.
+
+Do not include tqdm progress bars. After completing a major task (e.g., metrics for all pairs), print a short summary line:
+
+Completed metrics: 2016 pairs computed, 2016 saved aggregates, 64 timeseries saved.
+
+8. Deliverable checklist for each implementer LLM (step-by-step)
+
+When you (the supervising dev) run an LLM to implement, instruct them to:
+
+Step 0 (foundation)
+
+Create repo skeleton, config.py, FEATURE_STATUS.md, logger, run_all.py stub. Run python run_all.py — it should load config and print the planned steps (no heavy compute). Mark I/O and scaffold DONE.
+
+Step 1 (I/O & reduction)
+
+Implement loader/saver, whitening fit/apply, PCA (Incremental and optional GPU path), AE stub. Add examples/small_example.pt and demonstrate reduction works and saves pca_reduced_hidden_states.pt. Mark PCA and whitening DONE/PARTIAL as appropriate.
+
+Step 2 (metrics)
+
+Implement cos & dtw_fast first. Validate on small_example.pt. Implement hausdorff & frechet (or fallback). Save aggregates into metrics.json. Mark statuses.
+
+Step 3 (pair runner & parallel exec)
+
+Implement pair_manager and metrics_runner; ensure error handling saves partial outputs and error logs. Test with N=8, T=200 example to check performance.
+
+Step 4 (lyapunov & plotting)
+
+Implement log-distance computation and auto-window detection. Produce plots saved under results/<run_id>/plots. Provide both raw and fitted lines. Mark lyapunov PARTIAL (tuning of detection heuristics may be iterative).
+
+Step 5 (sweep)
+
+Implement run_sweep.py that reads CONFIG sweep values, caches reductions, and writes summary CSV and sweep plots.
+
+Step 6 (finish & docs)
+
+Finalize CLI, docs in README, update FEATURE_STATUS.md, and prepare examples/example_run.sh.
+
+At every commit, ensure:
+
+No hard-coded parameter values — always read CONFIG.
+
+Each implemented function/file includes a # STATUS: DONE or # STATUS: PARTIAL tag and FEATURE_STATUS.md updated.
+
+9. Dependencies (suggested additions to requirements.txt)
+
+Add (if not already installed):
+
+torch>=1.13
+numpy
+scipy
+scikit-learn
+fastdtw
+matplotlib
+tslearn    # optional, used for exact DTW if present
+
+
+If an addition conflicts with your existing requirements.txt, the implementer should detect conflicts and report in FEATURE_STATUS.md and to you before forcing environment changes.
+
+10. Example run_all.py (pseudocode)
+
+Implementer should create runnable script like:
+
+from src.io.loader import load_tensor
+from src.reduce.pca import PCAReducer
+from src.runner.metrics_runner import run_metrics
+from src.runner.lyapunov import estimate_lyapunov
+from src.utils.logging import get_logger
+from config import CONFIG
+import os, time, random
+
+logger = get_logger()
+
+def make_run_id():
+    ts = time.strftime(CONFIG["run_id_format"])
+    suffix = hex(random.getrandbits(24))[2:]
+    return f"{ts}-{suffix}"
+
+def main(input_path=None):
+    run_id = make_run_id()
+    results_dir = os.path.join(CONFIG["results_root"], run_id)
+    os.makedirs(results_dir, exist_ok=True)
+    logger.info(f"Starting run {run_id}")
+
+    X = load_tensor(input_path or CONFIG["input_path"])
+    logger.info("Loaded tensor shape %s", tuple(X.shape))
+
+    # Reduction
+    reducer = PCAReducer(r=CONFIG["reduction"]["pca"]["r_values"][2])  # example default
+    X_reduced = reducer.fit_transform(X.reshape(-1, X.shape[-1])).reshape(X.shape[0], X.shape[1], -1)
+    save_tensor(X_reduced, os.path.join(results_dir, CONFIG["save"]["tensor_names"]["pca"] + ".pt"))
+    logger.info("Reduction done")
+
+    # Metrics
+    metrics_summary = run_metrics(X_reduced, run_id=run_id)
+    logger.info("Metrics complete")
+
+    # Lyapunov
+    lyap = estimate_lyapunov(X_reduced, run_id=run_id)
+    logger.info("Lyapunov done")
+
+    # Save and summary print
+    print("Run complete:", run_id)
+
+
+This is an example; real code should accept CLI args and read config values.
+
+11. Final notes & rules for implementer LLMs
+
+Always read parameter values from config.py. No hard-coded magic numbers allowed in code.
+
+Be explicit: every file or function that is not fully implemented must contain # TODO: PARTIAL and a brief comment describing the missing pieces and a suggested approach. Update FEATURE_STATUS.md.
+
+Make tasks idempotent: reduction step caches to results/<run_id>/models/ so sweeps don't recompute unnecessarily.
+
+Performance care: expensive metrics (Fréchet, exact DTW) should be optional and flagged as “expensive” in metrics.json.
+
+Error handling: on any exception, pipeline saves partial outputs and error.log and exits gracefully.
+
+Plotting: produce both aggregate and per-pair (sparse) plots — default saving policy only saves per-pair time-series for the reference pairs unless explicitly requested.
+
+No tqdm: do not include per-iteration progress bars; print short summaries at task completion.
