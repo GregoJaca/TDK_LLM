@@ -171,7 +171,12 @@ for rrr in Experiment.RADII:
                     closest_ranks.append(closest_idx + 1)
 
                 target = np.arange(1, len(closest_ranks) + 1)
-                dev = np.mean(np.abs(np.array(closest_ranks) - target))
+                arr = np.array(closest_ranks) - target
+                if Analysis.DEVIATION_METRIC.lower() == "rms":
+                    dev = np.sqrt(np.mean(arr**2))
+                else:
+                    # default: mean absolute deviation
+                    dev = np.mean(np.abs(arr))
                 deviations.append(dev)
                 # report generation step as center of window
                 positions.append(start + window_size // 2)
@@ -219,7 +224,12 @@ for rrr in Experiment.RADII:
                 plt.figure(figsize=(8, 4))
                 plt.plot(positions, deviations, marker='o')
                 plt.xlabel('Generation step (center of window)')
-                plt.ylabel('Mean absolute deviation from perfect rank')
+                ylabel = 'Deviation from perfect rank'
+                if Analysis.DEVIATION_METRIC.lower() == "rms":
+                    ylabel += ' (RMS)'
+                else:
+                    ylabel += ' (Mean abs)'
+                plt.ylabel(ylabel)
                 plt.title(f'Trajectory {i} vs {j} — Sliding-window rank deviation')
                 plt.grid(True)
                 plt.tight_layout()

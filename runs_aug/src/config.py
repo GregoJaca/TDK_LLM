@@ -12,7 +12,7 @@ class Default:
     SELECTED_LAYERS = [-1]
 
 class Experiment:
-    RADII = [0.005]
+    RADII = [0.001]
     TEMPS = [0]
     TOP_PS = [1]
     TOP_KS = [1]
@@ -23,6 +23,7 @@ class Analysis:
     SLIDING_WINDOW_SIZE = 16
     SLIDING_WINDOW_DISPLACEMENT = 16
     MINIMUM_VARIANCE_EXPLANATION = 0.9
+    DEVIATION_METRIC = "rms" # 'mad' or 'rms'
 
 # Model Configurations
 class ModelConfig:
