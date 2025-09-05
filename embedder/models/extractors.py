@@ -89,11 +89,33 @@ def _embed_with_transformers_token_windows(model, tokenizer, texts: List[str], c
             results.append(np.zeros((0, model.config.hidden_size), dtype=np.float32))
             continue
         if mode == "sentence":
-            # fallback: use tokenizer to split into sentences via decode windows per sentence is complicated
-            # we will use a single chunk (whole text)
-            encoded = tokenizer(text, return_tensors="pt", truncation=cfg.TOKENIZER_TRUNCATION)
-            input_ids = encoded["input_ids"][0].tolist()
-            windows = [input_ids]
+            # Prefer sentence-level splitting when available. The sentence-transformers path
+            # uses nltk.sent_tokenize; mirror that behavior here so transformer-based models
+            # also produce one vector per sentence instead of one vector per entire text.
+            windows = []
+            if getattr(cfg, "SENTENCE_SPLIT", False):
+                try:
+                    from nltk.tokenize import sent_tokenize
+                    sents = sent_tokenize(text)
+                except Exception:
+                    # fallback to whole-text chunk if sentence tokenizer is unavailable
+                    sents = [text]
+                for s in sents:
+                    if not s or not s.strip():
+                        continue
+                    # encode each sentence as a window (with special tokens)
+                    ids = tokenizer.encode(s, add_special_tokens=True)
+                    windows.append(ids)
+                # if no sentences found, fall back to whole text
+                if len(windows) == 0:
+                    encoded = tokenizer(text, return_tensors="pt", truncation=cfg.TOKENIZER_TRUNCATION)
+                    input_ids = encoded["input_ids"][0].tolist()
+                    windows = [input_ids]
+            else:
+                # no sentence splitting requested: treat whole text as single chunk
+                encoded = tokenizer(text, return_tensors="pt", truncation=cfg.TOKENIZER_TRUNCATION)
+                input_ids = encoded["input_ids"][0].tolist()
+                windows = [input_ids]
         elif mode == "token":
             # token-level: use whole token sequence and produce per-token vectors
             encoded = tokenizer(text, return_tensors="pt", truncation=False, add_special_tokens=True)
@@ -122,7 +144,11 @@ def _embed_with_transformers_token_windows(model, tokenizer, texts: List[str], c
             max_len = len(ids)
             while i < max_len:
                 chunk_ids = ids[i: i + cfg.WINDOW_SIZE_TOKENS]
-                batch = tokenizer.pad({"input_ids": [chunk_ids]}, return_tensors="pt", padding=cfg.TOKENIZER_PADDING, truncation=cfg.TOKENIZER_TRUNCATION).to(device)
+                # tokenizer.pad does not accept a 'truncation' kwarg for pre-tokenized input.
+                # If truncation is requested, manually trim token lists to MAX_LENGTH_TRUNCATE.
+                if cfg.TOKENIZER_TRUNCATION and getattr(cfg, "MAX_LENGTH_TRUNCATE", None):
+                    chunk_ids = chunk_ids[: cfg.MAX_LENGTH_TRUNCATE]
+                batch = tokenizer.pad({"input_ids": [chunk_ids]}, return_tensors="pt", padding=cfg.TOKENIZER_PADDING).to(device)
                 with torch.no_grad():
                     out = model(**batch, output_hidden_states=False, return_dict=True)
                     last_hidden = out.last_hidden_state  # [1, seq, dim]
@@ -145,7 +171,11 @@ def _embed_with_transformers_token_windows(model, tokenizer, texts: List[str], c
             batch_windows = windows[idx: idx + batch_size]
             # Prepare input batch
             # each window is a list of ids; use tokenizer.pad on dict of input_ids
-            batch_inputs = tokenizer.pad({"input_ids": batch_windows}, return_tensors="pt", padding=cfg.TOKENIZER_PADDING, truncation=cfg.TOKENIZER_TRUNCATION)
+            # tokenizer.pad doesn't accept 'truncation' for pre-tokenized input dicts.
+            # When truncation is enabled, pre-truncate each window to MAX_LENGTH_TRUNCATE.
+            if cfg.TOKENIZER_TRUNCATION and getattr(cfg, "MAX_LENGTH_TRUNCATE", None):
+                batch_windows = [w[: cfg.MAX_LENGTH_TRUNCATE] for w in batch_windows]
+            batch_inputs = tokenizer.pad({"input_ids": batch_windows}, return_tensors="pt", padding=cfg.TOKENIZER_PADDING)
             batch_inputs = {k: v.to(device) for k, v in batch_inputs.items()}
             with torch.no_grad():
                 out = model(**batch_inputs, output_hidden_states=False, return_dict=True)

@@ -7,7 +7,7 @@ import os
 
 # Input / output
 INPUT_JSON_PATH = "data/generated_text.json"  # JSON [] array of strings
-OUTPUT_DIR = "outputs"
+OUTPUT_DIR = "outputs"  # directory to write .pt and _meta.json files
 
 # HuggingFace token (optional). If set to None, code will still try to load public models.
 # Recommended: set HF_TOKEN in environment and refer here with os.environ.get("HF_TOKEN")
@@ -15,13 +15,15 @@ HF_TOKEN = os.environ.get("HF_TOKEN", None)
 
 # Model list (order matters for outputs). Use HF ids.
 EMBEDDING_METHODS = [
+    # Sentence level encoders
     "sentence-transformers/all-mpnet-base-v2",
-    # "intfloat/e5-large-v2",
-    # "facebook/contriever",
-    # "facebook/bart-large",
-    # "t5-base",
+    "intfloat/e5-large-v2",
+    "facebook/contriever",
     # "Alibaba-NLP/gte-Qwen2-7B-instruct",
     # "BAAI/bge-large-en-v1.5",
+    # Token level encoders
+    # "facebook/bart-large", # token level
+    # "t5-base", # token level
 ]
 
 # Device setup: 'auto' -> will select cuda if available else cpu
@@ -36,8 +38,8 @@ POOLING = "auto"  # 'auto' -> try model-provided pooling, fallback to mean pooli
 DEFAULT_TIME_MODE = "sentence" # "sliding_windows"
 
 # Sliding window parameters (token-level windows)
-WINDOW_SIZE_TOKENS = 64
-WINDOW_STRIDE_TOKENS = 64
+WINDOW_SIZE_TOKENS = 16
+WINDOW_STRIDE_TOKENS = 1
 
 # Prefix parameters: embed cumulative prefixes with steps of this many tokens
 PREFIX_STEP_TOKENS = 8
@@ -47,9 +49,8 @@ SENTENCE_SPLIT = True
 
 # Padding / truncation policy:
 # "pad" -> pad sequences to max length per-method
-# "truncate" -> truncate sequences to MAX_LENGTH_TRUNCATE
-PADDING_POLICY = "pad"
-MAX_LENGTH_TRUNCATE = 256  # only used if PADDING_POLICY == "truncate"
+PADDING_POLICY = "truncate" # "pad" or "truncate"
+MAX_LENGTH_TRUNCATE = 1024  # only used if PADDING_POLICY == "truncate"
 
 # Pooling normalization and dtype
 L2_NORMALIZE = False  # default: no normalization (you asked default off)
@@ -57,7 +58,7 @@ DTYPE = "float32"  # "float32" or "float16"
 
 # Batch sizes and memory controls (tweak as needed)
 BATCH_SIZE = 32        # general batch size for sentence-level / moderate models
-LARGE_MODEL_BATCH_SIZE = 4  # for large models like qwen, bge if running on limited GPU
+LARGE_MODEL_BATCH_SIZE = 8  # for large models like qwen, bge if running on limited GPU
 
 # Trust remote code when loading model (required for some third-party HF repos)
 TRUST_REMOTE_CODE = True

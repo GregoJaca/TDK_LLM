@@ -19,11 +19,18 @@ class Experiment:
 
 class Analysis:
     SAVE_PLOTS = True
-    PAIRS_TO_PLOT = [[0, 1], [0, -1], [1, 2]]
-    SLIDING_WINDOW_SIZE = 16
-    SLIDING_WINDOW_DISPLACEMENT = 16
+    PAIRS_TO_PLOT = [[0, 1], [0, 2], [0, 3]]
+    # PAIRS_TO_PLOT = [[0, 1], [0, 2], [0, 3], [1, 3], [3, 2], [1, 2]]
+    SLIDING_WINDOW_SIZE = 8
+    SLIDING_WINDOW_DISPLACEMENT = 1
     MINIMUM_VARIANCE_EXPLANATION = 0.9
     DEVIATION_METRIC = "rms" # 'mad' or 'rms'
+    # If False, skip loading and plotting hypervolume and axis lengths
+    PLOT_HYPER_AND_AXIS = False
+    # Toggle whether to run the local dimensionality sliding-SVD analysis
+    RUN_LOCAL_DIMENSIONALITY = False
+    # Toggle whether to run the rank-eigenvector comparison (full and sliding)
+    RUN_RANK_EIGENVECTORS = True
 
 # Model Configurations
 class ModelConfig:
