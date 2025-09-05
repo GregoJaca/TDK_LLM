@@ -1,0 +1,76 @@
+Developer notes / unresolved items / potential improvements
+==========================================================
+
+1) Large models & environment
+-----------------------------
+- Some of the configured models (e.g., Alibaba-NLP/gte-Qwen2-7B-instruct, BAAI/bge-large-en-v1.5, intfloat/e5-large-v2)
+  may require substantial GPU memory (the Qwen/BGE models are large). The pipeline attempts to load every model
+  and will skip a model and print a clear message if loading fails (config.ON_LOAD_FAIL controls behavior).
+- You indicated you will run on a Tesla T4 for production. T4 has 16GB VRAM — that is often sufficient for models
+  up to ~7B with optimizations (and depending on architectures), but large models may still OOM. Consider:
+    - using model sharding / accelerate / bitsandbytes 8-bit loading for memory savings,
+    - or using reduced batch sizes (LARGE_MODEL_BATCH_SIZE) or CPU offload.
+
+2) Pooling & model-provided embedding heads
+-------------------------------------------
+- The code attempts to use model-provided pooling if available (e.g., `model.get_sentence_embedding` or `model.pooler`).
+  However, support across HF models is inconsistent. The robust fallback implemented is mean-pooling of the encoder's
+  `last_hidden_state` using attention_mask.
+- If you have access to specific model wrappers that expose an `.encode()` or a specialized pooling implementation,
+  hooking them into the `models/extractors.py` in the `make_transformer_extractor` factory will produce higher-quality
+  embeddings for those models.
+
+3) Token-window decoding for text-based encoders
+------------------------------------------------
+- Sliding windows and prefix embeddings are implemented token-wise (via token ids) and the pipeline encodes windows
+  by passing token ids to the model (or decoding to text when using sentence-transformers). This approach works but
+  could be improved:
+    - For sentence-transformers, decoding token windows to text and re-encoding can produce subtle tokenization mismatches.
+    - For better consistency across models, you can keep everything in token-id space and forward models directly with
+      input_ids (already implemented for transformer-based extractors).
+
+4) Token-level outputs (BART/T5)
+-------------------------------
+- For token-level mode the implementation chunks the token sequence and concatenates encoder outputs to build a
+  per-token sequence embedding. This is memory-sensitive for very long texts. Consider:
+    - truncating long sequences via config.MAX_LENGTH_TRUNCATE, or
+    - using hierarchical chunking with pooling to reduce dimensionality.
+
+5) Sentence splitting
+---------------------
+- Only english sentence splitting via nltk.sent_tokenize is implemented (per your request).
+- If you need robust multilingual splitting later, consider spaCy or neural splitters.
+
+6) Normalization & dtype
+------------------------
+- By default L2 normalization is disabled (as requested). If you plan to use cosine distance in downstream analysis,
+  enabling L2 normalization before saving may be convenient.
+- Default dtype is float32. Float16 saving on CPU may be problematic, so float16 option is present but use with care.
+
+7) Performance & batching
+-------------------------
+- There is a single general batching mechanism in extractors. For heavy workloads consider:
+    - Different batch sizes per model (config.LARGE_MODEL_BATCH_SIZE can be tuned),
+    - Mixed precision (AMP) when running on GPU,
+    - Using `sentence-transformers` optimized encode for those models.
+
+8) Extensibility
+----------------
+- To add a new model or a specialized loading procedure:
+    - Add model id to config.EMBEDDING_METHODS
+    - Extend `models/extractors.py` with an optimized extractor or update the fallback pooling logic
+
+9) Logging / progress
+---------------------
+- As requested, no tqdm bars are used. The script prints high-level messages when steps finish.
+  If you prefer structured logs, integrate Python `logging` with desired verbosity.
+
+10) Testing recommendations
+---------------------------
+- Test first with a small JSON (2-4 short strings) on CPU to confirm model loading and outputs.
+- Then test on the Tesla T4 for larger models. Tune `LARGE_MODEL_BATCH_SIZE` if you experience OOM.
+
+If you'd like, I can add:
+ - optional wrappers for bitsandbytes 8-bit loading,
+ - accelerate integration for multi-GPU / offload,
+ - explicit tests and CI-friendly small testcases.

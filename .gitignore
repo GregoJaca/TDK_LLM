@@ -2,3 +2,8 @@
 *.pyc
 *.png
 *.json
+*summary.txt
+*.bat
+*.csv
+autoencoder_trying.py
+.gitignore
