@@ -5,3 +5,4 @@ scikit-learn
 fastdtw
 matplotlib
 tslearn
+fred-frechet

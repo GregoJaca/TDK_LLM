@@ -52,8 +52,11 @@ def compare_trajectories(
                 # compute symmetric per-window Hausdorff via per-point mins
                 a_to_b = per_point_min_dists(wa, wb)
                 b_to_a = per_point_min_dists(wb, wa)
-                # use maximum of mean distances as a representative
-                val = max(np.mean(a_to_b), np.mean(b_to_a))
+                aggregation_method = CONFIG["metrics"]["hausdorff"].get("aggregation", "max_of_mean")
+                if aggregation_method == "mean_of_max":
+                    val = np.mean([np.max(a_to_b), np.max(b_to_a)])
+                else: # Default to max_of_mean
+                    val = max(np.mean(a_to_b), np.mean(b_to_a))
                 values.append(val)
                 centers.append(start + window_size // 2)
 

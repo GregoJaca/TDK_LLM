@@ -5,6 +5,12 @@ import os
 from config import CONFIG
 
 try:
+    import fred.fr_dist
+    FRED_AVAILABLE = True
+except ImportError:
+    FRED_AVAILABLE = False
+
+try:
     from frechetdist import frdist
     FRECHETDIST_AVAILABLE = True
 except ImportError:
@@ -68,7 +74,11 @@ def compare_trajectories(
     displacement = kwargs.get("displacement", sw.get("displacement", 1))
 
     timeseries = None
-    if FRECHETDIST_AVAILABLE and not use_window:
+    if FRED_AVAILABLE and not use_window:
+        distance = fred.fr_dist(a, b)
+        aggregates = {"frechet_distance": distance}
+        return None, aggregates
+    elif FRECHETDIST_AVAILABLE and not use_window:
         distance = frdist(a, b)
         aggregates = {"frechet_distance": distance}
         # No alignment path available from frchetdist wrapper

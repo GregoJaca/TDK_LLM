@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 CONFIG = {
     # IO
-    "input_path": "C:/Users/grego/OneDrive/Documents/BME_UNI_WORK/TDK_2025/git_repo/TDK_LLM/runs_aug/run_0_0.001/sentence-transformers_all-mpnet-base-v2.pt",   # path to input tensor (n, T, D)
+    "input_path": "C:/Users/grego/OneDrive/Documents/BME_UNI_WORK/TDK_2025/git_repo/TDK_LLM/runs_aug/run_0_0.0001/sentence-transformers_all-mpnet-base-v2.pt",   # path to input tensor (n, T, D)
     "run_id_format": "%Y%m%d-%H%M%S",        # used with random suffix
     "results_root": "results",               # root folder for outputs
 
@@ -20,13 +20,13 @@ CONFIG = {
         },
         "whiten": {
             "eps": 1e-10,
-            "compute_on": "all",   # "all" or "per_trajectory"
+            "compute_on": "all",   # "all" or "per_trajectory" XX
         },
         "autoencoder": {
             "contract": "module_state_dict",  # A: nn.Module's state_dict
             "latent_fixed": True,
         },
-        "compute_on": "per_trajectory"  # "all" or "per_trajectory" - user choice
+        "compute_on": "per_trajectory"  # "all" or "per_trajectory" XX
     },
 
     # Metrics
@@ -44,6 +44,7 @@ CONFIG = {
             "enabled": True,
             "aggregate": ["mean", "median", "std"],
             "shifts": [0, 5],   # absolute steps to sweep; included in sweep script
+            "shift_aggregation": "min", # "min", "mean"
             "default_max_shift": 5,
         },
         "dtw": {
@@ -52,7 +53,8 @@ CONFIG = {
         },
         "hausdorff": {
             "enabled": True,
-            "symmetric": True # XX
+            "symmetric": True, # XX
+            "aggregation": "max_of_mean" # "max_of_mean", "mean_of_max"
         },
         "frechet": {
             "enabled": True,
@@ -121,7 +123,7 @@ CONFIG = {
 
     # Plotting options
     "plots": {
-        "save_histograms": False,
+        "save_histograms": True,
         "save_timeseries": True,
     },
 

@@ -64,8 +64,11 @@ def compare_trajectories(
         all_distances.append(padded_dist)
 
     # Aggregate across shifts (e.g., take the minimum distance at each timestep)
-    # This part is a placeholder for a more configurable aggregation strategy
-    final_distances = np.nanmin(np.array(all_distances), axis=0)
+    aggregation_method = CONFIG["metrics"]["cos"].get("shift_aggregation", "min")
+    if aggregation_method == "mean":
+        final_distances = np.nanmean(np.array(all_distances), axis=0)
+    else: # Default to min
+        final_distances = np.nanmin(np.array(all_distances), axis=0)
 
     aggregates = {
         "mean": np.nanmean(final_distances),
