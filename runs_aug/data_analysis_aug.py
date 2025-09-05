@@ -144,28 +144,59 @@ for rrr in Experiment.RADII:
 
 
         # --- Rank Eigenvectors of pairs of trajectories ---
+        def sliding_window_rank_deviation(t1, t2, window_size=None, displacement=None):
+            window_size = window_size or Analysis.SLIDING_WINDOW_SIZE
+            displacement = displacement or Analysis.SLIDING_WINDOW_DISPLACEMENT
+
+            min_len = min(t1.shape[0], t2.shape[0])
+            if min_len < window_size:
+                return np.array([]), np.array([])
+
+            deviations = []
+            positions = []
+            for start in range(0, min_len - window_size + 1, displacement):
+                w1 = t1[start:start + window_size]
+                w2 = t2[start:start + window_size]
+
+                # number of components to compare (don't exceed hidden dim)
+                k = min(window_size, w1.shape[1])
+                v1 = compute_pca_eigenvectors(w1, k=k)
+                v2 = compute_pca_eigenvectors(w2, k=k)
+
+                sim = cosine_sim_matrix(v1, v2)  # [k, k]
+                closest_ranks = []
+                for ii in range(sim.shape[0]):
+                    _, indices = torch.sort(sim[ii], descending=True)
+                    closest_idx = indices[0].item()
+                    closest_ranks.append(closest_idx + 1)
+
+                target = np.arange(1, len(closest_ranks) + 1)
+                dev = np.mean(np.abs(np.array(closest_ranks) - target))
+                deviations.append(dev)
+                # report generation step as center of window
+                positions.append(start + window_size // 2)
+
+            return np.array(positions), np.array(deviations)
+
+
         for i, j in Analysis.PAIRS_TO_PLOT:
             t1, t2 = trajectories[i], trajectories[j]
 
-            # Clip to same length
+            # Clip to same length for the full-traj comparison
             min_len = min(t1.shape[0], t2.shape[0])
-            t1, t2 = t1[:min_len], t2[:min_len]
+            t1_full, t2_full = t1[:min_len], t2[:min_len]
 
-            # Compute PCA eigenvectors
-            v1 = compute_pca_eigenvectors(t1)
-            v2 = compute_pca_eigenvectors(t2)
+            # Compute PCA eigenvectors (full trajectory)
+            v1 = compute_pca_eigenvectors(t1_full)
+            v2 = compute_pca_eigenvectors(t2_full)
 
-            # Plot cross-rank
-            # Compute cosine similarity between eigenvectors
-            sim_matrix = cosine_sim_matrix(v1, v2)  # [D1, D2]
+            # Plot cross-rank for full trajectories
+            sim_matrix = cosine_sim_matrix(v1, v2)
             closest_ranks = []
-
             for ii in range(sim_matrix.shape[0]):
-                # Rank of trajectory j's vectors by similarity to i-th of traj1
                 _, indices = torch.sort(sim_matrix[ii], descending=True)
-                # Index of the most similar vector
                 closest_idx = indices[0].item()
-                closest_ranks.append(closest_idx + 1)  # 1-based indexing
+                closest_ranks.append(closest_idx + 1)
 
             plt.figure(figsize=(6, 6))
             plt.scatter(range(1, len(closest_ranks) + 1), closest_ranks, marker='o')
@@ -181,3 +212,19 @@ for rrr in Experiment.RADII:
                 plt.clf()
             else:
                 plt.show()
+
+            # --- Sliding window rank deviation ---
+            positions, deviations = sliding_window_rank_deviation(t1, t2)
+            if positions.size > 0:
+                plt.figure(figsize=(8, 4))
+                plt.plot(positions, deviations, marker='o')
+                plt.xlabel('Generation step (center of window)')
+                plt.ylabel('Mean absolute deviation from perfect rank')
+                plt.title(f'Trajectory {i} vs {j} — Sliding-window rank deviation')
+                plt.grid(True)
+                plt.tight_layout()
+                if Analysis.SAVE_PLOTS:
+                    plt.savefig(os.path.join(PLOTS_DIR, f"rank_eigen_pca_{i}_{j}_sliding.png"))
+                    plt.clf()
+                else:
+                    plt.show()
