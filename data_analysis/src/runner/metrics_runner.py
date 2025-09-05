@@ -3,12 +3,13 @@ import os
 import json
 from typing import Dict
 import numpy as np
+import torch
 
 from config import CONFIG
 from src.runner.pair_manager import get_pairs
 from src.utils.parallel import map_pairs
 from src.io.saver import save_tensor
-from src.metrics import cos, dtw_fast, hausdorff, frechet, cross_cos
+from src.metrics import cos, dtw_fast, hausdorff, frechet, cross_cos, rank_eigen, cross_corr
 
 METRIC_FUNCTIONS = {
     "cos": cos.compare_trajectories,
@@ -16,12 +17,26 @@ METRIC_FUNCTIONS = {
     "hausdorff": hausdorff.compare_trajectories,
     "frechet": frechet.compare_trajectories,
     "cross_cos": cross_cos.compare_trajectories,
+    "rank_eigen": rank_eigen.compare_trajectories,
+    "cross_corr": cross_corr.compare_trajectories,
 }
 
 def _compute_metric_for_pair(pair, trajectories, metrics_to_run, results_dir):
     i, j = pair
     traj_a = trajectories[i]
     traj_b = trajectories[j]
+
+    # Convert torch Tensors to numpy arrays for metric functions that expect numpy
+    try:
+        if isinstance(traj_a, torch.Tensor):
+            traj_a = traj_a.cpu().numpy()
+    except Exception:
+        pass
+    try:
+        if isinstance(traj_b, torch.Tensor):
+            traj_b = traj_b.cpu().numpy()
+    except Exception:
+        pass
     pair_results = {}
     pair_id = f"{i}_{j}"
     plots_dir = os.path.join(results_dir, "plots")
@@ -29,10 +44,29 @@ def _compute_metric_for_pair(pair, trajectories, metrics_to_run, results_dir):
 
     for metric_name in metrics_to_run:
         if metric_name in METRIC_FUNCTIONS:
+            if CONFIG["logging"]["enabled"]:
+                print(f"[metrics_runner] computing metric '{metric_name}' for pair {pair}")
             try:
                 # Pass pair-specific identifiers and output root so metrics can save per-pair plots
                 timeseries, aggregates = METRIC_FUNCTIONS[metric_name](traj_a, traj_b, pair_id=pair_id, out_root=plots_dir)
+
+                # Normalize scalar aggregates to standard keys so summaries/plots work uniformly
+                if not any(k in aggregates for k in ("mean", "median", "std")):
+                    # try to find a single numeric value in aggregates
+                    numeric_vals = [v for v in aggregates.values() if isinstance(v, (int, float, np.floating, np.integer))]
+                    if len(numeric_vals) == 1:
+                        val = float(numeric_vals[0])
+                        aggregates = {"mean": val, "median": val, "std": 0.0, **aggregates}
+                        if CONFIG["logging"]["enabled"]:
+                            print(f"[metrics_runner] Normalized scalar aggregates for metric '{metric_name}' on pair {pair} -> mean/median/std")
+                    else:
+                        # no numeric scalar found; leave as-is but warn
+                        if CONFIG["logging"]["enabled"]:
+                            print(f"[metrics_runner] Warning: metric '{metric_name}' returned aggregates without mean/median/std for pair {pair}: keys={list(aggregates.keys())}")
+
                 pair_results[metric_name] = aggregates
+                if CONFIG["logging"]["enabled"]:
+                    print(f"[metrics_runner] computed '{metric_name}' for pair {pair}; aggregates keys={list(aggregates.keys())}")
 
                 # Save timeseries if configured
                 if timeseries is not None and CONFIG["pairwise"]["save_all_pair_timeseries"]:
@@ -41,10 +75,14 @@ def _compute_metric_for_pair(pair, trajectories, metrics_to_run, results_dir):
                     ts_filename = f"{i}_{j}_{metric_name}.pt"
                     save_tensor(timeseries, os.path.join(ts_dir, ts_filename))
             except Exception as e:
-                print(f"Could not compute metric {metric_name} for pair {pair}: {e}")
+                if CONFIG["logging"]["enabled"]:
+                    print(f"Could not compute metric {metric_name} for pair {pair}: {e}")
+                import traceback
+                traceback.print_exc()
                 pair_results[metric_name] = {"error": str(e)}
         else:
-            print(f"Unknown metric: {metric_name}")
+            if CONFIG["logging"]["enabled"]:
+                print(f"Unknown metric: {metric_name}")
 
     return (pair, pair_results)
 
@@ -57,23 +95,38 @@ def run_metrics(trajectories: np.ndarray, run_id: str) -> Dict:
     cfg_metrics = CONFIG.get("metrics", {})
     declared = cfg_metrics.get("available", [])
     metrics_to_run = []
-    for m in declared:
-        # Look up metric config; support aliases like 'dtw' -> 'dtw_fast'
-        m_cfg = cfg_metrics.get(m, None)
-        if m_cfg is None:
-            # try base name (before underscore) as alias
-            base = m.split('_')[0]
-            m_cfg = cfg_metrics.get(base, None)
+    # Select metrics that both declared in CONFIG and have implementations in METRIC_FUNCTIONS.
+    for metric_name in METRIC_FUNCTIONS.keys():
+        # Only consider metrics the user declared in CONFIG['metrics']['available']
+        if metric_name not in declared:
+            continue
 
+        # Look up config for this metric using name or base alias
+        base = metric_name.split('_')[0]
+        m_cfg = cfg_metrics.get(metric_name, None) or cfg_metrics.get(base, None) or CONFIG.get(metric_name, None) or CONFIG.get(base, None)
+
+        # If we found a dict-like config, respect its 'enabled' flag (default True)
         if isinstance(m_cfg, dict):
             if m_cfg.get("enabled", True):
-                metrics_to_run.append(m)
+                metrics_to_run.append(metric_name)
         else:
-            # If no per-metric config, include by default
-            metrics_to_run.append(m)
+            # If no config object was found anywhere, include the metric by default.
+            if m_cfg is None or bool(m_cfg):
+                metrics_to_run.append(metric_name)
+
+    # Warn about declared metrics that have no implementation
+    for m in declared:
+        if m not in METRIC_FUNCTIONS:
+            if CONFIG["logging"]["enabled"]:
+                print(f"[metrics_runner] Warning: metric '{m}' declared in CONFIG but has no implementation and will be skipped.")
 
     pairs = get_pairs(trajectories.shape[0], pairing_mode)
-    
+
+    # DEBUG: report selection
+    if CONFIG["logging"]["enabled"]:
+        print(f"[metrics_runner] pairing_mode={pairing_mode}, declared={declared}")
+        print(f"[metrics_runner] metrics_to_run={metrics_to_run}")
+
     # Use a lambda to pass additional arguments to the worker function
     worker_func = lambda pair: _compute_metric_for_pair(pair, trajectories, metrics_to_run, results_dir)
 
@@ -97,5 +150,46 @@ def run_metrics(trajectories: np.ndarray, run_id: str) -> Dict:
         with open(os.path.join(results_dir, "metrics.json"), "w") as f:
             json.dump(final_results, f, indent=4)
 
-    print(f"Completed metrics: {len(pairs)} pairs computed.")
+    if CONFIG["logging"]["enabled"]:
+        print(f"Completed metrics: {len(pairs)} pairs computed.")
     return final_results
+
+
+def main(run_id: str, reduced_tensor: torch.Tensor):
+    """Main function to run metrics on a reduced tensor."""
+    if CONFIG["logging"]["enabled"]:
+        print(f"Starting metrics computation for run_id: {run_id}")
+    try:
+        results = run_metrics(reduced_tensor, run_id)
+        if CONFIG["logging"]["enabled"]:
+            print("Metrics computation complete.")
+        return results
+    except Exception as e:
+        if CONFIG["logging"]["enabled"]:
+            print(f"An error occurred during metrics computation: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
+
+if __name__ == "__main__":
+    # Example usage:
+    # python -m src.runner.metrics_runner <run_id> <path_to_reduced_tensor>
+    import sys
+    if len(sys.argv) != 3:
+        print("Usage: python -m src.runner.metrics_runner <run_id> <path_to_reduced_tensor>")
+        sys.exit(1)
+
+    run_id_arg = sys.argv[1]
+    tensor_path_arg = sys.argv[2]
+
+    # Load the tensor
+    try:
+        tensor_to_process = torch.load(tensor_path_arg)
+        if CONFIG["logging"]["enabled"]:
+            print(f"Loaded tensor from {tensor_path_arg} with shape: {tensor_to_process.shape}")
+    except Exception as e:
+        if CONFIG["logging"]["enabled"]:
+            print(f"Failed to load tensor from {tensor_path_arg}: {e}")
+        sys.exit(1)
+
+    main(run_id_arg, tensor_to_process)

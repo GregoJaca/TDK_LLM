@@ -56,6 +56,8 @@ def main(input_path=None):
         input_path = "examples/small_example.pt"
 
     X = load_tensor(input_path)
+    # Log the input tensor path and shape so it's clear which file was used
+    logger.info("Loaded tensor file: %s", input_path)
     logger.info("Loaded tensor shape %s", tuple(X.shape))
 
     # Reduction
@@ -64,7 +66,7 @@ def main(input_path=None):
         reducer = PCAReducer(r=CONFIG["reduction"]["pca"]["r_values"][0])  # example default r=16
         X_reduced = reducer.fit_transform(X.numpy())
         if CONFIG["save"]["save_reduced_tensors"]:
-            save_tensor(torch.from_numpy(X_reduced), os.path.join(results_dir, CONFIG["save"]["tensor_names"]["pca"] + ".pt"))
+            save_tensor(torch.from_numpy(X_reduced), os.path.join(results_dir, CONFIG["save"]["tensor_names"]["pca"] + "." + CONFIG["save"]["tensor_save_format"]))
             logger.info("Reduction done")
         else:
             logger.info("Reduction done (saving of reduced tensors skipped as per config).")
@@ -88,8 +90,15 @@ def main(input_path=None):
     else:
         logger.info("No metrics declared in config; skipping metrics.")
 
-    # Plotting for all metrics in config
-    for metric_name in CONFIG["metrics"]["available"]:
+    # Plotting for metrics that were actually computed (prefer metrics_summary),
+    # fall back to CONFIG["metrics"]["available"] if needed.
+    metrics_list_for_plots = None
+    if metrics_summary and "config" in metrics_summary and "metrics" in metrics_summary["config"]:
+        metrics_list_for_plots = metrics_summary["config"]["metrics"]
+    else:
+        metrics_list_for_plots = CONFIG["metrics"]["available"]
+
+    for metric_name in metrics_list_for_plots:
         for agg_type in ["mean", "median", "std"]:
             plot_path = os.path.join(plots_dir, f"pairwise_distance_hist_{metric_name}_{agg_type}.png")
             plot_pairwise_distance_distribution(metrics_summary, plot_path, metric_name=metric_name, aggregate_type=agg_type)
@@ -120,7 +129,9 @@ def main(input_path=None):
         summary_lines.append("  PCA not run or not available.")
     summary_lines.append("")
     summary_lines.append("Metrics Summary:")
-    for metric_name in CONFIG["metrics"]["available"]:
+    # Use the computed metrics list when available for the summary aggregation
+    metrics_for_summary = metrics_list_for_plots
+    for metric_name in metrics_for_summary:
         metric_means = []
         metric_medians = []
         metric_stds = []

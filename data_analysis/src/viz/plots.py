@@ -6,7 +6,7 @@ from config import CONFIG
 def plot_pairwise_distance_distribution(aggregates, outpath, metric_name="cos", aggregate_type="mean"):
     """Plots a histogram of the distances for a specific metric and aggregate type."""
     # Respect global plot saving configuration
-    if not CONFIG.get("plots", {}).get("save_histograms", True):
+    if not CONFIG["plots"].get("save_histograms", True):
         return
 
     distances = []
@@ -150,15 +150,53 @@ def plot_hyperparam_sweep(sweep_results_df, outpath_prefix):
             plt.savefig(f'{outpath_prefix}_{col_name}_heatmap.png')
             plt.close()
 
-def plot_time_series_for_pair(pair_timeseries, outpath):
+def plot_time_series_for_pair(pair_timeseries, outpath, title="Distance Timeseries for a Pair", ylabel="Distance"):
     """Plots a distance timeseries for a single pair."""
     plt.figure(figsize=(8, 4))
     # Thinner lines, smaller markers, and slight transparency to reduce visual collision
     plt.plot(pair_timeseries, marker='o', markersize=3, linewidth=1.0, alpha=0.75)
-    plt.title("Distance Timeseries for a Pair")
+    plt.title(title)
     plt.xlabel("Time")
-    plt.ylabel("Distance")
+    plt.ylabel(ylabel)
     plt.grid(alpha=0.25)
+    plt.tight_layout()
+    plt.savefig(outpath)
+    plt.close()
+
+
+def plot_rank_eigen_full(closest_ranks, outpath, traj_indices=None):
+    """Scatter plot of eigenvector rank mapping for full trajectories."""
+    plt.figure(figsize=(6, 6))
+    plt.scatter(range(1, len(closest_ranks) + 1), closest_ranks, marker='o')
+    plt.plot([1, len(closest_ranks)], [1, len(closest_ranks)], 'k--', label="Perfect Match")
+    xlabel = f"Eigenvector Rank"
+    ylabel = f"Rank of Closest Match"
+    if traj_indices:
+        xlabel = f"Eigenvector Rank (pair {traj_indices})"
+        ylabel = f"Rank of Closest Match (pair {traj_indices})"
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
+    plt.title(f"Eigenvector ranking using Cosine similarity")
+    plt.grid(True)
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(outpath)
+    plt.close()
+
+
+def plot_rank_eigen_sliding(positions, deviations, outpath, metric_cfg=None):
+    """Line plot for sliding-window rank deviation."""
+    plt.figure(figsize=(8, 4))
+    plt.plot(positions, deviations, marker='o')
+    plt.xlabel('Generation step (center of window)')
+    ylabel = 'Deviation from perfect rank'
+    if metric_cfg and metric_cfg.get('deviation_metric', 'rms').lower() == 'rms':
+        ylabel += ' (RMS)'
+    else:
+        ylabel += ' (Mean abs)'
+    plt.ylabel(ylabel)
+    plt.title('Sliding-window rank deviation')
+    plt.grid(True)
     plt.tight_layout()
     plt.savefig(outpath)
     plt.close()

@@ -2,29 +2,15 @@
 from datetime import timedelta
 from dataclasses import dataclass
 
-
-@dataclass
-class CrossCosParams:
-    use_window: bool = False
-    window_size: int = 5
-    window_stride: int = 1
-
 CONFIG = {
     # IO
-    # "input_path": "C:/Users/grego/OneDrive/Documents/BME_UNI_WORK/TDK_2025/code_LLM/new/embedder/outputs/sentence-transformers_all-mpnet-base-v2.pt", # 
-    "input_path": "C:/Users/grego/OneDrive/Documents/BME_UNI_WORK/TDK_2025/git_repo/TDK_LLM/runs_aug/run_0_0.001/hidden_states_layer_-1.pt",   # path to input tensor (n, T, D)
-    "tensor_save_format": "pt",              # "pt" expected
+    "input_path": "C:/Users/grego/OneDrive/Documents/BME_UNI_WORK/TDK_2025/git_repo/TDK_LLM/runs_aug/run_0_0.001/sentence-transformers_all-mpnet-base-v2.pt",   # path to input tensor (n, T, D)
     "run_id_format": "%Y%m%d-%H%M%S",        # used with random suffix
     "results_root": "results",               # root folder for outputs
 
-    # Data shape expectations (informational)
-    "expected_shape_min": [16, 3000, 1536],
-    "expected_shape_max": [100, 10000, 1536],
-
     # Reduction
     "reduction": {
-        # "methods": ["pca", "whiten", "autoencoder"],  # order of supported techniques
-        "methods": ["none"],  # order of supported techniques
+        "methods": ["none"],  # ["pca", "whiten", "autoencoder"]
         "default_method": "pca",
         "pca": {
             "enabled": False,
@@ -45,35 +31,47 @@ CONFIG = {
 
     # Metrics
     "metrics": {
-        "available": ["cos", "dtw_fast", "hausdorff", "frechet", "cross_cos"],
+        "available": ["cos", "dtw_fast", "hausdorff", "frechet", "cross_cos", "rank_eigen", "cross_corr"],
+        "save_plots": True,
+        "pairs_to_plot": [[0, 1], [2, 3]],
+        "rank_eigen": {
+            "enabled": True,
+            "deviation_metric": "rms",
+            "run_rank_eigenvectors": True
+        },
         "default_pairing": "ref0",   # "all" or "ref0"
         "cos": {
-            "enabled": False,
+            "enabled": True,
             "aggregate": ["mean", "median", "std"],
             "shifts": [0, 5],   # absolute steps to sweep; included in sweep script
             "default_max_shift": 5,
         },
         "dtw": {
-            "enabled": False,
-            "use_fastdtw": True,
-            "window_sizes": [None, 0.05, 0.20],  # proportion of T; optional exact DTW
+            "enabled": True,
+            "use_fastdtw": True, # why is this not being used anywhere ??
         },
         "hausdorff": {
-            "enabled": False,
-            "symmetric": True
+            "enabled": True,
+            "symmetric": True # XX
         },
         "frechet": {
-            "enabled": False,
-            "discrete": True
+            "enabled": True,
+            "discrete": True # XX
+        },
+        "cross_corr": {
+            "enabled": True,
+            "correlation_type": "pearson" # "pearson" or "spearman"
+        },
+        "cross_cos": {
+            "enabled": True,
         }
     },
-    # Cross cosine similarity metric settings
-    "cross_cos": {
-        "enabled": True,
+
+    # Unified sliding-window parameters used by metrics that support sliding analysis
+    "sliding_window": {
         "use_window": True,
-        "window_size": 64,
-        "window_stride": 8,
-        "params": CrossCosParams(),
+        "window_size": 8,
+        "displacement": 1,
     },
 
     # Pair computations
@@ -86,18 +84,15 @@ CONFIG = {
 
     # Lyapunov (fast pairwise slope)
     "lyapunov": {
-    "enabled": False,
+    "enabled": True,
         "method": "pairwise_slope",
         "linear_window": {
             "auto_detect": True,
-            "min_window_len": 5,
+            "min_window_len": 20,
             "r2_threshold": 0.9,   # heuristic, not strict
         },
         "initial_time_cutoff_frac": 0.25,  # default region to examine for slope-fitting
     },
-
-    
-
 
     # Parallel & performance
     "parallel": {
@@ -119,21 +114,22 @@ CONFIG = {
             "autoencoder": "ae_reduced_hidden_states"
         },
         "save_format": "pt",
-        "save_reduced_tensors": False
+        "save_reduced_tensors": False,
+        "tensor_save_format": "pt",
     },
-    # Whether to write metrics.json after metric computation
     "save_metrics_json": False,
 
     # Plotting options
     "plots": {
-        # If False, histogram plots for distributions will not be saved
         "save_histograms": False,
+        "save_timeseries": True,
     },
 
     # Logging
     "logging": {
         "level": "INFO",
-        "quiet_during_tasks": True  # no per-iteration progress bars; print summary after tasks
+        "quiet_during_tasks": True,  # no per-iteration progress bars; print summary after tasks
+        "enabled": False
     },
 
     # Misc

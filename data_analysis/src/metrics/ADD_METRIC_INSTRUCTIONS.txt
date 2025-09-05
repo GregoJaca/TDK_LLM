@@ -1,0 +1,51 @@
+Purpose
+
+This short guide tells another LLM (or developer) exactly where and how to add a new metric to this repository so it integrates correctly with the pipeline.
+
+High-level contract for a metric module
+- Module path: `src/metrics/<metric_name>.py` (module name == metric key used in config when possible).
+- Export one function with signature:
+  `compare_trajectories(a, b, *, return_timeseries=True, pair_id=None, out_root=None, **kwargs) -> (timeseries_or_None, aggregates_dict)`
+  - `a`, `b`: either numpy arrays (T, D) or torch.Tensor; accept both.
+  - `timeseries_or_None`: 1D numpy array of per-window or alignment-step values, or None.
+  - `aggregates_dict`: should ideally contain `"mean"`, `"median"`, `"std"` (floats). If only a single scalar exists, return it under a descriptive key (runner will normalize a single numeric value into mean/median/std).
+  - Accept `pair_id` and `out_root` for saving plots; respect global config flags before writing files.
+
+Files/places to update
+1. `config.py`
+   - Add the metric name to `CONFIG["metrics"]["available"]`.
+   - Add a per-metric config under `CONFIG["metrics"]["<base_name>"]` (for enabled flag and metric-specific params). You may also add a top-level `CONFIG["<metric_name>"]` entry; the runner checks both.
+   - Use the unified sliding window under `CONFIG["sliding_window"]` instead of custom per-metric fields.
+   - If your metric needs extra libraries, list them in `requirements.txt`.
+
+2. `src/runner/metrics_runner.py`
+   - Add an import line near other metrics: `from src.metrics import <metric_name>`
+   - Add mapping in `METRIC_FUNCTIONS`:
+     `"<metric_key>": <metric_module>.compare_trajectories,`
+   - The runner will handle torch->numpy conversion, saving timeseries when `CONFIG["pairwise"]["save_all_pair_timeseries"]` is True, and will normalize scalar aggregates.
+
+3. `src/viz/plots.py` (optional)
+   - Reuse `plot_time_series_for_pair` for simple line plots, or add a new helper if you need special styling.
+
+Implementation guidelines
+- Robustness: catch exceptions inside the metric and let the runner catch/print tracebacks. If a computation fails, return `timeseries=None` and `aggregates={"error": str(e)}` or raise; runner will handle printing.
+- Types: accept both numpy and torch. Converting: prefer `if isinstance(x, torch.Tensor): x = x.cpu().numpy()`.
+- Sliding-window: honor `CONFIG["sliding_window"]` (`use_window`, `window_size`, `displacement`) and return timeseries aligned to window centers.
+- Alignment-based metrics (DTW, Frechet): return an alignment-step timeseries (distance per coupling step) for full-trajectory mode, and also support sliding-window where each window produces one scalar/timepoint.
+- Plots: only write plot files if `out_root` is provided and `CONFIG["plots"]["save_timeseries"]` is True. Use safe file creation (`os.makedirs(out_root, exist_ok=True)`).
+- Performance: for nearest-neighbor queries use `scipy.spatial.cKDTree` when available. For heavy work document complexity and consider approximate methods.
+
+Testing & smoke checks
+- Add a tiny unit test in `examples/` or `tests/` that calls `compare_trajectories` on small synthetic arrays (T~10, D~3) and verifies:
+  - function returns without exception
+  - aggregates contain numeric mean/median/std (or at least a numeric scalar)
+  - timeseries length matches expected window count if sliding-window enabled
+
+Checklist before submitting
+- Metric module created at `src/metrics/<metric_name>.py` with the required public function.
+- Imported and registered in `METRIC_FUNCTIONS` in `src/runner/metrics_runner.py`.
+- Added to `CONFIG["metrics"]["available"]` and per-metric config (enabled flag).
+- If new dependencies: update `requirements.txt`.
+- Run `python run_all.py --input <small_example>` and confirm the metric appears in `results/<run_id>/metrics.json` and `summary.txt` and (if enabled) the plot(s) are in `results/<run_id>/plots/`.
+
+That's it — following these steps ensures consistent integration with the pipeline and existing plotting/summary conventions.

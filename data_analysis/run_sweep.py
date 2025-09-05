@@ -44,7 +44,7 @@ def run_sweep(input_path=None):
         # --- Reduction (with caching) ---
         cache_dir = "cache/reduction"
         os.makedirs(cache_dir, exist_ok=True)
-        reduced_path = os.path.join(cache_dir, f"pca_r{param_dict['r']}.pt")
+        reduced_path = os.path.join(cache_dir, f"pca_r{param_dict['r']}.{CONFIG['save']['tensor_save_format']}")
 
         if os.path.exists(reduced_path):
             logger.info(f"Loading cached reduction from {reduced_path}")
