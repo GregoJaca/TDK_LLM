@@ -3,34 +3,31 @@ import torch
 class Default:
     DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
     DTYPE = torch.float16 if torch.cuda.is_available() else torch.float32
-    MAX_LENGTH = 8192
+    MAX_LENGTH = 4096
     REPETITION_PENALTY = 1.1
     
     # For launch_pentek.py
     N_INITIAL_CONDITIONS = 4
     RESULTS_DIR = "./launch_aug"
-    SELECTED_LAYERS = [-1]
+    SELECTED_LAYERS = [14, 22, -1]
 
 class Experiment:
-    RADII = [0.001]
-    TEMPS = [0]
-    TOP_PS = [1]
-    TOP_KS = [1]
+    RADII = [0.0003, 0.0004]
+    TEMPS = [0, 0.6]
+    TOP_PS = [1, 0.95]
+    TOP_KS = [1, 50]
 
 class Analysis:
     SAVE_PLOTS = True
-    PAIRS_TO_PLOT = [[0, 1], [0, 2], [0, 3]]
-    # PAIRS_TO_PLOT = [[0, 1], [0, 2], [0, 3], [1, 3], [3, 2], [1, 2]]
-    SLIDING_WINDOW_SIZE = 8
-    SLIDING_WINDOW_DISPLACEMENT = 1
+    PAIRS_TO_PLOT = [[0, 1], [0, -1], [1, 2]]
+    SLIDING_WINDOW_SIZE = 16
+    SLIDING_WINDOW_DISPLACEMENT = 16
     MINIMUM_VARIANCE_EXPLANATION = 0.9
+
     DEVIATION_METRIC = "rms" # 'mad' or 'rms'
-    # If False, skip loading and plotting hypervolume and axis lengths
-    PLOT_HYPER_AND_AXIS = False
-    # Toggle whether to run the local dimensionality sliding-SVD analysis
+    PLOT_HYPER_AND_AXIS = True
     RUN_LOCAL_DIMENSIONALITY = False
-    # Toggle whether to run the rank-eigenvector comparison (full and sliding)
-    RUN_RANK_EIGENVECTORS = True
+    RUN_RANK_EIGENVECTORS = False
 
 # Model Configurations
 class ModelConfig:
@@ -52,36 +49,14 @@ class ModelConfig:
 # Prompts
 class Prompts:
     prompts = [
-        # "Provide a comprehensive review of propulsion systems for interstellar travel.",
+        # Space Technology (Detailed Technical Review)
+        # "Provide a comprehensive technical review of current and proposed propulsion systems for interstellar travel. Compare chemical rockets, nuclear propulsion, laser sails, antimatter drives, and other theoretical concepts in terms of energy requirements, achievable speeds, technological feasibility, and projected timelines for development. Include discussion of major projects in the history of the field."
 
-        "Provide a comprehensive technical review of current and proposed propulsion systems for interstellar travel. Compare chemical rockets, nuclear propulsion, laser sails, antimatter drives, and other theoretical concepts in terms of energy requirements, achievable speeds, technological feasibility, and projected timelines for development. Include discussion of major projects in the history of the field."
+        # Psychology (Exploratory Tone)
+        "Examine how childhood experiences shape personality development. Discuss various influences including family environment, education, friendships, and significant life events. Explain psychological concepts like attachment theory and nature vs. nurture in accessible terms. Provide examples of how positive and negative experiences can affect adult personality traits and behaviors."
     ]
-    
-    # Example of prompts with checkpoints
-    prompts_with_checkpoints = [
-        """Provide a comprehensive technical review of current and proposed propulsion systems for interstellar travel, structured into distinct sections.
-
-    Section 1: Focus on chemical rockets and nuclear propulsion. Discuss their energy requirements, achievable speeds, and current technological feasibility.
-    Section 2: Transition to more advanced concepts like laser sails and antimatter drives. Detail their theoretical principles, potential speeds, and the significant technological hurdles to overcome.
-    Section 3: Conclude with a discussion of other theoretical concepts and major projects like the Breakthrough Starshot initiative. Analyze their projected timelines for development and overall impact on interstellar travel.
-    """
-    ]
-    
-    context_injection_prompts = [
-        "[SYSTEM REMINDER: You are writing a comprehensive technical review of interstellar propulsion systems. Ensure accuracy, depth, and cover all specified concepts and projects.]"
-    ]
-
+   
     prompt_names = [
-        "interstellar_propulsion_review",
-        "interstellar_propulsion_review_CONVERSATION",
+        # "interstellar_propulsion_review",       # Space Technology (Detailed Technical Review)
+        "childhood_personality_development",    # Psychology (Exploratory Tone)
     ]
-
-    # Map prompt names to their content and context injection prompts
-    all_prompts_data = {
-        "interstellar_propulsion_review": {
-            "prompt": prompts[0],
-            "context_injection": context_injection_prompts[0]
-        },
-    }
-
-main_results_dir = "long_run_sliding_attention_context_injection"

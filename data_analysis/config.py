@@ -35,13 +35,13 @@ CONFIG = {
         "save_plots": True,
         "pairs_to_plot": [[0, 1], [2, 3]],
         "rank_eigen": {
-            "enabled": True,
+            "enabled": False,
             "deviation_metric": "rms",
             "run_rank_eigenvectors": True
         },
         "default_pairing": "ref0",   # "all" or "ref0"
         "cos": {
-            "enabled": True,
+            "enabled": False,
             "aggregate": ["mean", "median", "std"],
             "shifts": [0, 5],   # absolute steps to sweep; included in sweep script
             "shift_aggregation": "min", # "min", "mean"
@@ -65,14 +65,14 @@ CONFIG = {
             "correlation_type": "pearson" # "pearson" or "spearman"
         },
         "cross_cos": {
-            "enabled": True,
+            "enabled": False,
         }
     },
 
     # Unified sliding-window parameters used by metrics that support sliding analysis
     "sliding_window": {
         "use_window": True,
-        "window_size": 8,
+        "window_size": 62,
         "displacement": 1,
     },
 
@@ -86,7 +86,7 @@ CONFIG = {
 
     # Lyapunov (fast pairwise slope)
     "lyapunov": {
-    "enabled": True,
+    "enabled": False,
         "method": "pairwise_slope",
         "linear_window": {
             "auto_detect": True,
@@ -98,7 +98,7 @@ CONFIG = {
 
     # Parallel & performance
     "parallel": {
-        "max_workers": 8,
+        "max_workers": 16,
         "use_multiprocessing": False
     },
 
@@ -123,7 +123,7 @@ CONFIG = {
 
     # Plotting options
     "plots": {
-        "save_histograms": True,
+        "save_histograms": False,
         "save_timeseries": True,
     },
 

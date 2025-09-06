@@ -88,21 +88,22 @@ if __name__ == "__main__":
 
     for rrr in Experiment.RADII:
         for ttt in range(len(Experiment.TEMPS)):
-            config = Default()
-            config.TEMPERATURE = Experiment.TEMPS[ttt]
-            config.TOP_P = Experiment.TOP_PS[ttt]
-            config.TOP_K = Experiment.TOP_KS[ttt]
-            config.RADIUS_INITIAL_CONDITIONS = rrr
-            config.RESULTS_DIR = f"{Default.RESULTS_DIR}/run_{config.TEMPERATURE}_{rrr}/"
-            config.SAVE_RESULTS = True
+            for prompt_idx in range(len(Prompts.prompts)):
+                config = Default()
+                config.TEMPERATURE = Experiment.TEMPS[ttt]
+                config.TOP_P = Experiment.TOP_PS[ttt]
+                config.TOP_K = Experiment.TOP_KS[ttt]
+                config.RADIUS_INITIAL_CONDITIONS = rrr
+                config.RESULTS_DIR = f"{Default.RESULTS_DIR}/{Prompts.prompt_names[prompt_idx]}_{config.TEMPERATURE}_{rrr}/"
+                config.SAVE_RESULTS = True
 
-            print(" ---------------------------------- ")
-            print("radius: ", config.RADIUS_INITIAL_CONDITIONS)
-            print("T = ", config.TEMPERATURE)
+                print(" ---------------------------------- ")
+                print("radius: ", config.RADIUS_INITIAL_CONDITIONS)
+                print("T = ", config.TEMPERATURE)
 
-            ensure_dir(config.RESULTS_DIR)
-            analyze_llm_chaos(Prompts.prompts[0], model, tokenizer, config)
+                ensure_dir(config.RESULTS_DIR)
+                analyze_llm_chaos(Prompts.prompts[prompt_idx], model, tokenizer, config)
 
-            print("\n=== Run Finished ===")
+                print("\n=== Run Finished ===")
 
     monitor.end()

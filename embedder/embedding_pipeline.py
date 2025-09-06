@@ -18,6 +18,9 @@ import config as cfg
 from utils import save_tensor_and_meta, slugify_model_id, pad_sequences_to_tensor
 from models import get_extractor
 
+from src.config import Default, ModelConfig, Prompts, Experiment
+
+
 # Helper to determine torch dtype
 def get_torch_dtype(dtype_str: str):
     if dtype_str == "float16":
@@ -115,21 +118,33 @@ def process_model(model_id: str, texts: List[str], cfg_module) -> None:
     print(f"Saved embeddings for {model_id} -> {slugify_model_id(model_id)}.pt  (shape {tuple(tensor.shape)})")
 
 def main():
-    texts = load_input_texts(cfg.INPUT_JSON_PATH)
-    print(f"Loaded {len(texts)} trajectories from {cfg.INPUT_JSON_PATH}")
 
-    # iterate models
-    for model_id in cfg.EMBEDDING_METHODS:
-        try:
-            process_model(model_id, texts, cfg)
-        except Exception as e:
-            print(f"Error processing model {model_id}: {e}")
-            if cfg.ON_LOAD_FAIL == "raise":
-                raise
-            else:
-                print(f"Skipping {model_id} due to error.")
 
-    print("All requested models processed (or skipped on error). Outputs in:", cfg.OUTPUT_DIR)
+    for rrr in Experiment.RADII:
+        for ttt in range(len(Experiment.TEMPS)):
+            for prompt_idx in range(len(Prompts.prompts)):
+                config = Default()
+                config.TEMPERATURE = Experiment.TEMPS[ttt]
+                config.RESULTS_DIR = f"../{Default.RESULTS_DIR}/{Prompts.prompt_names[prompt_idx]}_{config.TEMPERATURE}_{rrr}/"
+
+                cfg.INPUT_JSON_PATH = f"{config.RESULTS_DIR}/generated_text.json"
+                cfg.OUTPUT_DIR = f"{config.RESULTS_DIR}"
+
+                texts = load_input_texts(cfg.INPUT_JSON_PATH)
+                print(f"Loaded {len(texts)} trajectories from {cfg.INPUT_JSON_PATH}")
+
+                # iterate models
+                for model_id in cfg.EMBEDDING_METHODS:
+                    try:
+                        process_model(model_id, texts, cfg)
+                    except Exception as e:
+                        print(f"Error processing model {model_id}: {e}")
+                        if cfg.ON_LOAD_FAIL == "raise":
+                            raise
+                        else:
+                            print(f"Skipping {model_id} due to error.")
+
+                print("All requested models processed (or skipped on error). Outputs in:", cfg.OUTPUT_DIR)
 
 if __name__ == "__main__":
     main()

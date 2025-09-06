@@ -9,23 +9,76 @@ def plot_pairwise_distance_distribution(aggregates, outpath, metric_name="cos", 
     if not CONFIG["plots"].get("save_histograms", True):
         return
 
+    # Collect numeric values robustly: some entries are scalars, others arrays
     distances = []
     for pair, data in aggregates["pairs"].items():
         if metric_name in data and aggregate_type in data[metric_name]:
-            distances.append(data[metric_name][aggregate_type])
+            val = data[metric_name][aggregate_type]
+            if val is None:
+                continue
+            if isinstance(val, (list, tuple, np.ndarray)):
+                try:
+                    flat = np.ravel(val)
+                    for v in flat:
+                        distances.append(float(v))
+                except Exception:
+                    # fallback: skip malformed entries
+                    continue
+            else:
+                try:
+                    distances.append(float(val))
+                except Exception:
+                    continue
 
     if not distances:
         # print(f"No data to plot for pairwise distance distribution for metric '{metric_name}' and aggregate type '{aggregate_type}'.")
         return
 
+    arr = np.array(distances, dtype=float)
+    if arr.size == 0:
+        return
+
+    plt.style.use('ggplot')
     plt.figure(figsize=(6, 4))
-    plt.hist(distances, bins=20, alpha=0.75, edgecolor='k', linewidth=0.5)
-    plt.title(f"Distribution of {aggregate_type.capitalize()} {metric_name.capitalize()} Distances")
+
+    # Robust bin selection
+    if arr.size < 10:
+        # very small sample: plot exact values as counts of unique values
+        unique_vals, counts = np.unique(arr, return_counts=True)
+        if unique_vals.size == 0:
+            return
+        # width relative to data span or small fixed width
+        span = float(arr.max() - arr.min()) if arr.max() != arr.min() else 1.0
+        width = max(1e-6, span * 0.03)
+        plt.bar(unique_vals, counts, width=width, alpha=0.75, edgecolor='k')
+        # add small jittered markers to show each real data point
+        jitter = (np.random.RandomState(0).rand(arr.size) - 0.5) * width * 0.6
+        plt.scatter(arr + jitter, np.zeros_like(arr) + -0.03 * counts.max(), marker='|', color='k')
+        plt.ylabel('Count')
+        plt.ylim(bottom=-0.06 * counts.max(), top=counts.max() * 1.15)
+    else:
+        # Freedman–Diaconis style with limits
+        q75, q25 = np.percentile(arr, [75, 25])
+        iqr = max(1e-6, q75 - q25)
+        bin_width = 2 * iqr * (arr.size ** (-1/3))
+        if bin_width <= 0:
+            bins = min(60, int(np.sqrt(arr.size)))
+        else:
+            bins = int(max(10, min(100, np.ceil((arr.max() - arr.min()) / bin_width))))
+
+        counts, bin_edges = np.histogram(arr, bins=bins, density=False)
+        centers = 0.5 * (bin_edges[:-1] + bin_edges[1:])
+        widths = np.diff(bin_edges)
+        plt.bar(centers, counts, width=widths, alpha=0.75, edgecolor='k', align='center')
+        plt.ylabel('Count')
+        plt.ylim(bottom=0, top=max(1, counts.max()) * 1.15)
+
+    plt.title(f"Distribution of {aggregate_type.capitalize()} {metric_name.capitalize()} Distances (n={arr.size})")
     plt.xlabel(f"{aggregate_type.capitalize()} {metric_name.capitalize()} Distance")
-    plt.ylabel("Frequency")
+    plt.ylabel("Density")
     plt.grid(axis='y', alpha=0.3)
     plt.tight_layout()
-    plt.savefig(outpath)
+    plt.savefig(outpath, dpi=150)
     plt.close()
 
 def plot_mean_log_distance_vs_time(mean_log_array, outpath, window=None, slope=None, r2=None):
