@@ -6,12 +6,12 @@ class Experiment:
     RADII = [0.0004]
     TEMPS = [0]
 EMBEDDING_METHODS = [
-    "sentence-transformers/all-mpnet-base-v2",
+    # "sentence-transformers/all-mpnet-base-v2",
     # "intfloat/e5-large-v2",
     # "facebook/contriever",
     # "hidden_states_layer_-1",
     # "hidden_states_layer_14",
-    # "hidden_states_layer_22"
+    "hidden_states_layer_22"
 ]
 import os
 from config import CONFIG

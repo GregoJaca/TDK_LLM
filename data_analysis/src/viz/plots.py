@@ -54,7 +54,7 @@ def plot_pairwise_distance_distribution(aggregates, outpath, metric_name="cos", 
         # add small jittered markers to show each real data point
         jitter = (np.random.RandomState(0).rand(arr.size) - 0.5) * width * 0.6
         plt.scatter(arr + jitter, np.zeros_like(arr) + -0.03 * counts.max(), marker='|', color='k')
-        plt.ylabel('Count')
+        plt.ylabel(f'Count ({metric_name.capitalize()} Distance)')
         plt.ylim(bottom=-0.06 * counts.max(), top=counts.max() * 1.15)
     else:
         # Freedman–Diaconis style with limits
@@ -70,12 +70,12 @@ def plot_pairwise_distance_distribution(aggregates, outpath, metric_name="cos", 
         centers = 0.5 * (bin_edges[:-1] + bin_edges[1:])
         widths = np.diff(bin_edges)
         plt.bar(centers, counts, width=widths, alpha=0.75, edgecolor='k', align='center')
-        plt.ylabel('Count')
+        plt.ylabel(f'Count ({metric_name.capitalize()} Distance)')
         plt.ylim(bottom=0, top=max(1, counts.max()) * 1.15)
 
     plt.title(f"Distribution of {aggregate_type.capitalize()} {metric_name.capitalize()} Distances (n={arr.size})")
     plt.xlabel(f"{aggregate_type.capitalize()} {metric_name.capitalize()} Distance")
-    plt.ylabel("Density")
+    plt.ylabel(f"Density ({metric_name.capitalize()} Distance)")
     plt.grid(axis='y', alpha=0.3)
     plt.tight_layout()
     plt.savefig(outpath, dpi=150)
@@ -203,11 +203,22 @@ def plot_hyperparam_sweep(sweep_results_df, outpath_prefix):
             plt.savefig(f'{outpath_prefix}_{col_name}_heatmap.png')
             plt.close()
 
-def plot_time_series_for_pair(pair_timeseries, outpath, title="Distance Timeseries for a Pair", ylabel="Distance"):
-    """Plots a distance timeseries for a single pair."""
+def plot_time_series_for_pair(pair_timeseries, outpath, title="Distance Timeseries for a Pair", ylabel="Distance", x=None):
+    """Plots a distance timeseries for a single pair.
+
+    Parameters:
+    - pair_timeseries: 1D array of values
+    - outpath: file path to save the figure
+    - title: plot title
+    - ylabel: label for the y-axis
+    - x: optional x-values to plot against (same length as pair_timeseries)
+    """
     plt.figure(figsize=(8, 4))
-    # Thinner lines, smaller markers, and slight transparency to reduce visual collision
-    plt.plot(pair_timeseries, marker='o', markersize=3, linewidth=1.0, alpha=0.75)
+    # Use consistent thin line and small markers across all time-series plots
+    if x is None:
+        plt.plot(pair_timeseries, marker='o', markersize=3, linewidth=1.0, alpha=0.75)
+    else:
+        plt.plot(x, pair_timeseries, marker='o', markersize=3, linewidth=1.0, alpha=0.75)
     plt.title(title)
     plt.xlabel("Time")
     plt.ylabel(ylabel)
@@ -238,18 +249,12 @@ def plot_rank_eigen_full(closest_ranks, outpath, traj_indices=None):
 
 
 def plot_rank_eigen_sliding(positions, deviations, outpath, metric_cfg=None):
-    """Line plot for sliding-window rank deviation."""
-    plt.figure(figsize=(8, 4))
-    plt.plot(positions, deviations, marker='o')
-    plt.xlabel('Generation step (center of window)')
+    """Line plot for sliding-window rank deviation reusing the standard timeseries style."""
     ylabel = 'Deviation from perfect rank'
     if metric_cfg and metric_cfg.get('deviation_metric', 'rms').lower() == 'rms':
         ylabel += ' (RMS)'
     else:
         ylabel += ' (Mean abs)'
-    plt.ylabel(ylabel)
-    plt.title('Sliding-window rank deviation')
-    plt.grid(True)
-    plt.tight_layout()
-    plt.savefig(outpath)
-    plt.close()
+    title = 'Sliding-window rank deviation'
+    # Reuse the standard time-series plotting function so style (markersize, linewidth) stays consistent
+    plot_time_series_for_pair(deviations, outpath, title=title, ylabel=ylabel, x=positions)

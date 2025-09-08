@@ -85,7 +85,7 @@ def compare_trajectories(
         try:
             os.makedirs(out_root, exist_ok=True)
             plot_fname = os.path.join(out_root, f"cos_timeseries_{pair_id}.png" if pair_id else "cos_timeseries.png")
-            plot_time_series_for_pair(timeseries, plot_fname)
+            plot_time_series_for_pair(timeseries, plot_fname, title=f"Cosine distances ({pair_id})" if pair_id else "Cosine distances", ylabel="Cosine Distance")
         except Exception:
             # non-fatal if plotting fails
             pass

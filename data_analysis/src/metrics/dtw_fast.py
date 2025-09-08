@@ -10,12 +10,14 @@ try:
     FASTDTW_AVAILABLE = True
 except ImportError:
     FASTDTW_AVAILABLE = False
+    print("fastdtw not available, falling back to tslearn or slower implementations if present.")
 
 try:
     from tslearn.metrics import dtw as tslearn_dtw
     TSLEARN_AVAILABLE = True
 except ImportError:
     TSLEARN_AVAILABLE = False
+    print("tslearn not available; DTW exact mode will be unavailable.")
 
 def compare_trajectories(
     a: np.ndarray, 
@@ -66,7 +68,7 @@ def compare_trajectories(
             try:
                 from src.viz.plots import plot_time_series_for_pair
                 os.makedirs(kwargs.get("out_root"), exist_ok=True)
-                plot_time_series_for_pair(timeseries, os.path.join(kwargs.get("out_root"), f"dtw_timeseries_{kwargs.get('pair_id', '')}.png"))
+                plot_time_series_for_pair(timeseries, os.path.join(kwargs.get("out_root"), f"dtw_timeseries_{kwargs.get('pair_id', '')}.png"), title=f"DTW distances ({kwargs.get('pair_id','')})", ylabel="DTW Distance")
             except Exception:
                 pass
 
@@ -84,7 +86,7 @@ def compare_trajectories(
             try:
                 from src.viz.plots import plot_time_series_for_pair
                 os.makedirs(kwargs.get("out_root"), exist_ok=True)
-                plot_time_series_for_pair(timeseries, os.path.join(kwargs.get("out_root"), f"dtw_alignment_timeseries_{kwargs.get('pair_id', '')}.png"))
+                plot_time_series_for_pair(timeseries, os.path.join(kwargs.get("out_root"), f"dtw_alignment_timeseries_{kwargs.get('pair_id', '')}.png"), title=f"DTW alignment distances ({kwargs.get('pair_id','')})", ylabel="DTW Distance")
             except Exception:
                 pass
 

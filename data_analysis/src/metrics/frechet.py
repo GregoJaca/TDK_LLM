@@ -9,12 +9,14 @@ try:
     FRED_AVAILABLE = True
 except ImportError:
     FRED_AVAILABLE = False
+    print("fred.fr_dist not available; using pure-Python Fréchet implementation as fallback.")
 
 try:
     from frechetdist import frdist
     FRECHETDIST_AVAILABLE = True
 except ImportError:
     FRECHETDIST_AVAILABLE = False
+    print("frechetdist not available; using pure-Python Fréchet implementation as fallback.")
 
 def _discrete_frechet(a, b):
     """A pure Python implementation of discrete Fréchet distance with backtrace.
@@ -104,7 +106,7 @@ def compare_trajectories(
             try:
                 from src.viz.plots import plot_time_series_for_pair
                 os.makedirs(kwargs.get("out_root"), exist_ok=True)
-                plot_time_series_for_pair(timeseries, os.path.join(kwargs.get("out_root"), f"frechet_timeseries_{kwargs.get('pair_id','')}.png"))
+                plot_time_series_for_pair(timeseries, os.path.join(kwargs.get("out_root"), f"frechet_timeseries_{kwargs.get('pair_id','')}.png"), title=f"Fréchet distances ({kwargs.get('pair_id','')})", ylabel="Fréchet Distance")
             except Exception:
                 pass
 
@@ -120,7 +122,12 @@ def compare_trajectories(
             try:
                 from src.viz.plots import plot_time_series_for_pair
                 os.makedirs(kwargs.get("out_root"), exist_ok=True)
-                plot_time_series_for_pair(timeseries, os.path.join(kwargs.get("out_root"), f"frechet_alignment_timeseries_{kwargs.get('pair_id','')}.png"))
+                plot_time_series_for_pair(
+                    timeseries,
+                    os.path.join(kwargs.get("out_root"), f"frechet_alignment_timeseries_{kwargs.get('pair_id','')}.png"),
+                    title=f"Fréchet alignment distances ({kwargs.get('pair_id','')})",
+                    ylabel="Fréchet Distance",
+                )
             except Exception:
                 pass
 

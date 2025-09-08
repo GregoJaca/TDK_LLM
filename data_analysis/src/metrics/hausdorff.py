@@ -10,6 +10,7 @@ try:
     KD_AVAILABLE = True
 except Exception:
     KD_AVAILABLE = False
+    print("scipy.spatial.cKDTree not available; falling back to slower nearest-neighbor implementation.")
 
 def compare_trajectories(
     a: np.ndarray, 
@@ -68,7 +69,7 @@ def compare_trajectories(
                 try:
                     from src.viz.plots import plot_time_series_for_pair
                     os.makedirs(kwargs.get("out_root"), exist_ok=True)
-                    plot_time_series_for_pair(timeseries, os.path.join(kwargs.get("out_root"), f"hausdorff_timeseries_{kwargs.get('pair_id','')}.png"))
+                    plot_time_series_for_pair(timeseries, os.path.join(kwargs.get("out_root"), f"hausdorff_timeseries_{kwargs.get('pair_id','')}.png"), title=f"Hausdorff distances ({kwargs.get('pair_id','')})", ylabel="Hausdorff Distance")
                 except Exception:
                     pass
 

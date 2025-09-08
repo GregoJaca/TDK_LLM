@@ -31,9 +31,8 @@ CONFIG = {
 
     # Metrics
     "metrics": {
-        "available": ["cos", "dtw_fast", "hausdorff", "frechet", "cross_cos", "rank_eigen", "cross_corr"],
-        "save_plots": True,
-        "pairs_to_plot": [[0, 1], [2, 3]],
+    "available": ["cos", "cos_sim", "dtw_fast", "hausdorff", "frechet", "cross_cos", "rank_eigen", "cross_corr"],
+    "save_plots": True,
         "rank_eigen": {
             "enabled": True,
             "deviation_metric": 'rms', # 'sum_cos_dist', # "rms",
@@ -41,47 +40,58 @@ CONFIG = {
         },
         "default_pairing": "ref0",   # "all" or "ref0"
         "cos": {
-            "enabled": False,
+            "enabled": True,
             "aggregate": ["mean", "median", "std"],
-            "shifts": [0, 5],   # absolute steps to sweep; included in sweep script
+            "shifts": [0],   # absolute steps to sweep; included in sweep script
             "shift_aggregation": "min", # "min", "mean"
             "default_max_shift": 5,
         },
+        "cos_sim": {
+            "enabled": True,
+            "window_agg": "mean",  # "mean" or "min" aggregation across vectors in window
+            "gaussian_weight": False,
+            "centric_mode": "a",    # "a", "b", or "both"
+            "centric_agg": "mean",  # when both: "mean" or "min"
+        },
         "dtw": {
-            "enabled": False,
+            "enabled": True,
             "use_fastdtw": True, # why is this not being used anywhere ??
         },
         "hausdorff": {
-            "enabled": False,
+            "enabled": True,
             "symmetric": True, # XX
             "aggregation": "max_of_mean" # "max_of_mean", "mean_of_max"
         },
         "frechet": {
-            "enabled": False,
+            "enabled": True,
             "discrete": True # XX
         },
         "cross_corr": {
-            "enabled": False,
+            "enabled": True,
             "correlation_type": "pearson" # "pearson" or "spearman"
         },
         "cross_cos": {
-            "enabled": False,
+            "enabled": True,
         }
     },
 
     # Unified sliding-window parameters used by metrics that support sliding analysis
     "sliding_window": {
         "use_window": True,
-        "window_size": 62,
-        "displacement": 1,
+        "window_size": 64,
+        "displacement": 4,
     },
 
     # Pair computations
     "pairwise": {
         "compute_all_pairs": False,  
         "save_all_pair_timeseries": False,
-        "reference_index": 0,
-        "save_pairwise_timeseries_for": ["ref0"],  # or list of explicit pairs
+    "reference_index": None,
+    "save_pairwise_timeseries_for": ["ref0"],  # or list of explicit pairs
+    # If compute_all_pairs is False and reference_index is None,
+    # use this explicit list of index pairs for computation and plotting.
+    # Example: [[0,1], [2,3]]
+    "pairs_to_plot": [[0, 1]],
     },
 
     # Lyapunov (fast pairwise slope)

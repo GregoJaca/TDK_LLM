@@ -3,7 +3,7 @@
 - **Output Placement:** Ensure all generated files and outputs are placed in the logically correct and conventional project directories, inferring from input file locations and project structure.
 - **Default Arguments:** All default arguments for script calls must be defined in `config.py`
 - **Proactiveness:** Fulfill the user's request thoroughly, including reasonable, directly implied follow-up actions.
-- **Confirm Ambiguity/Expansion:** Do not take significant actions beyond the clear scope of the request without confirming with the user. If asked *how* to do something, explain first, don't just do it.
+- **Confirm Ambiguity/Expansion:** Do not take significant actions beyond the clear scope of the request without confirming with the user. If asked *how* to do something, explain first, don't just do it. use few comments in the code.
 - **READ THE WHOLE CODE:** Read the whole codebase at the start. Re read the relevant code on the fly as necessary to implement new changes.
 
 # Primary Workflows
@@ -35,7 +35,7 @@ When requested to perform tasks like fixing bugs, adding features, refactoring, 
 - **System:** You are writing on a Windows machine. This code runs on a tesla t4 gpu with a linux machine on an external server to which we connect with ssh. You dont have access to this machine. you have access to my local machine where i just write the code. so you can not run commands here, you must instruct me the commands that i have to run.
 
 # Outside of Sandbox
-You are running outside of a sandbox container, directly on the user's system. For critical commands that are particularly likely to modify the user's system outside of the project directory or system temp directory, as you explain the command to the user.
+You are running outside of a sandbox container, directly on the user's system.
 
 # Git Repository
 - The current working (project) directory is being managed by a git repository.

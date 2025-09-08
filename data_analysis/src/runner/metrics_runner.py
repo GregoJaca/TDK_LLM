@@ -9,10 +9,11 @@ from config import CONFIG
 from src.runner.pair_manager import get_pairs
 from src.utils.parallel import map_pairs
 from src.io.saver import save_tensor
-from src.metrics import cos, dtw_fast, hausdorff, frechet, cross_cos, rank_eigen, cross_corr
+from src.metrics import cos, dtw_fast, hausdorff, frechet, cross_cos, rank_eigen, cross_corr, cos_sim
 
 METRIC_FUNCTIONS = {
     "cos": cos.compare_trajectories,
+    "cos_sim": cos_sim.compare_trajectories,
     "dtw_fast": dtw_fast.compare_trajectories,
     "hausdorff": hausdorff.compare_trajectories,
     "frechet": frechet.compare_trajectories,
@@ -90,8 +91,9 @@ def run_metrics(trajectories: np.ndarray, run_id: str) -> Dict:
     """Computes all configured metrics for all configured pairs of trajectories."""
     results_dir = os.path.join(CONFIG["results_root"], run_id)
     os.makedirs(results_dir, exist_ok=True)
-    pairing_mode = CONFIG["metrics"]["default_pairing"]
-    # Respect per-metric enabled flags in CONFIG
+    # Determine which pairs to compute based on pairwise config.
+    # Precedence: compute_all_pairs -> reference_index -> explicit pairs_to_plot
+    pairwise_cfg = CONFIG.get("pairwise", {})
     cfg_metrics = CONFIG.get("metrics", {})
     declared = cfg_metrics.get("available", [])
     metrics_to_run = []
@@ -120,7 +122,21 @@ def run_metrics(trajectories: np.ndarray, run_id: str) -> Dict:
             if CONFIG["logging"]["enabled"]:
                 print(f"[metrics_runner] Warning: metric '{m}' declared in CONFIG but has no implementation and will be skipped.")
 
-    pairs = get_pairs(trajectories.shape[0], pairing_mode)
+    # Build pairs list
+    n_trajectories = trajectories.shape[0]
+    if pairwise_cfg.get("compute_all_pairs", False):
+        pairs = get_pairs(n_trajectories, "all")
+        pairing_mode = "all"
+    else:
+        ref_idx = pairwise_cfg.get("reference_index", None)
+        if ref_idx is None:
+            # Use explicit list provided in config (pairs_to_plot)
+            pairs = pairwise_cfg.get("pairs_to_plot", [])
+            pairing_mode = "custom"
+        else:
+            # Pair the reference index with all others
+            pairs = [(ref_idx, i) for i in range(n_trajectories) if i != ref_idx]
+            pairing_mode = f"ref{ref_idx}"
 
     # DEBUG: report selection
     if CONFIG["logging"]["enabled"]:

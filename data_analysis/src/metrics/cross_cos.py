@@ -75,6 +75,7 @@ def compare_trajectories(a: np.ndarray, b: np.ndarray, *, return_timeseries: boo
         except Exception:
             # fallback: simple imshow
             import matplotlib.pyplot as plt
+            print("plot_pairwise_distance_distribution failed for cross_cos; falling back to simple imshow.")
             plt.figure()
             plt.imshow(cross_dist, aspect='auto', origin='lower', cmap='viridis')
             plt.colorbar(label='Cross Cosine Distance')
@@ -92,14 +93,14 @@ def compare_trajectories(a: np.ndarray, b: np.ndarray, *, return_timeseries: boo
     if CONFIG.get("plots", {}).get("save_timeseries", False):
         timeseries_fname = os.path.join(out_root, f"cross_cos_col_sums_{pair_id}.png")
         try:
-            plots.plot_time_series_for_pair(col_sums, timeseries_fname)
+            plots.plot_time_series_for_pair(col_sums, timeseries_fname, title=f"Cross-Cos Column Sums ({pair_id})", ylabel="Cross Cosine Distance")
         except Exception:
             import matplotlib.pyplot as plt
             plt.figure()
             plt.plot(col_sums)
             plt.title(f'Cross Cos Column Sums ({pair_id})')
             plt.xlabel('Index b')
-            plt.ylabel('Sum Distance')
+            plt.ylabel('Cross Cosine Distance (sum)')
             plt.tight_layout()
             plt.savefig(timeseries_fname)
             plt.close()

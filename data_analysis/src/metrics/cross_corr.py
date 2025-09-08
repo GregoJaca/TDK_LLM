@@ -76,11 +76,22 @@ def compare_trajectories(a, b, *, return_timeseries=True, pair_id=None, out_root
 
     if return_timeseries and out_root and CONFIG["metrics"].get("save_plots", True):
         out_path = os.path.join(out_root, f"cross_corr_{correlation_type}_{pair_id}.png")
-        plot_time_series_for_pair(
-            time_series,
-            out_path,
-            title=f"Cross-Correlation ({correlation_type.capitalize()}) for Pair {pair_id}",
-            ylabel="Correlation"
-        )
+        try:
+            # Plot distance-like measure: 1 - correlation
+            plot_series = 1.0 - time_series
+            plot_time_series_for_pair(
+                plot_series,
+                out_path,
+                title=f"1 - Cross-Correlation ({correlation_type.capitalize()}) for Pair {pair_id}",
+                ylabel=f"1 - Cross-Corr ({correlation_type})",
+            )
+        except Exception:
+            # fallback to original plot if something goes wrong
+            plot_time_series_for_pair(
+                time_series,
+                out_path,
+                title=f"Cross-Correlation ({correlation_type.capitalize()}) for Pair {pair_id}",
+                ylabel=f"Cross-Corr ({correlation_type})",
+            )
 
     return time_series, aggregates
