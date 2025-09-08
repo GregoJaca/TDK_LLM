@@ -78,8 +78,8 @@ CONFIG = {
     # Unified sliding-window parameters used by metrics that support sliding analysis
     "sliding_window": {
         "use_window": True,
-        "window_size": 8,
-        "displacement": 1,
+        "window_size": 16,
+        "displacement": 16
     },
 
     # Pair computations

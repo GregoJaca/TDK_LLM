@@ -159,23 +159,36 @@ def _plot_matrix(M: np.ndarray, out_path: str, title: Optional[str] = None):
         pass
 
 
-def _compute_cross_cos_matrix(traj: np.ndarray) -> np.ndarray:
-    """Compute full cross-cosine distance matrix (T x T) for a single trajectory.
+def _compute_cross_cos_matrix(
+    traj: np.ndarray,
+    window_size: int,
+    displacement: int,
+    use_window: bool,
+) -> np.ndarray:
+    """Compute cross-cos distance matrix for a trajectory, optionally windowed.
 
-    Distance = 1 - cosine_similarity for each pair of timesteps.
+    If `use_window` is True and `window_size` fits, each window is represented by
+    the mean vector across the window; otherwise each timestep is used.
     """
     X = np.asarray(traj, dtype=float)
-    if X.ndim != 2:
-        # If windows shape e.g., (W, D) expected, but for timesteps it's (T, D)
-        X = X.reshape((X.shape[0], -1))
-    # normalize rows
-    norms = np.linalg.norm(X, axis=-1, keepdims=True)
-    eps = 1e-12
-    norms[norms == 0] = eps
-    Xn = X / norms
-    S = Xn @ Xn.T
+    T = X.shape[0]
+
+    if use_window and window_size is not None and window_size > 0 and T >= window_size:
+        starts = list(range(0, T - window_size + 1, displacement))
+        reps = [np.mean(X[s : s + window_size], axis=0) for s in starts]
+    else:
+        starts = list(range(0, T))
+        reps = [X[s] for s in starts]
+
+    if len(reps) == 0:
+        return np.empty((0, 0))
+
+    A = np.vstack([np.asarray(r, dtype=float).reshape(1, -1) for r in reps])
+    norms = np.linalg.norm(A, axis=-1, keepdims=True)
+    norms[norms == 0] = 1e-12
+    An = A / norms
+    S = An @ An.T
     dist = 1.0 - S
-    # force symmetry numeric
     dist = 0.5 * (dist + dist.T)
     return dist
 
@@ -365,7 +378,7 @@ def main(save_matrices: bool = SAVE_MATRICES, save_plots: bool = SAVE_PLOTS):
                         # Special-case: cross_cos wants a single full T x T matrix per trajectory
                         if metric_name == "cross_cos":
                             try:
-                                M = _compute_cross_cos_matrix(traj)
+                                M = _compute_cross_cos_matrix(traj, window_size=window_size, displacement=displacement, use_window=use_window)
                                 if save_matrices:
                                     torch.save(torch.tensor(M), os.path.join(out_root, f"{metric_name}_traj{traj_idx}.pt"))
                                 if save_plots:
