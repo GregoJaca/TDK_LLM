@@ -35,8 +35,8 @@ CONFIG = {
         "save_plots": True,
         "pairs_to_plot": [[0, 1], [2, 3]],
         "rank_eigen": {
-            "enabled": False,
-            "deviation_metric": "rms",
+            "enabled": True,
+            "deviation_metric": 'rms', # 'sum_cos_dist', # "rms",
             "run_rank_eigenvectors": True
         },
         "default_pairing": "ref0",   # "all" or "ref0"
@@ -48,20 +48,20 @@ CONFIG = {
             "default_max_shift": 5,
         },
         "dtw": {
-            "enabled": True,
+            "enabled": False,
             "use_fastdtw": True, # why is this not being used anywhere ??
         },
         "hausdorff": {
-            "enabled": True,
+            "enabled": False,
             "symmetric": True, # XX
             "aggregation": "max_of_mean" # "max_of_mean", "mean_of_max"
         },
         "frechet": {
-            "enabled": True,
+            "enabled": False,
             "discrete": True # XX
         },
         "cross_corr": {
-            "enabled": True,
+            "enabled": False,
             "correlation_type": "pearson" # "pearson" or "spearman"
         },
         "cross_cos": {

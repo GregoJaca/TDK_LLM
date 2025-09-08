@@ -78,18 +78,25 @@ def sliding_window_rank_deviation(
         v2 = _compute_pca_eigenvectors_torch(w2, k=k)
 
         sim = _cosine_sim_matrix(v1, v2)  # [k, k]
-        closest_ranks = []
-        for ii in range(sim.shape[0]):
-            _, indices = torch.sort(sim[ii], descending=True)
-            closest_idx = indices[0].item()
-            closest_ranks.append(closest_idx + 1)
+        # find the closest matching eigenvector in v2 for each eigenvector in v1
+        # indices: shape [k], values in [0..k-1]
+        indices = torch.argmax(sim, dim=1)
+        closest_ranks = (indices + 1).tolist()
 
-        target = np.arange(1, len(closest_ranks) + 1)
-        arr = np.array(closest_ranks) - target
-        if deviation_metric == "rms":
-            dev = float(np.sqrt(np.mean(arr ** 2)))
+        if deviation_metric == "sum_cos_dist":
+            # cosine similarity for the matched pairs, then sum (1 - cos_sim)
+            row_idx = torch.arange(sim.shape[0])
+            cos_sims = sim[row_idx, indices]
+            # sum of cosine distances (1 - cos_sim)
+            dev = float(torch.sum(1.0 - cos_sims).item())
         else:
-            dev = float(np.mean(np.abs(arr)))
+            # default: rank-based deviations (rms or mean abs)
+            target = np.arange(1, len(closest_ranks) + 1)
+            arr = np.array(closest_ranks) - target
+            if deviation_metric == "rms":
+                dev = float(np.sqrt(np.mean(arr ** 2)))
+            else:
+                dev = float(np.mean(np.abs(arr)))
         deviations.append(dev)
         positions.append(start + window_size // 2)
 
@@ -129,12 +136,17 @@ def compare_trajectories(
     v1 = _compute_pca_eigenvectors_torch(t1_full)
     v2 = _compute_pca_eigenvectors_torch(t2_full)
     sim_matrix = _cosine_sim_matrix(v1, v2)
+    # find closest matches for each eigenvector in v1 -> index in v2
+    indices = torch.argmax(sim_matrix, dim=1)
+    closest_ranks = (indices + 1).tolist()
 
-    closest_ranks = []
-    for ii in range(sim_matrix.shape[0]):
-        _, indices = torch.sort(sim_matrix[ii], descending=True)
-        closest_idx = indices[0].item()
-        closest_ranks.append(closest_idx + 1)
+    # If requested, compute full-trajectory sum_cos_dist as an aggregate
+    deviation_metric_cfg = cfg.get("deviation_metric", "rms").lower()
+    full_metric_value = None
+    if deviation_metric_cfg == "sum_cos_dist":
+        row_idx = torch.arange(sim_matrix.shape[0])
+        cos_sims = sim_matrix[row_idx, indices]
+        full_metric_value = float(torch.sum(1.0 - cos_sims).item())
 
     # sliding-window timeseries
     positions, deviations = sliding_window_rank_deviation(
@@ -151,6 +163,9 @@ def compare_trajectories(
         agg["mean"] = float(np.nan)
         agg["median"] = float(np.nan)
         agg["std"] = float(np.nan)
+    # include full-trajectory sum_cos_dist when requested
+    if full_metric_value is not None:
+        agg["sum_cos_dist"] = full_metric_value
 
     # Save plots if requested and out_root given
     if out_root and CONFIG["metrics"].get("save_plots", True):
