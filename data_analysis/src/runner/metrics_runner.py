@@ -9,7 +9,7 @@ from config import CONFIG
 from src.runner.pair_manager import get_pairs
 from src.utils.parallel import map_pairs
 from src.io.saver import save_tensor
-from src.metrics import cos, dtw_fast, hausdorff, frechet, cross_cos, rank_eigen, cross_corr, cos_sim
+from src.metrics import cos, dtw_fast, hausdorff, frechet, cross_cos, rank_eigen, cross_corr, cos_sim, wasserstein
 
 METRIC_FUNCTIONS = {
     "cos": cos.compare_trajectories,
@@ -20,6 +20,7 @@ METRIC_FUNCTIONS = {
     "cross_cos": cross_cos.compare_trajectories,
     "rank_eigen": rank_eigen.compare_trajectories,
     "cross_corr": cross_corr.compare_trajectories,
+    "wasserstein": wasserstein.compare_trajectories,
 }
 
 def _compute_metric_for_pair(pair, trajectories, metrics_to_run, results_dir):

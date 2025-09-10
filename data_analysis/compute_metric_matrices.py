@@ -29,7 +29,7 @@ from run_all_experiments import EMBEDDING_METHODS, Experiment
 # Options (simple knobs)
 SAVE_MATRICES = False
 SAVE_PLOTS = True
-TRAJECTORIES_TO_PROCESS: Optional[list[int]] = [0]
+TRAJECTORIES_TO_PROCESS: Optional[list[int]] = [0,1,2,3]
 
 def _make_results_dirs(base: str) -> str:
     """Return a single metric_matrices folder under base for all outputs.

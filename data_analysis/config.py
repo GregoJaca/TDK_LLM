@@ -31,55 +31,59 @@ CONFIG = {
 
     # Metrics
     "metrics": {
-    "available": ["cos", "cos_sim", "dtw_fast", "hausdorff", "frechet", "cross_cos", "rank_eigen", "cross_corr"],
+    # "available": ["cos", "cos_sim", "dtw_fast", "hausdorff", "frechet", "cross_cos", "rank_eigen", "cross_corr", "wasserstein"],
+    "available": [ "wasserstein"],
     "save_plots": True,
         "rank_eigen": {
-            "enabled": True,
+            "enabled": False,
             "deviation_metric": 'rms', # 'sum_cos_dist', # "rms",
             "run_rank_eigenvectors": True
         },
         "default_pairing": "ref0",   # "all" or "ref0"
         "cos": {
-            "enabled": True,
+            "enabled": False,
             "aggregate": ["mean", "median", "std"],
             "shifts": [0],   # absolute steps to sweep; included in sweep script
             "shift_aggregation": "min", # "min", "mean"
             "default_max_shift": 5,
         },
         "cos_sim": {
-            "enabled": True,
+            "enabled": False,
             "window_agg": "mean",  # "mean" or "min" aggregation across vectors in window
             "gaussian_weight": False,
             "centric_mode": "a",    # "a", "b", or "both"
             "centric_agg": "mean",  # when both: "mean" or "min"
         },
         "dtw": {
-            "enabled": True,
+            "enabled": False,
             "use_fastdtw": True, # why is this not being used anywhere ??
         },
         "hausdorff": {
-            "enabled": True,
+            "enabled": False,
             "symmetric": True, # XX
             "aggregation": "max_of_mean" # "max_of_mean", "mean_of_max"
         },
         "frechet": {
-            "enabled": True,
+            "enabled": False,
             "discrete": True # XX
         },
         "cross_corr": {
-            "enabled": True,
+            "enabled": False,
             "correlation_type": "pearson" # "pearson" or "spearman"
         },
         "cross_cos": {
-            "enabled": True,
+            "enabled": False,
+        },
+        "wasserstein": {
+            "enabled": True
         }
     },
 
     # Unified sliding-window parameters used by metrics that support sliding analysis
     "sliding_window": {
         "use_window": True,
-        "window_size": 16,
-        "displacement": 16
+        "window_size": 8,
+        "displacement": 1
     },
 
     # Pair computations
@@ -91,7 +95,7 @@ CONFIG = {
     # If compute_all_pairs is False and reference_index is None,
     # use this explicit list of index pairs for computation and plotting.
     # Example: [[0,1], [2,3]]
-    "pairs_to_plot": [[0, 1]],
+    "pairs_to_plot": [[0, 1], [0,2], [2,3]],
     },
 
     # Lyapunov (fast pairwise slope)
