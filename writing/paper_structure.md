@@ -10,7 +10,7 @@ Preliminaries
 
 - Nonlinear Dynamics and Chaos
 -- Definition. determinism. Trajectories in Phase Space. numerical solution.
--- Features of chaotic systems: Sensitivity to initial conditions (SIC). Divergence of trajectories (distance time series) and lyapunov exponents. periodicity and recurrence and recurrence plots. measurement error, uncertainty and predictability. attractors fractality and dimension.
+-- Features of chaotic systems: Sensitivity to initial conditions (SIC). Divergence of trajectories (distance time series) and (discrete) lyapunov exponents. periodicity and recurrence and recurrence plots. measurement error, uncertainty and predictability. attractors fractality and dimension.
 -- chaos vs randomness
 
 
@@ -29,10 +29,10 @@ Chaotic System - LLM
 phase space trajectory - sequence of text, tokens, or hidden states
 numerical solution - inference
 uncertainty in measurement - float point errors and distillation
-nonlinear coupling - feedback and chaos
+nonlinear coupling - attention
 <end table>
 
--- Limitations: llm trajectories are discontinuous and the step size is fixed (single token). you can't have higher resolution. model is trained to predict tokens, not with the explicit of being interpretable. sampling collapses the hidden state at the last layer and gets next token, this step is quite discontinuous and has a big impact.
+-- Limitations and Differences: llm trajectories are discontinuous and the step size is fixed (single token). you can't have higher resolution. model is trained to predict tokens, not with the explicit of being interpretable. sampling collapses the hidden state at the last layer and gets next token, this step is quite discontinuous and has a big impact on the divergence. High dimensionality of data.
 
 Methods
 
@@ -48,12 +48,15 @@ Methods
 --- dynamic time wrapping dtw
 --- hausdorff
 --- frechet
---- svd eigenvector ranking + a deviation metric: sum(cos_distance(of each matching pair of eigenvectors) xor rms (mean abs) of the ranking - expected (which is linear)
+--- svd eigenvector ranking + a deviation metric: sum(cos_distance(of each matching pair of eigenvectors)) xor rms (mean abs) of the ranking - expected (which is linear)
 
 -- sliding windows, aggregation, pooling
 -- Divergence and Lyapunov
 
-- Recurrence Plots 
+- Recurrence Plots (RP)
+-- intuition and what do they tell us.Qualitative structures visually identifiable.
+--- RP of typical perodic, chaotic, and white noise systems 
+-- RQA
 - Pointwise and Correlation dimensions
 - Clustering
 
@@ -64,16 +67,32 @@ Here we have the data from the hidden states or from the embedded text. Also we 
 - Divergence of trajectories and SIC
 -- Threshold of minimum intial distance in order to get divergence. Mention implication of sensitivity to initial conditions / measurement error and floating point errors and distillation.
 
+- Recurrence Plots
+-- Similarity to chaotic systems
+-- Differences between layers
+-- relate RP regions and structures to text output
+
+
+- Pointwise and Correlation dimensions
+-- good fit. fractal
+-- low dimension. enigma. pca explained variance dimension.
+-- limitations. unsufficient data
+
+- Clustering
+
 
 Discussion and Conclusions
 
-- The dynamical effect of LLM sampling
+- The dynamical effect of LLM sampling. Does it break the exponential chain and reduce divergence to sub-exponential
 
 Acknowledgements
 
 References
 
 Appendix
+
+Intuition about metrics. Effect of hidden states vs embeddings and the metrics used for distance divergence calculations. Use RP for each combination to give intuition of the effect.
+Embedding and some distance techniques smoothe out, pool, capture context
 
 
 
