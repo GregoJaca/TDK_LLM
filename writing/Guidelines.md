@@ -12,6 +12,10 @@
 - Produce **valid, compilable LaTeX** that runs on Overleaf. respect the project's existing preamble and style.
 - Follow the **existing style**. If style is unclear, add one concise comment asking for clarification.
 - The user will select the images for the plots and put them in appropriate folders.
+sections should be properly titled and numbered.
+use labels for referencing.
+plots should be EXACTLY where they are. use [H] in figure environment.
+
 ## 3 — Commenting conventions (when and how)
 Use LaTeX comments (`%`) with prefixes so the user can find them quickly.
 
