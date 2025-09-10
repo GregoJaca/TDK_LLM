@@ -44,7 +44,9 @@ Methods
 
 - initial conditions generation: get a prompt. tokenize and embed, get a single tensor shape (n_tokens, hidden_dim). then generate multiple copies and add a random direction fixed magnitude disturbance. get a list of tensors of len(n_initial_conditions)
 
-- Distance Metrics (for each  metric explain their definition with math formula, intuitive meaning: what are they measuring, and )7
+- working directly with hidden states or taking text and using a sentence embedder (pretrained opensource) to obtain a tensor (list of vectors). noth are nice. the embedder captures context and smoothens data.
+
+- Distance Metrics (for each  metric explain their definition with math formula, intuitive meaning: what are they measuring)
 
 -- Between single vectors: you get a single scalar for each pair of vectors, and a sequence of 
 --- cosine similarity

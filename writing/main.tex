@@ -1,0 +1,240 @@
+\documentclass[a4paper,12pt]{article}
+\usepackage{graphicx,amssymb,textcase,fancyhdr,enumerate,wrapfig}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc} % Use T1 encoding
+\usepackage{mathptmx} % Use Times New Roman font
+\usepackage[margin=2.5cm]{geometry} % Set margins to 2.5 cm
+\usepackage{setspace} % For line spacing
+\setstretch{1.5} % Set line spacing to 1.5
+\usepackage{subfig}
+\usepackage{icomma}
+\usepackage{xcolor}
+\usepackage{bm}
+\usepackage[unicode,colorlinks]{hyperref}
+\hypersetup{
+    colorlinks=true,
+    linkcolor=red,
+    filecolor=green,      
+    urlcolor=blue,
+}
+
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{float}
+\usepackage{mathtools}
+\usepackage[normalem]{ulem}
+
+\usepackage{subcaption}
+\usepackage{amsmath} % for the cases environment
+\usepackage{amsfonts} % additional math symbols (if needed)
+\usepackage{graphicx}
+
+\DeclarePairedDelimiter\abs{|}{|}
+\DeclareMathOperator{\tg}{tg}
+\definecolor{new_red}{HTML}{ff0000}
+\definecolor{new_blue}{HTML}{0000ff}
+\definecolor{new_green}{HTML}{009a00}
+\definecolor{new_orange}{HTML}{ff8000}
+
+\colorlet{light_red}{new_red!20!white}
+\colorlet{light_blue}{new_blue!20!white}
+\colorlet{light_green}{new_green!20!white}
+\colorlet{light_orange}{new_orange!20!white}
+\newcommand{\JT}[1]{{\color{blue} #1}}
+\newcommand{\vect}[1]{\mathbf{#1}}
+\newcommand{\vv}{\vect{v}}
+\newcommand{\vu}{\vect{u}}
+
+\newcommand{\hlb}[1]{\mathpalette\highlightb{#1}}
+\newcommand{\highlightb}[2]{\colorbox{light_blue}{$#1#2$}}
+
+\newcommand{\hlr}[1]{\mathpalette\highlightr{#1}}
+\newcommand{\highlightr}[2]{\colorbox{light_red}{$#1#2$}}
+
+\newcommand{\hlo}[1]{\mathpalette\highlighto{#1}}
+\newcommand{\highlighto}[2]{\colorbox{light_orange}{$#1#2$}}
+
+\newcommand{\hlg}[1]{\mathpalette\highlightg{#1}}
+\newcommand{\highlightg}[2]{\colorbox{light_green}{$#1#2$}}
+
+\setlength{\parskip}{0pt plus 0pt}
+\setlength{\tabcolsep}{12pt}
+\renewcommand{\arraystretch}{1.1}
+
+\sloppy
+
+
+\begin{document}
+
+\begin{titlepage}
+\newcommand{\HRule}{\rule{\linewidth}{0.5mm}}
+\center
+\huge\textsc{TDK}
+\HRule \\[0.4cm]
+{ \huge \bfseries Chaos in Large Language Models}\\[0.2cm] 
+\HRule \\[0.5cm]
+\begin{minipage}[t]{0.4\textwidth}
+\begin{flushleft} \large
+Author: \\
+\Large\textbf{Jaca Gregorio}\\
+\large{Physicist Engineering BSc, III. year.}
+\end{flushleft}
+\end{minipage}
+\qquad
+\begin{minipage}[t]{0.4\textwidth}
+\begin{flushleft}\large
+Supervisors: \\
+\Large\textbf{Dr. Török János}\\
+\large Associate professor \\
+BME Elméleti Fizika Tanszék
+
+\Large\textbf{Kristóf Benedek}\\
+\large ? \\
+?
+\end{flushleft}
+\end{minipage}
+\\[6cm]
+\includegraphics[scale=0.7]{bme.png}\\[0.2cm]
+\large{\textbf{BME}}\\
+\large{\textbf{2025}}
+\vfill
+\end{titlepage}
+
+\newpage\null\thispagestyle{empty}\newpage
+
+
+\begin{abstract}
+% Abstract will be written here
+\end{abstract}
+\newpage
+{
+  \hypersetup{linkcolor=black}
+  \tableofcontents
+}
+\newpage
+
+\section{Preliminaries}
+
+\subsection{Nonlinear Dynamics and Chaos}
+A deterministic dynamical system is one whose future evolution is uniquely determined by its current state. Such systems are often modeled by a set of coupled ordinary differential equations (ODEs) of the form:
+\begin{equation}
+    \frac{d\mathbf{x}}{dt} = f(\mathbf{x}(t))
+\end{equation}
+where $\mathbf{x}(t) \in \mathbb{R}^n$ is the state vector in an $n$-dimensional phase space, and $f$ is a nonlinear function. The sequence of states over time, $\mathbf{x}(t)$, traces a path known as a trajectory in this phase space.
+
+Chaotic systems are a fascinating subclass of deterministic nonlinear systems that exhibit complex and unpredictable behavior. This apparent randomness arises not from stochastic inputs, but from the system's intrinsic dynamics. The defining characteristic of chaos is \textbf{sensitivity to initial conditions (SIC)}, colloquially known as the "butterfly effect". This property implies that trajectories originating from infinitesimally close initial states, say $\mathbf{x}(0)$ and $\mathbf{x}(0) + \bm{\delta}(0)$, will diverge exponentially over time. The separation distance $\|\bm{\delta}(t)\|$ grows according to:
+\begin{equation}
+    \|\bm{\delta}(t)\| \approx \|\bm{\delta}(0)\| e^{\lambda t}
+\end{equation}
+where $\lambda$ is the maximal Lyapunov exponent. A positive maximal Lyapunov exponent ($\lambda > 0$) is the primary indicator of chaos. It signifies that any measurement error or uncertainty in the initial state, no matter how small, will be amplified exponentially, rendering long-term prediction impossible.
+
+Despite their unpredictability, the trajectories of dissipative chaotic systems are not entirely random; they are confined to a bounded, zero-volume region in phase space called a \textbf{strange attractor}. These attractors often possess a complex, self-similar geometry known as a fractal structure. The dimensionality of this structure can be characterized by a non-integer value. A common measure is the \textbf{correlation dimension ($D_2$)}, estimated using the Grassberger-Procaccia algorithm. It is based on the correlation integral, $C(\epsilon)$, which measures the probability that two points on the attractor are closer than a distance $\epsilon$. For small $\epsilon$, the correlation integral scales as a power law:
+\begin{equation}
+    C(\epsilon) = \lim_{N \to \infty} \frac{2}{N(N-1)} \sum_{i<j} \Theta(\epsilon - \|\mathbf{x}_i - \mathbf{x}_j\|) \sim \epsilon^{D_2}
+\end{equation}
+where $N$ is the number of points on the trajectory and $\Theta$ is the Heaviside step function. The dimension $D_2$ is then found as the slope of the linear region in a log-log plot of $C(\epsilon)$ versus $\epsilon$.
+
+Another powerful tool for analyzing dynamical systems is \textbf{Recurrence Analysis}. A Recurrence Plot (RP) visualizes the times at which a trajectory revisits a previously visited neighborhood in phase space. The recurrence matrix is defined as:
+\begin{equation}
+    R_{i,j}(\epsilon) = \Theta(\epsilon - \|\mathbf{x}_i - \mathbf{x}_j\|), \quad i,j = 1, \dots, N
+\end{equation}
+The visual patterns in an RP provide deep insight: periodic systems produce long, parallel diagonal lines, random systems produce a uniform, noisy plot, and chaotic systems produce a complex geometric structure with short, interrupted diagonal lines. These structures can be quantified using Recurrence Quantification Analysis (RQA).
+
+\subsection{Large Language Models (LLMs)}
+Large Language Models are a class of deep neural networks, with the Transformer architecture being the de facto standard. They are trained on massive text corpora to perform a simple, yet powerful, task: predicting the next token in a sequence.
+
+The process begins with tokenization, where input text is broken down into a sequence of integers (tokens). Each token is then mapped to a high-dimensional vector, its embedding. These embeddings are processed through a stack of Transformer layers. Each layer is primarily composed of two sub-modules: a multi-head self-attention mechanism and a position-wise feed-forward network (MLP). The self-attention mechanism is the key source of nonlinearity and contextual understanding, allowing the model to dynamically weigh the importance of all other tokens in the context window when updating the representation of a single token. It can be expressed as:
+\begin{equation}
+    \text{Attention}(Q, K, V) = \text{softmax}\left(\frac{QK^T}{\sqrt{d_k}}\right)V
+\end{equation}
+This operation creates a powerful, nonlinear feedback and coupling mechanism between all elements of the sequence. The MLP further processes these representations through additional nonlinear transformations. The output of the final layer is a sequence of hidden states, which represent the contextualized meaning of each token.
+
+During inference, the LLM generates text autoregressively, which can be viewed as a discrete-time dynamical system:
+\begin{equation}
+    \mathbf{s}_{t+1} = f(\mathbf{s}_t, \mathbf{s}_{t-1}, ..., \mathbf{s}_0)
+\end{equation}
+where $\mathbf{s}_t$ represents the model's internal state (the sequence of hidden states) at step $t$. To generate the next token, the hidden state of the last token is passed through a final linear layer (the "un-embedding") to produce logits over the entire vocabulary, which are then converted to a probability distribution via a softmax function. A decoding strategy is then used to select a token. \textbf{Greedy sampling} deterministically selects the token with the highest probability. In contrast, \textbf{probabilistic sampling} introduces stochasticity, often controlled by a temperature parameter ($T$). Higher temperatures flatten the distribution, making the output more diverse but less coherent.
+
+\subsection{Analogy and Limitations}
+We propose viewing the autoregressive process of an LLM as a high-dimensional, discrete-time dynamical system. The sequence of hidden states serves as the trajectory evolving in the model's internal phase space. This analogy, summarized in Table \ref{tab:analogy}, is motivated by the central role of the self-attention mechanism, which acts as a strong nonlinear coupling force, akin to the nonlinear terms in chaotic ODEs.
+
+\begin{table}[H]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Chaotic System} & \textbf{Large Language Model (LLM)} \\ \midrule
+State Vector & Hidden State Vector \\
+Phase Space & Embedding / Hidden State Space \\
+Continuous Time Evolution & Discrete Token Generation Step \\
+Differential Equation & Autoregressive Function \\
+Nonlinear Coupling & Self-Attention Mechanism \\
+Initial Condition & Initial Prompt Embedding \\
+Measurement Uncertainty & Floating Point Precision, Quantization \\ \bottomrule
+\end{tabular}
+\caption{Analogies between concepts in chaos theory and LLMs.}
+\label{tab:analogy}
+\end{table}
+
+However, the analogy is not perfect and has critical limitations. LLM dynamics are discrete, not continuous, with a fixed "time step" of one token. The act of sampling a token from the probability distribution and appending it to the input can be seen as a "collapse" or a sharp discontinuity in the trajectory's evolution. Furthermore, the dimensionality of the state space is extraordinarily high (thousands of dimensions), which poses significant challenges for traditional chaos analysis techniques.
+
+\section{Methods}
+
+\subsection{Initial Condition Generation}
+To test for sensitivity to initial conditions, we generate a set of trajectories from infinitesimally close starting points. We begin with a single prompt, tokenize it, and retrieve its initial embedding matrix $\mathbf{E}_0 \in \mathbb{R}^{L \times D}$, where $L$ is the prompt length and $D$ is the model's hidden dimension. We then create $N$ perturbed initial conditions by adding a small, random perturbation vector of fixed magnitude (radius $r$) to the embedding of the *last* token of the prompt.
+
+\subsection{Trajectory Distance Metrics}
+We use a suite of metrics to quantify the divergence between pairs of trajectories, $\mathbf{X} = (\mathbf{x}_1, ..., \mathbf{x}_n)$ and $\mathbf{Y} = (\mathbf{y}_1, ..., \mathbf{y}_m)$.
+
+\subsubsection{Vector-wise Metrics}
+These metrics are applied pointwise between corresponding vectors of two trajectories, yielding a time series of distance values.
+\begin{itemize}
+    \item \textbf{Cosine Distance:} Measures the angle between two vectors, capturing their orientation similarity. It is defined as $1 - \text{Cosine Similarity}$:
+    \begin{equation}
+        d_{cos}(\mathbf{a}, \mathbf{b}) = 1 - \frac{\mathbf{a} \cdot \mathbf{b}}{\|\mathbf{a}\| \|\mathbf{b}\|}
+    \end{equation}
+    \item \textbf{Normalized Cross-Correlation:} Measures the similarity between two vectors as a function of the displacement of one relative to the other. For discrete vectors at zero lag, it is related to the cosine similarity.
+\end{itemize}
+
+\subsubsection{Trajectory-wise Metrics}
+These metrics yield a single scalar value for the distance between two entire trajectories. To obtain a divergence curve, we apply these metrics in a sliding window of increasing size.
+\begin{itemize}
+    \item \textbf{Dynamic Time Warping (DTW):} Finds an optimal non-linear alignment between two sequences. It computes a cost matrix where $C_{i,j}$ is the distance between $\mathbf{x}_i$ and $\mathbf{y}_j$. The DTW distance is the value in the final cell of an accumulated cost matrix $D$, defined by the recurrence:
+    \begin{equation}
+        D_{i,j} = C_{i,j} + \min(D_{i-1, j}, D_{i, j-1}, D_{i-1, j-1})
+    \end{equation}
+    \item \textbf{Fréchet Distance:} Intuitively, the minimum length of a leash needed to connect a person and a dog walking along their respective paths. It is sensitive to the ordering of points. For two curves $P$ and $Q$, it is:
+    \begin{equation}
+        d_F(P, Q) = \inf_{\alpha, \beta} \max_{t \in [0,1]} \| P(\alpha(t)) - Q(\beta(t)) \|
+    \end{equation}
+    where $\alpha$ and $\beta$ are non-decreasing reparameterizations.
+    \item \textbf{Hausdorff Distance:} Measures the greatest of all distances from a point in one set to the closest point in the other set. It is a pure set-based distance.
+    \begin{equation}
+        d_H(X, Y) = \max \left( \sup_{\mathbf{x} \in X} \inf_{\mathbf{y} \in Y} \|\mathbf{x}-\mathbf{y}\|, \sup_{\mathbf{y} \in Y} \inf_{\mathbf{x} \in X} \|\mathbf{x}-\mathbf{y}\| \right)
+    \end{equation}
+\end{itemize}
+
+\subsubsection{Structural Metric}
+\begin{itemize}
+    \item \textbf{SVD Eigenvector Ranking Deviation:} To compare the structural properties of two trajectories, we compute the covariance matrix for each sequence of hidden states. We then perform Singular Value Decomposition (SVD) on these matrices. The resulting singular vectors represent the principal axes of variance for each trajectory. We compare the orientation and ranking of these corresponding vectors between two trajectories to produce a measure of structural divergence.
+\end{itemize}
+
+\subsection{Recurrence Analysis}
+We generate Recurrence Plots (RPs) using the self-similarity matrix of a single hidden state trajectory with cosine distance. We analyze the plots qualitatively and quantitatively using Recurrence Quantification Analysis (RQA) metrics, including:
+\begin{itemize}
+    \item \textbf{Determinism (DET):} The percentage of recurrence points forming diagonal lines, indicating predictability.
+    \item \textbf{Laminarity (LAM):} The percentage of recurrence points forming vertical lines, indicating periods of stable or "laminar" states.
+    \item \textbf{Entropy (ENT):} The Shannon entropy of the distribution of diagonal line lengths, reflecting the complexity of the deterministic structure.
+\end{itemize}
+
+\subsection{Dimensionality and Clustering}
+We estimate the correlation dimension ($D_2$) of the trajectories using the Grassberger-Procaccia algorithm as described previously. Furthermore, we apply clustering algorithms such as DBSCAN to the set of hidden state vectors within a trajectory to identify distinct operational states or regions in the model's high-dimensional phase space.
+
+\section{Acknowledgements }
+
+I would like to thank my supervisors, Dr. János Török and Kristóf Benedek for their help and support during this work.
+
+\newpage
+\bibliographystyle{unsrt}
+\bibliography{lit}
+
+\end{document}
