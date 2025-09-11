@@ -10,7 +10,7 @@
 
 ## 2 — How to write / edit files
 - Produce **valid, compilable LaTeX** that runs on Overleaf. respect the project's existing preamble and style.
-- Follow the **existing style**. If style is unclear, add one concise comment asking for clarification.
+- Follow the **existing style**. If style is unclear, add one concise comment asking for clarification. Do not use praising language, be plain.
 - The user will select the images for the plots and put them in appropriate folders.
 sections should be properly titled and numbered.
 use labels for referencing.

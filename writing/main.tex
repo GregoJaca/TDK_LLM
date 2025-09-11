@@ -141,7 +141,7 @@ Another powerful tool for analyzing dynamical systems is \textbf{Recurrence Anal
 The visual patterns in an RP provide deep insight: periodic systems produce long, parallel diagonal lines, random systems produce a uniform, noisy plot, and chaotic systems produce a complex geometric structure with short, interrupted diagonal lines. These structures can be quantified using Recurrence Quantification Analysis (RQA).
 
 \subsection{Large Language Models (LLMs)}
-Large Language Models are a class of deep neural networks, with the Transformer architecture being the de facto standard. They are trained on massive text corpora to perform a simple, yet powerful, task: predicting the next token in a sequence.
+Large Language Models are a class of deep neural networks, with the Transformer architecture being the de facto standard. They are trained on massive text corpora to perform a simple, yet powerful, task: predicting the probability distribution for the next token in a sequence.
 
 The process begins with tokenization, where input text is broken down into a sequence of integers (tokens). Each token is then mapped to a high-dimensional vector, its embedding. These embeddings are processed through a stack of Transformer layers. Each layer is primarily composed of two sub-modules: a multi-head self-attention mechanism and a position-wise feed-forward network (MLP). The self-attention mechanism is the key source of nonlinearity and contextual understanding, allowing the model to dynamically weigh the importance of all other tokens in the context window when updating the representation of a single token. It can be expressed as:
 \begin{equation}
@@ -163,10 +163,12 @@ We propose viewing the autoregressive process of an LLM as a high-dimensional, d
 \begin{tabular}{@{}ll@{}}
 \toprule
 \textbf{Chaotic System} & \textbf{Large Language Model (LLM)} \\ \midrule
-State Vector & Hidden State Vector \\
 Phase Space & Embedding / Hidden State Space \\
+State Vector & Hidden State Vector \\
+Phase Space Trajectory & Sequence os Token Text or Hidden States \\
 Continuous Time Evolution & Discrete Token Generation Step \\
 Differential Equation & Autoregressive Function \\
+Numerical Solution & Forward Pass Inference \\
 Nonlinear Coupling & Self-Attention Mechanism \\
 Initial Condition & Initial Prompt Embedding \\
 Measurement Uncertainty & Floating Point Precision, Quantization \\ \bottomrule
