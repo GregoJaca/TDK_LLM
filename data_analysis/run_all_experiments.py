@@ -1,9 +1,9 @@
 
 
 class Experiment:
-    RADII = [0.0003, 0.0004]
+    # RADII = [0.0003, 0.0004]
     # TEMPS = [0, 0.6]
-    # RADII = [0.0003]
+    RADII = [0.0004]
     TEMPS = [0]
 EMBEDDING_METHODS = [
     # "sentence-transformers/all-mpnet-base-v2",
@@ -33,6 +33,8 @@ def run_all_experiments():
                 input_path = os.path.normpath(
                     f"C:/Users/grego/OneDrive/Documents/BME_UNI_WORK/TDK_2025/git_repo/TDK_LLM/runs_aug/launch_aug/childhood_personality_development_{TEMPERATURE}_{RADIUS_INITIAL_CONDITIONS}/{embed_name}.pt"
                 )
+                # Place results under a top-level 'results' folder so structure is:
+                # .../launch_aug/results/<case_name>/<embed_name>/
                 results_root = os.path.normpath(
                     f"C:/Users/grego/OneDrive/Documents/BME_UNI_WORK/TDK_2025/git_repo/TDK_LLM/runs_aug/launch_aug/childhood_personality_development_{TEMPERATURE}_{RADIUS_INITIAL_CONDITIONS}/results/{embed_name}"
                 )
@@ -48,8 +50,8 @@ def run_all_experiments():
 
                 print(f"Running experiment: temp={TEMPERATURE}, radius={RADIUS_INITIAL_CONDITIONS}, embedder={embedder}")
                 try:
-                    # pass input_path explicitly (run_all will still use CONFIG for results_root)
-                    run_all.main(input_path=input_path)
+                    # pass input_path and results_root explicitly
+                    run_all.main(input_path=input_path, results_root=results_root)
                 except Exception as e:
                     # Keep this minimal: report and continue with next experiment
                     print(f"Experiment failed for {input_path}: {e}")

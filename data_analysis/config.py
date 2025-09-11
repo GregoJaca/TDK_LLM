@@ -32,7 +32,7 @@ CONFIG = {
     # Metrics
     "metrics": {
     # "available": ["cos", "cos_sim", "dtw_fast", "hausdorff", "frechet", "cross_cos", "rank_eigen", "cross_corr", "wasserstein"],
-    "available": [ "wasserstein"],
+    "available": ["cos"],
     "save_plots": True,
         "rank_eigen": {
             "enabled": False,
@@ -41,7 +41,7 @@ CONFIG = {
         },
         "default_pairing": "ref0",   # "all" or "ref0"
         "cos": {
-            "enabled": False,
+            "enabled": True,
             "aggregate": ["mean", "median", "std"],
             "shifts": [0],   # absolute steps to sweep; included in sweep script
             "shift_aggregation": "min", # "min", "mean"
@@ -75,14 +75,14 @@ CONFIG = {
             "enabled": False,
         },
         "wasserstein": {
-            "enabled": True
+            "enabled": False
         }
     },
 
     # Unified sliding-window parameters used by metrics that support sliding analysis
     "sliding_window": {
         "use_window": True,
-        "window_size": 8,
+        "window_size": 1,
         "displacement": 1
     },
 

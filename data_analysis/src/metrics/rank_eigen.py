@@ -174,7 +174,10 @@ def compare_trajectories(
 
         # full-rank scatter
         try:
-            full_plot_path = os.path.join(plots_dir, f"rank_eigen_pca_{pair_id}.png") if pair_id else os.path.join(plots_dir, "rank_eigen_pca.png")
+            if pair_id:
+                full_plot_path = os.path.join(plots_dir, f"rank_eigen_pca_{pair_id}.png")
+            else:
+                full_plot_path = os.path.join(plots_dir, "rank_eigen_pca.png")
             viz_plots.plot_rank_eigen_full(closest_ranks, full_plot_path, traj_indices=pair_id)
         except Exception:
             # avoid breaking metric computation if plotting fails
@@ -183,7 +186,10 @@ def compare_trajectories(
         # sliding plot
         if positions.size > 0 and CONFIG.get("plots", {}).get("save_timeseries", False):
             try:
-                sliding_plot_path = os.path.join(plots_dir, f"rank_eigen_pca_{pair_id}_sliding.png") if pair_id else os.path.join(plots_dir, "rank_eigen_pca_sliding.png")
+                if pair_id:
+                    sliding_plot_path = os.path.join(plots_dir, f"rank_eigen_pca_{pair_id}_sliding.png")
+                else:
+                    sliding_plot_path = os.path.join(plots_dir, "rank_eigen_pca_sliding.png")
                 viz_plots.plot_rank_eigen_sliding(positions, deviations, sliding_plot_path, metric_cfg=cfg)
             except Exception:
                 pass

@@ -1,0 +1,65 @@
+# LLM Project Report: Lessons Learned and Architectural Recommendations
+
+This report summarizes key takeaways from a recent development phase and provides actionable recommendations for future LLM contributors and project architects.
+
+## For Future LLMs: Lessons Learned from this Interaction
+
+1.  **Explicit Communication is Paramount:**
+    *   **Always Confirm Assumptions:** Do not assume default behaviors or implicit configurations. If a parameter's default is critical or ambiguous, explicitly ask the user or verify it in `config.py`.
+    *   **Clarify Intent:** Before making significant changes, ensure a clear understanding of the user's exact requirements, especially regarding output formats, directory structures, and desired behaviors.
+
+2.  **Deep Dive into Existing Codebase:**
+    *   **Understand Global State:** Be extremely cautious with global objects (e.g., `CONFIG`). Understand how they are modified and consumed across different modules. Implicit reliance on global state can lead to subtle and hard-to-debug issues.
+    *   **Trace Execution Flow:** Before modifying, trace the full execution path of relevant functions, noting all inputs, outputs, and side effects (like file writes or modifications to global state).
+    *   **Identify Redundancies:** Look for redundant loops or logic across different scripts (e.g., experiment loops in both `sweep_analysis.py` and `compute_metric_matrices.py`). Consolidate such logic into a single orchestrating script.
+
+3.  **Modular Design for Reusability:**
+    *   **Explicit Arguments:** Design functions to accept all necessary inputs as explicit arguments rather than relying on global variables or implicit context. This makes functions easier to test, understand, and integrate into new workflows.
+    *   **Clear Responsibilities:** Ensure each function or module has a single, well-defined responsibility (e.g., a function should either load data, process data, or plot data, but not all three).
+
+4.  **Robust Logging is Crucial:**
+    *   **Implement Early and Extensively:** Add comprehensive logging from the very beginning of a development phase. This is the most effective tool for debugging and understanding execution flow, especially in multi-file operations.
+    *   **Log Key Information:** Log function calls (with arguments), data loading/saving, major processing steps, and any errors or warnings. Use appropriate logging levels (INFO, WARNING, ERROR).
+    *   **Verify Log Output:** After implementing logging, run the script and check the logs to ensure they provide meaningful insights into the execution.
+
+5.  **Thorough Testing and Verification:**
+    *   **Define Verification Steps:** For every change, have a clear plan to verify its correctness. This includes checking for expected file outputs, log messages, and functional behavior.
+    *   **Address All Symptoms:** If a problem persists, do not stop at the first identified issue. Continue debugging until all symptoms are explained and resolved.
+
+6.  **Command-Line Argument Handling:**
+    *   **Understand `argparse` Actions:** Be aware of how `action` parameters (e.g., `store_true`, `store_false`) interact with `default` values in `argparse`. Incorrect usage can lead to unexpected default behaviors.
+
+## Architectural Recommendations (for the Project and General Design)
+
+These recommendations aim to improve maintainability, testability, and the ease with which future LLMs (and human developers) can contribute to this project.
+
+1.  **Centralized and Explicit Configuration Management:**
+    *   **Problem:** While `config.py` centralizes parameters, the implicit reliance on `CONFIG` as a global mutable object led to confusion and unexpected side effects when functions modified it or expected it to be pre-set.
+    *   **Recommendation:**
+        *   **Pass Configuration Objects:** Functions that require configuration parameters should receive a configuration object (or specific parameters) explicitly as an argument. This makes dependencies clear and avoids hidden state changes.
+        *   **Immutable Configuration (Optional but Recommended):** Consider making the `CONFIG` object immutable after initial loading to prevent accidental modifications during runtime. If dynamic changes are needed, implement a clear mechanism for updating and propagating those changes.
+
+2.  **Strict Separation of Concerns (SoC):**
+    *   **Problem:** The current architecture often intertwines data loading, processing, and output generation within the same functions or modules. This makes debugging difficult and reduces reusability.
+    *   **Recommendation:**
+        *   **I/O Layer (`src/io`):** Strictly for loading and saving raw data. Functions should take paths and return data structures (e.g., NumPy arrays, PyTorch tensors).
+        *   **Processing Layer (`src/metrics`, `src/reduce`, `src/runner`):** Focus purely on computation. Functions should take data structures as input and return processed data or results. They should *not* directly handle file saving or plotting.
+        *   **Orchestration Layer (`run_all.py`, `sweep_analysis.py`, CLI):** These scripts should be the orchestrators. They load data (via `src/io`), call processing functions, and then explicitly call plotting/saving utilities.
+
+3.  **Explicit Plotting API:**
+    *   **Problem:** Plotting functions in `src/viz/plots.py` sometimes implicitly assumed output locations or relied on global `CONFIG` for paths.
+    *   **Recommendation:** All plotting functions should take an `output_path` (including the filename) as a mandatory argument. This makes it explicit where the plot will be saved and gives orchestrating scripts precise control over output locations and naming conventions.
+
+4.  **Consistent and Comprehensive Logging:**
+    *   **Problem:** Logging was inconsistent, with some modules using `print()` and others using the `logger`, and often lacking sufficient detail.
+    *   **Recommendation:** Standardize on using the `logger` for all informational, warning, and error messages. Avoid `print()` statements for anything other than final, user-facing summaries. Ensure critical errors are logged with appropriate levels (`logger.error`) and potentially re-raised if they prevent further computation.
+
+5.  **Robust Parameter Validation:**
+    *   **Recommendation:** Implement basic validation for critical input parameters at the entry points of functions (e.g., checking if `input_path` exists, if numerical parameters are within expected ranges). This can catch common issues early and provide clearer error messages.
+
+6.  **Consider a Dedicated Experiment Management System (for larger scale):**
+    *   **Recommendation:** For more complex sweep analyses or long-running experiments, consider integrating a lightweight experiment tracking tool (e.g., MLflow, Weights & Biases, or even a custom CSV/JSON logging system). This helps organize results, configurations, and metrics across many runs.
+
+By implementing these architectural improvements, the project will become more robust, easier to understand, and significantly more amenable to future development, whether by human engineers or advanced LLMs.
+
+Thank you for the opportunity to contribute to your project. I am now logging off.

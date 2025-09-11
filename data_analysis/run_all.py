@@ -43,14 +43,18 @@ def make_run_id():
     suffix = hex(random.getrandbits(24))[2:]
     return f"{ts}-{suffix}"
 
-def main(input_path=None):
-    run_id = make_run_id()
-    results_dir = os.path.join(CONFIG["results_root"], run_id)
+def main(input_path, results_root, sweep_param_value=None):
+    logger.info(f"run_all.main called with input_path={input_path}, results_root={results_root}, sweep_param_value={sweep_param_value}")
+    if sweep_param_value is not None:
+        run_id = 'sweep'
+        results_dir = os.path.join(results_root, run_id)
+    else:
+        run_id = make_run_id()
+        results_dir = os.path.join(results_root, run_id)
     plots_dir = os.path.join(results_dir, "plots")
     os.makedirs(plots_dir, exist_ok=True)
     logger.info(f"Starting run {run_id}")
 
-    input_path = input_path or CONFIG["input_path"]
     if not os.path.exists(input_path):
         logger.warning(f"Input file {input_path} not found. Using example data.")
         input_path = "examples/small_example.pt"
@@ -74,9 +78,15 @@ def main(input_path=None):
         logger.info("PCA reduction is disabled in config; skipping reduction.")
 
     # Plot PCA explained variance (only if PCA was run)
-    pca_plot_path = os.path.join(plots_dir, "pca_explained_variance.png")
+    if sweep_param_value is not None:
+        plot_dir = os.path.join(CONFIG["results_root"], 'pca')
+        os.makedirs(plot_dir, exist_ok=True)
+        pca_plot_path = os.path.join(plot_dir, f"pca_explained_variance_window_size_{sweep_param_value}.png")
+    else:
+        pca_plot_path = os.path.join(plots_dir, "pca_explained_variance.png")
+
     if CONFIG.get("reduction", {}).get("pca", {}).get("enabled", True) and 'reducer' in locals():
-        plot_pca_explained_variance(reducer.model, pca_plot_path)
+        plot_pca_explained_variance(reducer.model, pca_plot_path, sweep_param_value=sweep_param_value)
     else:
         # mark as not available
         pca_plot_path = None
@@ -100,8 +110,14 @@ def main(input_path=None):
 
     for metric_name in metrics_list_for_plots:
         for agg_type in ["mean", "median", "std"]:
-            plot_path = os.path.join(plots_dir, f"pairwise_distance_hist_{metric_name}_{agg_type}.png")
-            plot_pairwise_distance_distribution(metrics_summary, plot_path, metric_name=metric_name, aggregate_type=agg_type)
+            if sweep_param_value is not None:
+                plot_dir = os.path.join(results_root, metric_name)
+                os.makedirs(plot_dir, exist_ok=True)
+                plot_path = os.path.join(plot_dir, f"pairwise_distance_hist_{metric_name}_{agg_type}_window_size_{sweep_param_value}.png")
+            else:
+                plot_path = os.path.join(plots_dir, f"pairwise_distance_hist_{metric_name}_{agg_type}.png")
+            logger.info(f"Saving plot to {plot_path}")
+            plot_pairwise_distance_distribution(metrics_summary, plot_path, metric_name=metric_name, aggregate_type=agg_type, sweep_param_value=sweep_param_value)
 
     logger.info("Plotting done")
 
@@ -166,6 +182,7 @@ def main(input_path=None):
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument("--input", type=str, default=None, help="Path to the input tensor file")
+    parser.add_argument("--input", type=str, required=True, help="Path to the input tensor file")
+    parser.add_argument("--results", type=str, default="results", help="Path to the results directory")
     args = parser.parse_args()
-    main(input_path=args.input)
+    main(input_path=args.input, results_root=args.results)

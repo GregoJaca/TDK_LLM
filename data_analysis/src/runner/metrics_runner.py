@@ -41,16 +41,28 @@ def _compute_metric_for_pair(pair, trajectories, metrics_to_run, results_dir):
         pass
     pair_results = {}
     pair_id = f"{i}_{j}"
-    plots_dir = os.path.join(results_dir, "plots")
-    os.makedirs(plots_dir, exist_ok=True)
+
+    # If a sweep is active (set by sweep_analysis), include its info in filenames
+    sw = CONFIG.get("sweep", {})
+    sweep_param = sw.get("param")
+    sweep_value = sw.get("value")
+    sweep_suffix = f"_{sweep_param}_{sweep_value}" if sweep_param is not None and sweep_value is not None else ""
+    pair_id_sweep = f"{pair_id}{sweep_suffix}"
 
     for metric_name in metrics_to_run:
         if metric_name in METRIC_FUNCTIONS:
             if CONFIG["logging"]["enabled"]:
                 print(f"[metrics_runner] computing metric '{metric_name}' for pair {pair}")
             try:
+                # Decide plots directory: for sweeps we want results_root/<metric_name>/
+                if os.path.basename(results_dir) == "sweep":
+                    plots_dir = os.path.join(os.path.dirname(results_dir), metric_name)
+                else:
+                    plots_dir = os.path.join(results_dir, "plots")
+                os.makedirs(plots_dir, exist_ok=True)
+
                 # Pass pair-specific identifiers and output root so metrics can save per-pair plots
-                timeseries, aggregates = METRIC_FUNCTIONS[metric_name](traj_a, traj_b, pair_id=pair_id, out_root=plots_dir)
+                timeseries, aggregates = METRIC_FUNCTIONS[metric_name](traj_a, traj_b, pair_id=pair_id_sweep, out_root=plots_dir)
 
                 # Normalize scalar aggregates to standard keys so summaries/plots work uniformly
                 if not any(k in aggregates for k in ("mean", "median", "std")):

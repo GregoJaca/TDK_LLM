@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from config import CONFIG
 
-def plot_pairwise_distance_distribution(aggregates, outpath, metric_name="cos", aggregate_type="mean"):
+def plot_pairwise_distance_distribution(aggregates, outpath, metric_name="cos", aggregate_type="mean", sweep_param_value=None):
     """Plots a histogram of the distances for a specific metric and aggregate type."""
     # Respect global plot saving configuration
     if not CONFIG["plots"].get("save_histograms", True):
@@ -73,7 +73,10 @@ def plot_pairwise_distance_distribution(aggregates, outpath, metric_name="cos", 
         plt.ylabel(f'Count ({metric_name.capitalize()} Distance)')
         plt.ylim(bottom=0, top=max(1, counts.max()) * 1.15)
 
-    plt.title(f"Distribution of {aggregate_type.capitalize()} {metric_name.capitalize()} Distances (n={arr.size})")
+    title = f"Distribution of {aggregate_type.capitalize()} {metric_name.capitalize()} Distances (n={arr.size})"
+    if sweep_param_value is not None:
+        title += f" - window_size={sweep_param_value}"
+    plt.title(title)
     plt.xlabel(f"{aggregate_type.capitalize()} {metric_name.capitalize()} Distance")
     plt.ylabel(f"Density ({metric_name.capitalize()} Distance)")
     plt.grid(axis='y', alpha=0.3)
@@ -81,11 +84,14 @@ def plot_pairwise_distance_distribution(aggregates, outpath, metric_name="cos", 
     plt.savefig(outpath, dpi=150)
     plt.close()
 
-def plot_mean_log_distance_vs_time(mean_log_array, outpath, window=None, slope=None, r2=None):
+def plot_mean_log_distance_vs_time(mean_log_array, outpath, window=None, slope=None, r2=None, sweep_param_value=None):
     """Plots the mean log distance vs time, with optional fitted line."""
     plt.figure()
     plt.plot(mean_log_array, label="Mean Log Distance")
-    plt.title("Mean Log Distance vs Time")
+    title = "Mean Log Distance vs Time"
+    if sweep_param_value is not None:
+        title += f" - window_size={sweep_param_value}"
+    plt.title(title)
     plt.xlabel("Time Step") # More generic than "Time"
     plt.ylabel("Mean Log Distance")
     
@@ -104,7 +110,7 @@ def plot_mean_log_distance_vs_time(mean_log_array, outpath, window=None, slope=N
     plt.savefig(outpath)
     plt.close()
 
-def plot_pca_explained_variance(pca_model, outpath):
+def plot_pca_explained_variance(pca_model, outpath, sweep_param_value=None):
     """Plots the explained variance ratio of PCA components."""
     if "explained_variance_ratio" not in pca_model:
         print("PCA model does not contain explained_variance_ratio. Cannot plot.")
@@ -118,7 +124,10 @@ def plot_pca_explained_variance(pca_model, outpath):
     plt.step(range(1, len(explained_variance_ratio) + 1), cumulative_explained_variance, where='mid', label='Cumulative Explained Variance')
     plt.ylabel('Explained Variance Ratio')
     plt.xlabel('Number of Principal Components')
-    plt.title('PCA Explained Variance and Cumulative Sum')
+    title = 'PCA Explained Variance and Cumulative Sum'
+    if sweep_param_value is not None:
+        title += f" - window_size={sweep_param_value}"
+    plt.title(title)
     plt.legend(loc='best')
     plt.grid(True)
 
@@ -203,7 +212,7 @@ def plot_hyperparam_sweep(sweep_results_df, outpath_prefix):
             plt.savefig(f'{outpath_prefix}_{col_name}_heatmap.png')
             plt.close()
 
-def plot_time_series_for_pair(pair_timeseries, outpath, title="Distance Timeseries for a Pair", ylabel="Distance", x=None):
+def plot_time_series_for_pair(pair_timeseries, outpath, title="Distance Timeseries for a Pair", ylabel="Distance", x=None, sweep_param_value=None):
     """Plots a distance timeseries for a single pair.
 
     Parameters:
@@ -219,6 +228,8 @@ def plot_time_series_for_pair(pair_timeseries, outpath, title="Distance Timeseri
         plt.plot(pair_timeseries, marker='o', markersize=3, linewidth=1.0, alpha=0.75)
     else:
         plt.plot(x, pair_timeseries, marker='o', markersize=3, linewidth=1.0, alpha=0.75)
+    if sweep_param_value is not None:
+        title += f" - window_size={sweep_param_value}"
     plt.title(title)
     plt.xlabel("Time")
     plt.ylabel(ylabel)
@@ -228,7 +239,7 @@ def plot_time_series_for_pair(pair_timeseries, outpath, title="Distance Timeseri
     plt.close()
 
 
-def plot_rank_eigen_full(closest_ranks, outpath, traj_indices=None):
+def plot_rank_eigen_full(closest_ranks, outpath, traj_indices=None, sweep_param_value=None):
     """Scatter plot of eigenvector rank mapping for full trajectories."""
     plt.figure(figsize=(6, 6))
     plt.scatter(range(1, len(closest_ranks) + 1), closest_ranks, marker='o')
@@ -240,7 +251,10 @@ def plot_rank_eigen_full(closest_ranks, outpath, traj_indices=None):
         ylabel = f"Rank of Closest Match (pair {traj_indices})"
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
-    plt.title(f"Eigenvector ranking using Cosine similarity")
+    title = f"Eigenvector ranking using Cosine similarity"
+    if sweep_param_value is not None:
+        title += f" - window_size={sweep_param_value}"
+    plt.title(title)
     plt.grid(True)
     plt.legend()
     plt.tight_layout()
@@ -248,7 +262,7 @@ def plot_rank_eigen_full(closest_ranks, outpath, traj_indices=None):
     plt.close()
 
 
-def plot_rank_eigen_sliding(positions, deviations, outpath, metric_cfg=None):
+def plot_rank_eigen_sliding(positions, deviations, outpath, metric_cfg=None, sweep_param_value=None):
     """Line plot for sliding-window rank deviation reusing the standard timeseries style."""
     ylabel = 'Deviation from perfect rank'
     if metric_cfg and metric_cfg.get('deviation_metric', 'rms').lower() == 'rms':
@@ -257,4 +271,4 @@ def plot_rank_eigen_sliding(positions, deviations, outpath, metric_cfg=None):
         ylabel += ' (Mean abs)'
     title = 'Sliding-window rank deviation'
     # Reuse the standard time-series plotting function so style (markersize, linewidth) stays consistent
-    plot_time_series_for_pair(deviations, outpath, title=title, ylabel=ylabel, x=positions)
+    plot_time_series_for_pair(deviations, outpath, title=title, ylabel=ylabel, x=positions, sweep_param_value=sweep_param_value)

@@ -21,9 +21,10 @@ import torch
 
 from config import CONFIG
 from src.io.loader import load_tensor
-
-# Reuse embedded list & Experiment definition from run_all_experiments
 from run_all_experiments import EMBEDDING_METHODS, Experiment
+from src.utils.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 # Options (simple knobs)
@@ -142,7 +143,7 @@ def _compute_matrix_for_trajectory(
     return M
 
 
-def _plot_matrix(M: np.ndarray, out_path: str, title: Optional[str] = None):
+def _plot_matrix(M: np.ndarray, out_path: str, title: Optional[str] = None, sweep_param_value=None):
     try:
         import matplotlib.pyplot as plt
 
@@ -150,6 +151,8 @@ def _plot_matrix(M: np.ndarray, out_path: str, title: Optional[str] = None):
         plt.imshow(M, aspect="equal", origin="lower", cmap="viridis")
         plt.colorbar()
         if title:
+            if sweep_param_value is not None:
+                title += f" - window_size={sweep_param_value}"
             plt.title(title)
         plt.tight_layout()
         plt.savefig(out_path)
@@ -285,161 +288,135 @@ def _compute_rank_eigen_matrix(
     return M
 
 
-def main(save_matrices: bool = SAVE_MATRICES, save_plots: bool = SAVE_PLOTS):
+def main(input_path, results_root, save_matrices: bool = SAVE_MATRICES, save_plots: bool = SAVE_PLOTS, sweep_param_value=None):
+    logger.info(f"compute_metric_matrices.main called with input_path={input_path}, results_root={results_root}, sweep_param_value={sweep_param_value}")
     sw = CONFIG.get("sliding_window", {})
     use_window = bool(sw.get("use_window", False))
     window_size = int(sw.get("window_size", 1))
     displacement = int(sw.get("displacement", 1))
 
-    repo_root = os.path.abspath(os.path.dirname(__file__))
+    logger.info(f"Processing input={input_path}")
 
-    repo_root = os.path.abspath(os.path.dirname(__file__))
+    # load tensor
+    try:
+        tensor = load_tensor(input_path)
+        logger.info(f"Loaded tensor from {input_path}")
+    except Exception as e:
+        logger.error(f"Failed to load {input_path}: {e}")
+        return
 
-    for rrr in Experiment.RADII:
-        for TEMPERATURE in Experiment.TEMPS:
-            for embedder in EMBEDDING_METHODS:
-                embed_name = embedder.replace("/", "_")
-                input_path = os.path.normpath(
-                    f"C:/Users/grego/OneDrive/Documents/BME_UNI_WORK/TDK_2025/git_repo/TDK_LLM/runs_aug/launch_aug/childhood_personality_development_{TEMPERATURE}_{rrr}/{embed_name}.pt"
-                )
-                results_root = os.path.normpath(
-                    f"C:/Users/grego/OneDrive/Documents/BME_UNI_WORK/TDK_2025/git_repo/TDK_LLM/runs_aug/launch_aug/childhood_personality_development_{TEMPERATURE}_{rrr}/results_rp/{embed_name}"
-                )
+    # Expect (n, T, D)
+    if isinstance(tensor, torch.Tensor):
+        data = tensor.cpu().numpy()
+    else:
+        data = np.asarray(tensor)
 
-                # ensure results dir
-                os.makedirs(results_root, exist_ok=True)
+    if data.ndim != 3:
+        logger.error(f"Unexpected tensor shape {data.shape} for {input_path}; expected (n,T,D). Skipping.")
+        return
 
-                prev_input = CONFIG.get("input_path")
-                prev_results = CONFIG.get("results_root")
-                CONFIG["input_path"] = input_path
-                CONFIG["results_root"] = results_root
+    n, T, D = data.shape
 
-                print(f"Processing embedder={embedder} input={input_path}")
+    metrics_list: List[str] = CONFIG.get("metrics", {}).get("available", [])
 
-                # load tensor
+    for metric_name in metrics_list:
+        # Only run metrics explicitly enabled in CONFIG
+        metric_cfg = CONFIG.get("metrics", {}).get(metric_name, {})
+        if not metric_cfg.get("enabled", True):
+            logger.info(f"Skipping metric {metric_name} (enabled=False)")
+            continue
+        try:
+            metric_mod = importlib.import_module(f"src.metrics.{metric_name}")
+        except Exception as e:
+            logger.error(f"Failed to import metric {metric_name}: {e}. Skipping.")
+            continue
+
+        logger.info(f" Computing metric '{metric_name}' for {n} trajectories (this may take a while)...")
+
+        for traj_idx in range(n):
+            if TRAJECTORIES_TO_PROCESS is not None and traj_idx not in TRAJECTORIES_TO_PROCESS:
+                continue
+            traj = data[traj_idx]
+            
+            if sweep_param_value is not None:
+                out_root = os.path.join(results_root, metric_name)
+                os.makedirs(out_root, exist_ok=True)
+            else:
+                out_root = _make_results_dirs(results_root)
+
+            # Special-case: cross_cos wants a single full T x T matrix per trajectory
+            if metric_name == "cross_cos":
                 try:
-                    tensor = load_tensor(input_path)
-                except Exception as e:
-                    print(f"Failed to load {input_path}: {e}")
-                    # restore and continue
-                    if prev_input is None:
-                        CONFIG.pop("input_path", None)
-                    else:
-                        CONFIG["input_path"] = prev_input
-                    if prev_results is None:
-                        CONFIG.pop("results_root", None)
-                    else:
-                        CONFIG["results_root"] = prev_results
-                    continue
-
-                # Expect (n, T, D)
-                if isinstance(tensor, torch.Tensor):
-                    data = tensor.cpu().numpy()
-                else:
-                    data = np.asarray(tensor)
-
-                if data.ndim != 3:
-                    print(f"Unexpected tensor shape {data.shape} for {input_path}; expected (n,T,D). Skipping.")
-                    # restore
-                    if prev_input is None:
-                        CONFIG.pop("input_path", None)
-                    else:
-                        CONFIG["input_path"] = prev_input
-                    if prev_results is None:
-                        CONFIG.pop("results_root", None)
-                    else:
-                        CONFIG["results_root"] = prev_results
-                    continue
-
-                n, T, D = data.shape
-
-                metrics_list: List[str] = CONFIG.get("metrics", {}).get("available", [])
-
-                for metric_name in metrics_list:
-                    # Only run metrics explicitly enabled in CONFIG
-                    metric_cfg = CONFIG.get("metrics", {}).get(metric_name, {})
-                    if not metric_cfg.get("enabled", True):
-                        print(f"Skipping metric {metric_name} (enabled=False)")
-                        continue
-                    try:
-                        metric_mod = importlib.import_module(f"src.metrics.{metric_name}")
-                    except Exception as e:
-                        print(f"Failed to import metric {metric_name}: {e}. Skipping.")
-                        continue
-
-                    print(f" Computing metric '{metric_name}' for {n} trajectories (this may take a while)...")
-
-                    for traj_idx in range(n):
-                        if TRAJECTORIES_TO_PROCESS is not None and traj_idx not in TRAJECTORIES_TO_PROCESS:
-                            continue
-                        traj = data[traj_idx]
-                        # single shared folder for all metric matrices/plots
-                        out_root = _make_results_dirs(results_root)
-                        # Special-case: cross_cos wants a single full T x T matrix per trajectory
-                        if metric_name == "cross_cos":
-                            try:
-                                M = _compute_cross_cos_matrix(traj, window_size=window_size, displacement=displacement, use_window=use_window)
-                                if save_matrices:
-                                    torch.save(torch.tensor(M), os.path.join(out_root, f"{metric_name}_traj{traj_idx}.pt"))
-                                if save_plots:
-                                    plot_path = os.path.join(out_root, f"{metric_name}_traj{traj_idx}.png")
-                                    _plot_matrix(M, plot_path, title=f"{metric_name} matrix traj {traj_idx}")
-                                # skip the generic per-window pairwise routine
-                                continue
-                            except Exception as e:
-                                print(f"Failed to compute full cross_cos matrix for traj {traj_idx}: {e}")
-
-                        # Special-case: rank_eigen compute full matrix via cached PCA eigenvectors
-                        if metric_name == "rank_eigen":
-                            try:
-                                rank_cfg = CONFIG.get("metrics", {}).get("rank_eigen", {})
-                                deviation_metric = rank_cfg.get("deviation_metric", "rms")
-                                M = _compute_rank_eigen_matrix(
-                                    traj,
-                                    window_size=window_size,
-                                    displacement=displacement,
-                                    deviation_metric=deviation_metric,
-                                )
-                                if save_matrices:
-                                    torch.save(torch.tensor(M), os.path.join(out_root, f"{metric_name}_traj{traj_idx}.pt"))
-                                if save_plots:
-                                    plot_path = os.path.join(out_root, f"{metric_name}_traj{traj_idx}.png")
-                                    _plot_matrix(M, plot_path, title=f"{metric_name} matrix traj {traj_idx}")
-                                continue
-                            except Exception as e:
-                                print(f"Failed to compute rank_eigen matrix for traj {traj_idx}: {e}")
-
-                        M = _compute_matrix_for_trajectory(
-                            traj=traj,
-                            metric_mod=metric_mod,
-                            use_window=use_window,
-                            window_size=window_size,
-                            displacement=displacement,
-                            out_root=out_root,
-                            metric_name=metric_name,
-                            traj_idx=traj_idx,
-                        )
-
-                        if save_matrices:
-                            try:
-                                torch.save(torch.tensor(M), os.path.join(out_root, f"{metric_name}_traj{traj_idx}.pt"))
-                            except Exception as e:
-                                print(f"Failed to save matrix for {metric_name} traj {traj_idx}: {e}")
-
-                        if save_plots:
+                    M = _compute_cross_cos_matrix(traj, window_size=window_size, displacement=displacement, use_window=use_window)
+                    if save_matrices:
+                        torch.save(torch.tensor(M), os.path.join(out_root, f"{metric_name}_traj{traj_idx}.pt"))
+                    if save_plots:
+                        if sweep_param_value is not None:
+                            plot_path = os.path.join(out_root, f"{metric_name}_traj{traj_idx}_window_size_{sweep_param_value}.png")
+                        else:
                             plot_path = os.path.join(out_root, f"{metric_name}_traj{traj_idx}.png")
-                            _plot_matrix(M, plot_path, title=f"{metric_name} matrix traj {traj_idx}")
+                        logger.info(f"Saving plot to {plot_path}")
+                        _plot_matrix(M, plot_path, title=f"{metric_name} matrix traj {traj_idx}", sweep_param_value=sweep_param_value)
+                    # skip the generic per-window pairwise routine
+                    continue
+                except Exception as e:
+                    logger.error(f"Failed to compute full cross_cos matrix for traj {traj_idx}: {e}")
 
-                # restore CONFIG
-                if prev_input is None:
-                    CONFIG.pop("input_path", None)
+            # Special-case: rank_eigen compute full matrix via cached PCA eigenvectors
+            if metric_name == "rank_eigen":
+                try:
+                    rank_cfg = CONFIG.get("metrics", {}).get("rank_eigen", {})
+                    deviation_metric = rank_cfg.get("deviation_metric", "rms")
+                    M = _compute_rank_eigen_matrix(
+                        traj,
+                        window_size=window_size,
+                        displacement=displacement,
+                        deviation_metric=deviation_metric,
+                    )
+                    if save_matrices:
+                        torch.save(torch.tensor(M), os.path.join(out_root, f"{metric_name}_traj{traj_idx}.pt"))
+                    if save_plots:
+                        if sweep_param_value is not None:
+                            plot_path = os.path.join(out_root, f"{metric_name}_traj{traj_idx}_window_size_{sweep_param_value}.png")
+                        else:
+                            plot_path = os.path.join(out_root, f"{metric_name}_traj{traj_idx}.png")
+                        logger.info(f"Saving plot to {plot_path}")
+                        _plot_matrix(M, plot_path, title=f"{metric_name} matrix traj {traj_idx}", sweep_param_value=sweep_param_value)
+                    continue
+                except Exception as e:
+                    logger.error(f"Failed to compute rank_eigen matrix for traj {traj_idx}: {e}")
+
+            M = _compute_matrix_for_trajectory(
+                traj=traj,
+                metric_mod=metric_mod,
+                use_window=use_window,
+                window_size=window_size,
+                displacement=displacement,
+                out_root=out_root,
+                metric_name=metric_name,
+                traj_idx=traj_idx,
+            )
+
+            if save_matrices:
+                try:
+                    torch.save(torch.tensor(M), os.path.join(out_root, f"{metric_name}_traj{traj_idx}.pt"))
+                except Exception as e:
+                    logger.error(f"Failed to save matrix for {metric_name} traj {traj_idx}: {e}")
+
+            if save_plots:
+                if sweep_param_value is not None:
+                    plot_path = os.path.join(out_root, f"{metric_name}_traj{traj_idx}_window_size_{sweep_param_value}.png")
                 else:
-                    CONFIG["input_path"] = prev_input
-                if prev_results is None:
-                    CONFIG.pop("results_root", None)
-                else:
-                    CONFIG["results_root"] = prev_results
+                    plot_path = os.path.join(out_root, f"{metric_name}_traj{traj_idx}.png")
+                logger.info(f"Saving plot to {plot_path}")
+                _plot_matrix(M, plot_path, title=f"{metric_name} matrix traj {traj_idx}", sweep_param_value=sweep_param_value)
+
 
 
 if __name__ == "__main__":
-    main()
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--input", type=str, required=True, help="Path to the input tensor file")
+    parser.add_argument("--results", type=str, default="results", help="Path to the results directory")
+    args = parser.parse_args()
+    main(input_path=args.input, results_root=args.results)
