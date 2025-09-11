@@ -1,3 +1,6 @@
+thinking machines labs and determinism. this is desirable nowadays
+
+
 
 --- requirements for chaos. 
 ---- universal: , continuous time systems (typically described by ODEs) , dicrete

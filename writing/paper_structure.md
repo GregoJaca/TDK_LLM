@@ -27,7 +27,7 @@ Preliminaries
 Chaotic System - LLM
 phase space trajectory - sequence of text, tokens, or hidden states
 numerical solution - inference
-uncertainty in measurement - float point errors and distillation
+uncertainty in measurement - batching variance, float point errors, and distillation
 nonlinear coupling - attention
 <end table>
 
@@ -36,6 +36,7 @@ very naturally, inference gives you the whole trajectory, analogous to solving n
 
 emphasize that in order for chaos to exist, there must be nonlinear coupling between the variables in the differential equation. In LLMs attention introduces a nonlinear feedback coupling.
 
+!! also there is nondeterminism from batching variance
 
 
 -- Limitations and Differences: llm trajectories are discontinuous and the step size is fixed (single token). you can't have higher resolution. model is trained to predict tokens, not with the explicit of being interpretable. sampling collapses the hidden state at the last layer and gets next token, this step is quite discontinuous and has a big impact on the divergence. High dimensionality of data.
