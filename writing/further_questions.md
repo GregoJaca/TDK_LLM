@@ -1,6 +1,12 @@
 thinking machines labs and determinism. this is desirable nowadays
 
 
+nonlinear coupling and attention
+https://chatgpt.com/share/68c4358d-9288-8003-93c7-f576ca639e26
+what if i do a pass with no context window?
+there should be no chaos???
+
+
 
 --- requirements for chaos. 
 ---- universal: , continuous time systems (typically described by ODEs) , dicrete
@@ -59,25 +65,11 @@ for the library metrics, then check what internal distance metric they use
 
 
 
+devaney's definition chaos
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+attractors, lowdim manifolds in the space
+pca dim, etc might be low bc the folding and stretching make a low dim attractor. also maybe there are only few positive lyapunov exponents (degrees of freedom for chaos)
 
 
 

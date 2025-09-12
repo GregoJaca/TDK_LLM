@@ -9,7 +9,20 @@ Related Work (I've seen many papers in ai have a tradition of summarizing recent
 https://arxiv.org/pdf/2503.13530 
 the LLMs reasoning ability stems from a chaotic process of dynamic information extraction in the parameter space.
 
-https://www.sciencedirect.com/science/article/abs/pii/089360809090050U 
+Attention and nonlinear coupling
+https://people.lids.mit.edu/yp/homepage/data/2023_transformers2.pdf#:~:text=d%C2%B41%20%2C%20whereas%20self,Section%203 
+self-attention is the particular nonlinear coupling of the particles done through the empirical measure
+
+https://arxiv.org/pdf/2406.07247 
+Assuming 1-bit tokens and weights
+nontrivial dynamical phenomena, including nonequilibrium phase
+transitions associated with chaotic bifurcations, even for very simple configurations
+with a few encoded features and a very short context window.
+
+https://arxiv.org/pdf/2505.19458
+normalization layers, unique to discrete updates, play a critical role in stabilizing dynamics. Specifically, they effectively suppress the Jacobian’s spectral norm (Proposition 5.1) and control oscillatory behaviors by normalizing the complex eigenvalues of the Jacobian (Section 5.2). Empirically, we confirm that high-performance SA models exhibit a maximum Lyapunov exponent close to zero, suggesting that rich non-stationary inference dynamics emerge at the boundary between convergence and instability.
+An exponent close to zero characterizes a critical regime, often referred to as the edge of chaos, where signals neither explode nor vanish and can propagate for a long period.
+G: normalization keeps the lyapunov exponents close to 0, preventing divergence. edge of chaos. also could explain different-than-exponential divergence in llm
 
 
 
@@ -40,6 +53,14 @@ Both uniform and periodic systems, and often also
 highly chaotic systems, resulted in poorer downstream performance, highlighting
 a sweet spot of complexity conducive to intelligence. 
 G: completely chaotic or completely uniform periodic systems are not intelligent. initelligence is at the edge between the two.
+
+
+Interpretability and Circuits papers
+
+
+G: not so great from now down --------
+https://www.sciencedirect.com/science/article/abs/pii/089360809090050U 
+chaotic behaviour in nn training. backprop
 
 
 Preliminaries
@@ -135,6 +156,10 @@ Discussion and Conclusions
 - The dynamical effect of LLM sampling. Does it break the exponential chain and reduce divergence to sub-exponential
 
 
+Further Work
+
+- Compare chaotic features of different LLM architectures and sizes
+
 
 Acknowledgements
 
@@ -148,4 +173,5 @@ Embedding and some distance techniques smoothe out, pool, capture context
 
 
 
-
+Finite-precision arithmetic introduces round-off and collapses attractor structure, often turning would-be chaotic orbits into periodic orbits or “almost chaotic” ones with zero Lyapunov exponent.
+Finite-precision arithmetic introduces round-off and collapses attractor structure, often turning would-be chaotic orbits into periodic orbits or “almost chaotic” ones with zero Lyapunov exponent.

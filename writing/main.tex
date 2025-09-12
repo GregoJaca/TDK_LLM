@@ -175,7 +175,7 @@ During inference, the LLM generates text autoregressively, which can be viewed a
 where $\mathbf{s}_t$ represents the model's internal state (the sequence of hidden states) at step $t$. To generate the next token, the hidden state of the last token is passed through a final linear layer (the "un-embedding") to produce logits over the entire vocabulary, which are then converted to a probability distribution via a softmax function. A decoding strategy is then used to select a token. \textbf{Greedy sampling} deterministically selects the token with the highest probability. In contrast, \textbf{probabilistic sampling} introduces stochasticity, often controlled by a temperature parameter ($T$). Higher temperatures flatten the distribution, making the output more diverse but less coherent.
 
 \subsection{Analogy and Limitations}
-We propose viewing the autoregressive process of an LLM as a high-dimensional, discrete-time dynamical system. The sequence of hidden states serves as the trajectory evolving in the model's internal phase space. This analogy, summarized in Table \ref{tab:analogy}, is motivated by the central role of the self-attention mechanism, which acts as a strong nonlinear coupling force, akin to the nonlinear terms in chaotic ODEs.
+We propose viewing the autoregressive process of an LLM as a high-dimensional, discrete-time dynamical system. The sequence of hidden states serves as the trajectory evolving in the model's internal phase space. The self-attention mechanism acts as a (state-dependent) nonlinear coupling between different tokens.
 
 \begin{table}[H]
 \centering
@@ -249,6 +249,14 @@ We generate Recurrence Plots (RPs) using the self-similarity matrix of a single 
 
 \subsection{Dimensionality and Clustering}
 We estimate the correlation dimension ($D_2$) of the trajectories using the Grassberger-Procaccia algorithm as described previously. Furthermore, we apply clustering algorithms such as DBSCAN to the set of hidden state vectors within a trajectory to identify distinct operational states or regions in the model's high-dimensional phase space.
+
+
+
+\section{Conclusions and Discussion}
+
+% \subsection{Possible Explanations for LLMs being chaotic}
+
+
 
 \section{Acknowledgements }
 
