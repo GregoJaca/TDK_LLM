@@ -102,9 +102,13 @@ BME Elméleti Fizika Tanszék
 
 \newpage\null\thispagestyle{empty}\newpage
 
+%%% --------- GUIDELINES ---------- %%%
+% This doc is in progress. I write but leave many comments to remind myself where to go back and improve. Wherever you see a "(GGG)" it means that I'm not happy with the wording and it needs to be made more precise and clear.
+% When I use "G:" i am straightforwardly expressing an opinion 
+% It's easier for me if you use your initials before your comments, so i can quickly understand who they come from
+
 
 \begin{abstract}
-% Abstract will be written here
 \end{abstract}
 \newpage
 {
@@ -113,7 +117,22 @@ BME Elméleti Fizika Tanszék
 }
 \newpage
 
+\section{Introduction and Motivation}
+
+% G: This paragraph wants to say: Mathematicians study silly nonlinear diff eqs for fun. LLMs are even more interesting.
+Deep Neural Networks, such as LLMs, are highly nonlinear systems whose parameters are not explicitly determined, but rather they are trained on large sets of data. This allows these models to learn huge amounts of knowledge with little human intervention, which allows for escalation at the cost of interpretability.
+% Studying these systems is extremely interesting
+
+There is growing interest in the sensitivity of LLMs (and other generative deep neural networks) to initial conditions and small perturbations. For some applications, like Reinforcement Learning (RL) (G: or in cases where there is one right answer) (GGG), determinism and predictability are desireable, while for other uses like synthetic data generation, paraphrasing, and novel image generation, divergence (GGG) is desired.
+% Understanding fixed/stable points in LLMs can clarify their generative capability constraints.
+% G: needs a more natural phrasing, not forcing it into the SIC chaos direction until the end
+
+\section{Related Work}
+
+
 \section{Preliminaries}
+
+% This section describes the background knowledge required to understand Nonlinear Dynamics and Chaos, LLMs, and their similarities and differences. This provides us with the starting point for this paper.
 
 \subsection{Nonlinear Dynamics and Chaos}
 A deterministic dynamical system is one whose future evolution is uniquely determined by its current state. Such systems are often modeled by a set of coupled ordinary differential equations (ODEs) of the form:

@@ -1,6 +1,6 @@
 *.pt
 *.pyc
-# *.png
+*.png
 *.json
 *summary.txt
 *.bat
@@ -11,3 +11,4 @@ autoencoder_trying.py
 *Guidelines.md
 *writing_plan.md
 *description_and_dump_results.txt
+# *runs_aug/

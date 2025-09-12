@@ -4,7 +4,43 @@ Abstract
 
 Introduction and Motivation
 
-Related Work
+Related Work (I've seen many papers in ai have a tradition of summarizing recent relevant lit in the beggining) (Also these are the papers that I'll cite for most of the conceptual underpinning) (I will ofc add more citations when needed for specific claims)
+
+https://arxiv.org/pdf/2503.13530 
+the LLMs reasoning ability stems from a chaotic process of dynamic information extraction in the parameter space.
+
+https://www.sciencedirect.com/science/article/abs/pii/089360809090050U 
+
+
+
+https://thinkingmachines.ai/blog/defeating-nondeterminism-in-llm-inference/ 
+reproducibility and determinism is now desirable in LLMs. In part because it provides a clear (not fuzzy) signal to train LLMs with RL. For this, randomness from GPU batching variance and some floating point errors are being controlled. The sensitivity of LLMs to small numerical errors is relevant, and I talk about it.
+Batch-invariant kernels unlock true reproducibility
+G: this blog (for some reason) has been quite popular lately. it is great
+
+
+G: On the other hand generating varied output (not deterministic and fixed) is desireable some times (like then wanting to make synthetic datasets or new images or text (paraphrasing)).
+
+https://arxiv.org/pdf/2502.15208 LLMs have attractors and stable configurations when using LLM as paraphrasers. 2 period attractor cycles.
+
+https://journals.plos.org/complexsystems/article?id=10.1371/journal.pcsy.0000027 
+The generated image sequences occupy a more limited region of the image space compared with the original training dataset.
+Positive Lyapunov exponents estimated from the generated trajectories confirm the presence of chaotic dynamics, with the Lyapunov dimension of the attractor found to be comparable to the intrinsic dimension of the training data manifold.
+G: CycleGAN makes output in attractor or stable configs reducing diversity (compared to train data)
+
+
+G: Interpretability of RNNs from nonlinear dynamics description
+https://barak.net.technion.ac.il/files/2012/11/sussillo_barak-neco.pdf
+fixed points, both stable and unstable, and the linearized dynamics around them, can reveal crucial aspects of how RNNs implement their computations.
+the mechanisms of trained networks could be inferred from the sets of fixed and slow
+points and the linearized dynamics around them.
+
+https://arxiv.org/pdf/2410.02536
+Both uniform and periodic systems, and often also
+highly chaotic systems, resulted in poorer downstream performance, highlighting
+a sweet spot of complexity conducive to intelligence. 
+G: completely chaotic or completely uniform periodic systems are not intelligent. initelligence is at the edge between the two.
+
 
 Preliminaries
 
@@ -75,7 +111,8 @@ Here we have the data from the hidden states or from the embedded text. Also we 
 
 - Divergence of trajectories and SIC
 -- Different metrics paint a similar picture
--- Threshold of minimum intial distance in order to get divergence. Mention implication of sensitivity to initial conditions / measurement error and floating point errors and distillation.
+-- Threshold of minimum intial distance in order to get divergence. Mention implication of sensitivity to initial conditions / measurement error to -> floating point errors and distillation and batching variance.
+--- Maybe trajectories dont diverge for very small initial perturbations (an explanation is that the sampling for autoregression kills it)
 
 
 - Recurrence Plots
