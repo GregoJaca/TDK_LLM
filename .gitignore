@@ -1,9 +1,13 @@
 *.pt
 *.pyc
-*.png
+# *.png
 *.json
 *summary.txt
 *.bat
 *.csv
 autoencoder_trying.py
 .gitignore
+
+*Guidelines.md
+*writing_plan.md
+*description_and_dump_results.txt
