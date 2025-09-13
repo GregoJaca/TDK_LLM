@@ -7,6 +7,11 @@ what if i do a pass with no context window?
 there should be no chaos???
 
 
+context window size and chaocity
+
+
+high dimensionality and chaos?
+
 
 --- requirements for chaos. 
 ---- universal: , continuous time systems (typically described by ODEs) , dicrete

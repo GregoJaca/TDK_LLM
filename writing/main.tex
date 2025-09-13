@@ -123,7 +123,7 @@ BME Elméleti Fizika Tanszék
 Deep Neural Networks, such as LLMs, are highly nonlinear systems whose parameters are not explicitly determined, but rather they are trained on large sets of data. This allows these models to learn huge amounts of knowledge with little human intervention, which allows for escalation at the cost of interpretability.
 % Studying these systems is extremely interesting
 
-There is growing interest in the sensitivity of LLMs (and other generative deep neural networks) to initial conditions and small perturbations. For some applications, like Reinforcement Learning (RL) (G: or in cases where there is one right answer) (GGG), determinism and predictability are desireable, while for other uses like synthetic data generation, paraphrasing, and novel image generation, divergence (GGG) is desired.
+There is growing interest in the sensitivity of LLMs (and other generative deep neural networks) to initial conditions and small perturbations. For some applications, like Reinforcement Learning (RL) (G: or in cases where there is one right answer) (GGG), determinism and predictability (and reproducibility) are desireable, while for other uses like synthetic data generation, paraphrasing, and novel image generation, divergence (GGG) is desired.
 % Understanding fixed/stable points in LLMs can clarify their generative capability constraints.
 % G: needs a more natural phrasing, not forcing it into the SIC chaos direction until the end
 
@@ -135,32 +135,34 @@ There is growing interest in the sensitivity of LLMs (and other generative deep 
 
 The application of dynamical systems theory to neural networks has revealed complex behaviors in modern architectures.  
 
-\citet{li2025cognitive_activation} proposes that LLMs' reasoning capabilities as chaotic processes of dynamic information extraction in parameter space, introducing Quasi-Lyapunov Exponents to quantify chaotic characteristics across model layers, and showing sensitivity to initial conditions.
+\ref{li2025cognitive_activation} proposes that LLMs' reasoning capabilities as chaotic processes of dynamic information extraction in parameter space, introducing Quasi-Lyapunov Exponents to quantify chaotic characteristics across model layers, and showing sensitivity to initial conditions.
 
 \paragraph{Attention Mechanisms and Nonlinear Dynamics.}
-\citet{geshkovski2025mathematicalperspectivetransformers} model self-attention as a nonlinear coupling between tokens.
-\citet{poc-lopez2024dynamical_mean_field_self_attention} demonstrate that even simplified self-attention transformer networks with 1-bit tokens and weights exhibit nontrivial dynamical phenomena, including nonequilibrium phase transitions and chaotic bifurcations. 
+\ref{geshkovski2025mathematicalperspectivetransformers} model self-attention as a nonlinear coupling between tokens.
+\ref{poc-lopez2024dynamical_mean_field_self_attention} demonstrate that even simplified self-attention transformer networks with 1-bit tokens and weights exhibit nontrivial dynamical phenomena, including nonequilibrium phase transitions and chaotic bifurcations. 
 
 \paragraph{Determinism and Attractors in Language Models.}
 % The tension between reproducibility and novely in LLMs has become increasingly relevant. 
-\citet{thinkingmachines2025-defeating-nondeterminism} (GGG)
+\ref{thinkingmachines2025-defeating-nondeterminism} (GGG)
 Recent engineering efforts have focused on achieving deterministic inference by controlling GPU batching variance and floating-point errors, motivated by the need for reproducibility and clear signals in reinforcement learning training. 
  %Knowing the LLMs sensitivity to disturbances is important for this.
  %This highlights the practical sensitivity of LLMs to small numerical perturbations. 
 
-\citet{wang2025unveiling_attractor_cycles} 
+\ref{wang2025unveiling_attractor_cycles} 
 
-\citet{cyclegan} % Comment: PLOS Complex Systems article - 
+\ref{cyclegan} % Comment: PLOS Complex Systems article - 
 demonstrate that CycleGAN image generators' space is more limited than the training data's with Positive Lyapunov exponents and attractor dimensions similar to the training data intrinsic dimension. Chaotic dynamics contribute to the diversity of the generated images.
 %This suggests that generative models may naturally converge to stable configurations that reduce output diversity. 
 % G: this is a bit contradictory bc I say that model generation: more limited than training data but chaotic makes more diverse.
 
 \paragraph{Interpretability Through Dynamical Analysis.}
-The dynamical systems perspective has proven valuable for understanding recurrent architectures. \citet{sussillo2013} showed that fixed points and linearized dynamics in trained RNNs provide interpretable insights into network function. \citet{zhang2024intelligence_edge_of_chaos} found that intelligence emerges at an optimal complexity level. Systems that are either highly chaotic or perfectly periodic exhibit poor downstream performance, suggesting a "sweet spot" conducive to intelligent behavior at the edge between order and chaos.
+%The dynamical systems perspective has proven valuable for understanding recurrent architectures. 
+\ref{sussillo2013} showed that fixed points and linearized dynamics in trained RNNs provide interpretable insights into network function. \ref{zhang2024intelligence_edge_of_chaos} found that intelligence emerges at an optimal complexity level. Systems that are either highly chaotic or perfectly periodic exhibit poor downstream performance, suggesting a "sweet spot" conducive to intelligent behavior at the edge between order and chaos.
 
 
 % normalization layers
-\citet{tomihari2025recurrent_self_attention_dynamics} show that normalization layers normallize Jacobian's complex eigenvalues bringing the dynamics close to a critical state with maximum Lyapunov exponents close to zero, suggesting operation at the edge of chaos: a critical regime where signals neither explode nor vanish, enabling long-range information propagation.
+\ref{tomihari2025recurrent_self_attention_dynamics} show that normalization layers normallize Jacobian's complex eigenvalues bringing the dynamics close to a critical state with maximum Lyapunov exponents close to zero, suggesting operation at the edge of chaos: a critical regime where signals neither explode nor vanish, enabling long-range information propagation.
+% G: this can explain if the trajectories have sub-exponential divergence
 %show that normalization layers effectively suppress the Jacobian's spectral norm and control oscillatory behaviors. Their empirical findings reveal that high-performance self-attention models exhibit maximum Lyapunov exponents close to zero, suggesting operation at the edge of chaos—a critical regime where signals neither explode nor vanish, enabling long-range information propagation.
 
 
@@ -197,6 +199,14 @@ Another powerful tool for analyzing dynamical systems is \textbf{Recurrence Anal
 \end{equation}
 The visual patterns in an RP provide deep insight: periodic systems produce long, parallel diagonal lines, random systems produce a uniform, noisy plot, and chaotic systems produce a complex geometric structure with short, interrupted diagonal lines. These structures can be quantified using Recurrence Quantification Analysis (RQA).
 
+
+% G: I would like to generally describe the necessary conditions for chaos. (I dont mean SIC and exponential divergence, but rather the underlying characteristics of the system which will make it be chaotic). Then I'd like to explain which components of LLM architecture correspond to these. example: nonlinear coupling and attention
+
+In general, the following structural conditions of a system cause it to be chaotic:
+Nonlinearity:
+Stretching and Folding mechanism: Stretching separates close trajectories, causing SIC, while folding confines them to a bounded subset of the state space, a strange attractor.
+
+
 \subsection{Large Language Models (LLMs)}
 Large Language Models are a class of deep neural networks, with the Transformer architecture being the de facto standard. They are trained on massive text corpora to perform a simple, yet powerful, task: predicting the probability distribution for the next token in a sequence.
 
@@ -213,7 +223,8 @@ During inference, the LLM generates text autoregressively, which can be viewed a
 where $\mathbf{s}_t$ represents the model's internal state (the sequence of hidden states) at step $t$. To generate the next token, the hidden state of the last token is passed through a final linear layer (the "un-embedding") to produce logits over the entire vocabulary, which are then converted to a probability distribution via a softmax function. A decoding strategy is then used to select a token. \textbf{Greedy sampling} deterministically selects the token with the highest probability. In contrast, \textbf{probabilistic sampling} introduces stochasticity, often controlled by a temperature parameter ($T$). Higher temperatures flatten the distribution, making the output more diverse but less coherent.
 
 \subsection{Analogy and Limitations}
-We propose viewing the autoregressive process of an LLM as a high-dimensional, discrete-time dynamical system. The sequence of hidden states serves as the trajectory evolving in the model's internal phase space. The self-attention mechanism acts as a (state-dependent) nonlinear coupling between different tokens.
+We propose viewing the autoregressive process of an LLM as a high-dimensional, discrete-time dynamical system. The sequence of hidden states serves as the trajectory evolving in the model's internal phase space. The self-attention mechanism acts as a (state-dependent) nonlinear coupling between different tokens. 
+% Each token's representation is affected by (previous) other tokens, with softmax, ReLU, layer norm providing the nonlinearity.
 
 \begin{table}[H]
 \centering
@@ -236,6 +247,8 @@ Measurement Uncertainty & Floating Point Precision, Quantization \\ \bottomrule
 % G: table too big rn
 
 However, the analogy is not perfect and has critical limitations. LLM dynamics are discrete, not continuous, with a fixed "time step" of one token. The act of sampling a token from the probability distribution and appending it to the input can be seen as a "collapse" or a sharp discontinuity in the trajectory's evolution. LLMs are usually used with probabilistic sampling, which adds a random component and makes it non-deterministic. Furthermore, the dimensionality of the state space is extraordinarily high (thousands of dimensions), which poses significant challenges for traditional chaos analysis techniques.
+
+% G: also in chaotic systems the nonlinear coupling is between variables, but in llm it is of tokens, which would be the state of the system (so all the variables) at different times
 
 \section{Methods}
 
@@ -286,10 +299,21 @@ We generate Recurrence Plots (RPs) using the self-similarity matrix of a single 
     \item \textbf{Entropy (ENT):} The Shannon entropy of the distribution of diagonal line lengths, reflecting the complexity of the deterministic structure.
 \end{itemize}
 
-\subsection{Dimensionality and Clustering}
-We estimate the correlation dimension ($D_2$) of the trajectories using the Grassberger-Procaccia algorithm as described previously. Furthermore, we apply clustering algorithms such as DBSCAN to the set of hidden state vectors within a trajectory to identify distinct operational states or regions in the model's high-dimensional phase space.
+\subsection{Dimensionality}
+We estimate the correlation dimension ($D_2$) of the trajectories using the Grassberger-Procaccia algorithm as described previously. This can be calculated from the self-similarity matrix by applying different thresholds (which correspond to the distance $\epsilon$). 
+
+\subsection{Clustering}
+
+Furthermore, we apply clustering algorithms to the set of hidden state vectors within a trajectory to identify distinct operational states or regions in the model's high-dimensional phase space.
+
+\section(Results)
 
 
+
+Chaotic features are more strongly present at the last layers of the LLM as showed in the RP and pointwise dimension. This 
+
+The fact that chaotic features are more strongly present at the last layers of the LLM
+% not always at the last layer, but also middle layers are quite chaotic
 
 \section{Conclusions and Discussion}
 
