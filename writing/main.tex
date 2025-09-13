@@ -127,7 +127,45 @@ There is growing interest in the sensitivity of LLMs (and other generative deep 
 % Understanding fixed/stable points in LLMs can clarify their generative capability constraints.
 % G: needs a more natural phrasing, not forcing it into the SIC chaos direction until the end
 
+
+
 \section{Related Work}
+
+% This section briefly summarizes the main results from other papers which inspired my analysis and also explain some of the results obtained. It also should reinforce the idea that it's justifiable to treat LLMs and chaotic nonlinear systems. 
+
+The application of dynamical systems theory to neural networks has revealed complex behaviors in modern architectures.  
+
+\citet{li2025cognitive_activation} proposes that LLMs' reasoning capabilities as chaotic processes of dynamic information extraction in parameter space, introducing Quasi-Lyapunov Exponents to quantify chaotic characteristics across model layers, and showing sensitivity to initial conditions.
+
+\paragraph{Attention Mechanisms and Nonlinear Dynamics.}
+\citet{geshkovski2025mathematicalperspectivetransformers} model self-attention as a nonlinear coupling between tokens.
+\citet{poc-lopez2024dynamical_mean_field_self_attention} demonstrate that even simplified self-attention transformer networks with 1-bit tokens and weights exhibit nontrivial dynamical phenomena, including nonequilibrium phase transitions and chaotic bifurcations. 
+
+\paragraph{Determinism and Attractors in Language Models.}
+% The tension between reproducibility and novely in LLMs has become increasingly relevant. 
+\citet{thinkingmachines2025-defeating-nondeterminism} (GGG)
+Recent engineering efforts have focused on achieving deterministic inference by controlling GPU batching variance and floating-point errors, motivated by the need for reproducibility and clear signals in reinforcement learning training. 
+ %Knowing the LLMs sensitivity to disturbances is important for this.
+ %This highlights the practical sensitivity of LLMs to small numerical perturbations. 
+
+\citet{wang2025unveiling_attractor_cycles} 
+
+\citet{cyclegan} % Comment: PLOS Complex Systems article - 
+demonstrate that CycleGAN image generators' space is more limited than the training data's with Positive Lyapunov exponents and attractor dimensions similar to the training data intrinsic dimension. Chaotic dynamics contribute to the diversity of the generated images.
+%This suggests that generative models may naturally converge to stable configurations that reduce output diversity. 
+% G: this is a bit contradictory bc I say that model generation: more limited than training data but chaotic makes more diverse.
+
+\paragraph{Interpretability Through Dynamical Analysis.}
+The dynamical systems perspective has proven valuable for understanding recurrent architectures. \citet{sussillo2013} showed that fixed points and linearized dynamics in trained RNNs provide interpretable insights into network function. \citet{zhang2024intelligence_edge_of_chaos} found that intelligence emerges at an optimal complexity level. Systems that are either highly chaotic or perfectly periodic exhibit poor downstream performance, suggesting a "sweet spot" conducive to intelligent behavior at the edge between order and chaos.
+
+
+% normalization layers
+\citet{tomihari2025recurrent_self_attention_dynamics} show that normalization layers normallize Jacobian's complex eigenvalues bringing the dynamics close to a critical state with maximum Lyapunov exponents close to zero, suggesting operation at the edge of chaos: a critical regime where signals neither explode nor vanish, enabling long-range information propagation.
+%show that normalization layers effectively suppress the Jacobian's spectral norm and control oscillatory behaviors. Their empirical findings reveal that high-performance self-attention models exhibit maximum Lyapunov exponents close to zero, suggesting operation at the edge of chaos—a critical regime where signals neither explode nor vanish, enabling long-range information propagation.
+
+
+
+
 
 
 \section{Preliminaries}
@@ -195,6 +233,7 @@ Measurement Uncertainty & Floating Point Precision, Quantization \\ \bottomrule
 \caption{Analogies between concepts in chaos theory and LLMs.}
 \label{tab:analogy}
 \end{table}
+% G: table too big rn
 
 However, the analogy is not perfect and has critical limitations. LLM dynamics are discrete, not continuous, with a fixed "time step" of one token. The act of sampling a token from the probability distribution and appending it to the input can be seen as a "collapse" or a sharp discontinuity in the trajectory's evolution. LLMs are usually used with probabilistic sampling, which adds a random component and makes it non-deterministic. Furthermore, the dimensionality of the state space is extraordinarily high (thousands of dimensions), which poses significant challenges for traditional chaos analysis techniques.
 
@@ -260,7 +299,7 @@ We estimate the correlation dimension ($D_2$) of the trajectories using the Gras
 
 \section{Acknowledgements }
 
-I would like to thank my supervisors, Dr. János Török and Kristóf Benedek for their help and support during this work.
+I would like to thank my supervisors Dr. János Török and Kristóf Benedek for their help and support during this work.
 
 \newpage
 \bibliographystyle{unsrt}

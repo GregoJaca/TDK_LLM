@@ -9,7 +9,7 @@ Related Work (I've seen many papers in ai have a tradition of summarizing recent
 https://arxiv.org/pdf/2503.13530 
 the LLMs reasoning ability stems from a chaotic process of dynamic information extraction in the parameter space.
 
-Attention and nonlinear coupling
+<start Attention and nonlinear coupling>
 https://people.lids.mit.edu/yp/homepage/data/2023_transformers2.pdf#:~:text=d%C2%B41%20%2C%20whereas%20self,Section%203 
 self-attention is the particular nonlinear coupling of the particles done through the empirical measure
 
@@ -23,14 +23,14 @@ https://arxiv.org/pdf/2505.19458
 normalization layers, unique to discrete updates, play a critical role in stabilizing dynamics. Specifically, they effectively suppress the Jacobian’s spectral norm (Proposition 5.1) and control oscillatory behaviors by normalizing the complex eigenvalues of the Jacobian (Section 5.2). Empirically, we confirm that high-performance SA models exhibit a maximum Lyapunov exponent close to zero, suggesting that rich non-stationary inference dynamics emerge at the boundary between convergence and instability.
 An exponent close to zero characterizes a critical regime, often referred to as the edge of chaos, where signals neither explode nor vanish and can propagate for a long period.
 G: normalization keeps the lyapunov exponents close to 0, preventing divergence. edge of chaos. also could explain different-than-exponential divergence in llm
+<end Attention and nonlinear coupling>
 
 
-
+<start LLMs and determinism>
 https://thinkingmachines.ai/blog/defeating-nondeterminism-in-llm-inference/ 
 reproducibility and determinism is now desirable in LLMs. In part because it provides a clear (not fuzzy) signal to train LLMs with RL. For this, randomness from GPU batching variance and some floating point errors are being controlled. The sensitivity of LLMs to small numerical errors is relevant, and I talk about it.
 Batch-invariant kernels unlock true reproducibility
 G: this blog (for some reason) has been quite popular lately. it is great
-
 
 G: On the other hand generating varied output (not deterministic and fixed) is desireable some times (like then wanting to make synthetic datasets or new images or text (paraphrasing)).
 
@@ -41,6 +41,7 @@ The generated image sequences occupy a more limited region of the image space co
 Positive Lyapunov exponents estimated from the generated trajectories confirm the presence of chaotic dynamics, with the Lyapunov dimension of the attractor found to be comparable to the intrinsic dimension of the training data manifold.
 G: CycleGAN makes output in attractor or stable configs reducing diversity (compared to train data)
 
+<end LLMs and determinism>
 
 G: Interpretability of RNNs from nonlinear dynamics description
 https://barak.net.technion.ac.il/files/2012/11/sussillo_barak-neco.pdf
