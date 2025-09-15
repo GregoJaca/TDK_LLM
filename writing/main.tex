@@ -143,12 +143,12 @@ The application of dynamical systems theory to neural networks has revealed comp
 
 \paragraph{Determinism and Attractors in Language Models.}
 % The tension between reproducibility and novely in LLMs has become increasingly relevant. 
-\ref{thinkingmachines2025-defeating-nondeterminism} (GGG)
+\ref{he2025nondeterminism} (GGG)
 Recent engineering efforts have focused on achieving deterministic inference by controlling GPU batching variance and floating-point errors, motivated by the need for reproducibility and clear signals in reinforcement learning training. 
  %Knowing the LLMs sensitivity to disturbances is important for this.
  %This highlights the practical sensitivity of LLMs to small numerical perturbations. 
 
-\ref{wang2025unveiling_attractor_cycles} 
+\ref{wang2025unveiling_attractor_cycles} show that LLMs uses for paraphrasing converge to periodic attractor cycles, reducing linguistic diversity.
 
 \ref{cyclegan} % Comment: PLOS Complex Systems article - 
 demonstrate that CycleGAN image generators' space is more limited than the training data's with Positive Lyapunov exponents and attractor dimensions similar to the training data intrinsic dimension. Chaotic dynamics contribute to the diversity of the generated images.
@@ -208,19 +208,67 @@ Stretching and Folding mechanism: Stretching separates close trajectories, causi
 
 
 \subsection{Large Language Models (LLMs)}
-Large Language Models are a class of deep neural networks, with the Transformer architecture being the de facto standard. They are trained on massive text corpora to perform a simple, yet powerful, task: predicting the probability distribution for the next token in a sequence.
+Large Language Models are a class of deep neural networks, with the Transformer architecture being the de facto standard. They are trained on massive text corpora to predict the probability distribution for the next token in a sequence. They are autoregressive models used to generate a text output sequentially.
 
 The process begins with tokenization, where input text is broken down into a sequence of integers (tokens). Each token is then mapped to a high-dimensional vector, its embedding. These embeddings are processed through a stack of Transformer layers. Each layer is primarily composed of two sub-modules: a multi-head self-attention mechanism and a position-wise feed-forward network (MLP). The self-attention mechanism is the key source of nonlinearity and contextual understanding, allowing the model to dynamically weigh the importance of all other tokens in the context window when updating the representation of a single token. It can be expressed as:
 \begin{equation}
     \text{Attention}(Q, K, V) = \text{softmax}\left(\frac{QK^T}{\sqrt{d_k}}\right)V
 \end{equation}
-This operation creates a powerful, nonlinear feedback and coupling mechanism between all elements of the sequence. The MLP further processes these representations through additional nonlinear transformations. The output of the final layer is a sequence of hidden states, which represent the contextualized meaning of each token.
+% TODO: explain what each variable is. concise. definition + intuition
+This operation creates a powerful, nonlinear feedback and coupling mechanism between all elements of the sequence. The MLP further processes these representations through additional nonlinear transformations. Normalization is . The output of the final layer is a sequence of hidden states, which represent the contextualized meaning of each token.
 
 During inference, the LLM generates text autoregressively, which can be viewed as a discrete-time dynamical system:
 \begin{equation}
     \mathbf{s}_{t+1} = f(\mathbf{s}_t, \mathbf{s}_{t-1}, ..., \mathbf{s}_0)
 \end{equation}
 where $\mathbf{s}_t$ represents the model's internal state (the sequence of hidden states) at step $t$. To generate the next token, the hidden state of the last token is passed through a final linear layer (the "un-embedding") to produce logits over the entire vocabulary, which are then converted to a probability distribution via a softmax function. A decoding strategy is then used to select a token. \textbf{Greedy sampling} deterministically selects the token with the highest probability. In contrast, \textbf{probabilistic sampling} introduces stochasticity, often controlled by a temperature parameter ($T$). Higher temperatures flatten the distribution, making the output more diverse but less coherent.
+
+\subsection{Layer normalization}
+% G: mention other normalizations? like batch?
+Layer normalization (LayerNorm) acts on a single hidden state vector \(h\in\mathbb{R}^d\) (e.g. a token embedding) by (i) mean-centering, (ii) variance normalization, and (iii) a learned affine anisotropic rescaling.
+\begin{align}
+\mu(h) &\;=\; \frac{1}{d}\sum_{i=1}^d h_i, \\
+\sigma^2(h) &\;=\; \frac{1}{d}\sum_{i=1}^d (h_i-\mu(h))^2, \\
+\widehat{h} &\;=\; \frac{h - \mu(h)\mathbf{1}}{\sqrt{\sigma^2(h)+\varepsilon}}, \label{eq:ln_norm}\\
+y &\;=\; \gamma \odot \widehat{h} + \beta \;=\; D\widehat{h} + \beta, \label{eq:ln_affine}
+\end{align}
+where \(\mathbf{1}=(1,\dots,1)^\top , \gamma, \beta \in\mathbb{R}^d\), and \(D=\operatorname{diag}(\gamma)\).
+
+\begin{itemize}
+  \item \(h\in\mathbb{R}^d\): input hidden state (one token, one sample).
+  \item \(\mu(h)\): coordinate mean of \(h\)
+  \item \(\sigma^2(h)\): empirical coordinate variance of \(h\)
+  %\item \(\widehat{h}\): normalized (zero-mean, unit-variance) vector
+  \item \(\gamma\in\mathbb{R}^d\) (or \(D=\mathrm{diag}(\gamma)\in\mathbb{R}^{d\times d}\)): per-coordinate learned scale (anisotropic linear part)
+  \item \(\beta\in\mathbb{R}^d\): learned bias
+  \item \(\varepsilon\): numerical stabilizer
+\end{itemize}
+
+\paragraph{Geometric remarks}
+\begin{enumerate}
+  \item The centering step \(h\mapsto h-\mu(h)\mathbf{1}\) projects onto the hyperplane orthogonal to \(\mathbf1\) (removes the mean direction).
+  \item The variance normalization (\ref{eq:ln_norm}) is nonlinear and couples all coordinates: it maps each centered vector to a point on a sphere:
+  \[
+    \lVert \widehat{h}\rVert_2 = \sqrt{d}.
+  \]
+  Thus, before the affine step the image lies on the \((d-2)\)-sphere inside the mean-zero hyperplane (degree-of-freedom count: \(d\to d-2\)).
+  \item The affine step \(y=D\widehat{h}+\beta\) turns the sphere into an ellipsoid (and then translates it); \(D\) rescales coordinate axes independently and does not introduce coordinate mixing.
+\end{enumerate}
+
+\paragraph{Jacobian (local linearization)}
+Let \(u(h):=h-\mu(h)\mathbf1\) and \(\|u\|=\sqrt{u^\top u}\).  A convenient form of the Jacobian of the normalization map \(\widehat{h}(h)\) is
+\[
+J_{\widehat{h}}(h)
+\;=\;
+\frac{\sqrt{d}}{\|u\|}\,\Big(I - \frac{u u^\top}{\|u\|^2}\Big)\Big(I - \frac{1}{d}\mathbf1\mathbf1^\top\Big),
+\]
+and the full LayerNorm Jacobian (including \(D\)) is \(J_y(h)=D\,J_{\widehat{h}}(h)\).  For generic \(h\) (with \(d>2\)) this linearization has rank \(d-2\): two null directions correspond to the mean direction \(\mathbf1\) and the radial direction \(u\) (the latter is collapsed by the radial normalization).
+% G: By killing the 𝑢 u-direction, LayerNorm throws away “how much” the features deviate from the mean and keeps only “in what relative proportions” they deviate.
+% G: could emphasize that the radial direction u is specific for every h, but the mean centering is global.
+
+\paragraph{Interpretation for dynamics}
+LayerNorm is therefore a structured \emph{many-to-one} nonlinear map: it (i) removes one linear degree of freedom (the mean), (ii) collapses the radial coordinate in the centered hyperplane (folding onto a compact manifold), and (iii) applies an anisotropic linear rescaling and shift.  In dynamical terms this provides a strong folding/bounding operation; any stretching/expansion must come from the other components (linear layers, attention, pointwise nonlinearities) for the overall layer-to-layer map to exhibit expansion+folding behavior.
+
 
 \subsection{Analogy and Limitations}
 We propose viewing the autoregressive process of an LLM as a high-dimensional, discrete-time dynamical system. The sequence of hidden states serves as the trajectory evolving in the model's internal phase space. The self-attention mechanism acts as a (state-dependent) nonlinear coupling between different tokens. 
@@ -244,16 +292,19 @@ Measurement Uncertainty & Floating Point Precision, Quantization \\ \bottomrule
 \caption{Analogies between concepts in chaos theory and LLMs.}
 \label{tab:analogy}
 \end{table}
-% G: table too big rn
+% G: could add stretching and folding. table too big rn
 
 However, the analogy is not perfect and has critical limitations. LLM dynamics are discrete, not continuous, with a fixed "time step" of one token. The act of sampling a token from the probability distribution and appending it to the input can be seen as a "collapse" or a sharp discontinuity in the trajectory's evolution. LLMs are usually used with probabilistic sampling, which adds a random component and makes it non-deterministic. Furthermore, the dimensionality of the state space is extraordinarily high (thousands of dimensions), which poses significant challenges for traditional chaos analysis techniques.
 
-% G: also in chaotic systems the nonlinear coupling is between variables, but in llm it is of tokens, which would be the state of the system (so all the variables) at different times
+% G: also in chaotic systems the nonlinear coupling is between variables, but in llm it is between tokens, which would be the state of the system (so all the variables) at different times
+
+% G: as i understand it. MLP provides nonlinearity, attention nonlinear coupling and (maybe) stretching. normalization keeps the system bounded (folding). layer norm is more like projecting to the plane perpendicular to (1,1,1,..,1) plus affine rescale.
 
 \section{Methods}
 
 \subsection{Initial Condition Generation}
-To test for sensitivity to initial conditions, we generate a set of trajectories from infinitesimally close starting points. We begin with a single prompt, tokenize it, and retrieve its initial embedding tensor $\mathbf{E}_0 \in \mathbb{R}^{L \times D}$, where $L$ is the prompt length and $D$ is the model's hidden dimension. We then create $N$ perturbed initial conditions by adding a small, random perturbation tensor of fixed magnitude (radius $r$).
+To test for sensitivity to initial conditions, we generate a set of trajectories from infinitesimally close starting points. We begin with a single prompt, tokenize it, and retrieve its initial embedding tensor $\mathbf{E}_0 \in \mathbb{R}^{L \times D}$, where $L$ is the prompt length and $D$ is the model's hidden dimension. We then create a "blob" (GGG) of $N$ perturbed initial conditions by adding a small, random perturbation tensor $\in \mathbb{R}^{L \times D}$ of fixed magnitude (radius $r$).
+% G: idk if perturbation is the best word here
 
 \subsection{Trajectory Distance Metrics}
 We use a suite of metrics to quantify the divergence between pairs of trajectories, $\mathbf{X} = (\mathbf{x}_1, ..., \mathbf{x}_n)$ and $\mathbf{Y} = (\mathbf{y}_1, ..., \mathbf{y}_m)$.
@@ -309,10 +360,11 @@ Furthermore, we apply clustering algorithms to the set of hidden state vectors w
 \section(Results)
 
 
+Strong similarities can be seen between the RP from the Lorez system \ref{XXX} and from the LLMs output.
 
-Chaotic features are more strongly present at the last layers of the LLM as showed in the RP and pointwise dimension. This 
+Chaotic features are more strongly present at the last layers of the LLM as showed in the RP and pointwise dimension. This is due to the progressive addition of more nonlinearity and coupling at each layer. 
+% As pointwise dimension is calculated from RP, it makes sense that they agree on this.
 
-The fact that chaotic features are more strongly present at the last layers of the LLM
 % not always at the last layer, but also middle layers are quite chaotic
 
 \section{Conclusions and Discussion}
@@ -328,5 +380,13 @@ I would like to thank my supervisors Dr. János Török and Kristóf Benedek for
 \newpage
 \bibliographystyle{unsrt}
 \bibliography{lit}
+
+\section{Appendix }
+
+\subsection{Intuition behind different metrics}
+
+In order to gain a more intuitive understanding of each metric (GGG and maybe embedding too), we show RP from the same trajectory.
+
+% G: Here i want to show how embeddings kind of do some averaging and pooling and context, and how some metrics pick up different features, some more global some more detail. 
 
 \end{document}
