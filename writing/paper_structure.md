@@ -64,6 +64,9 @@ https://www.sciencedirect.com/science/article/abs/pii/089360809090050U
 chaotic behaviour in nn training. backprop
 
 
+https://www.researchgate.net/publication/228464454_The_Topology_of_Deterministic_Chaos_Stretching_Squeezing_and_Linking
+stretching and folding. chaos
+
 Preliminaries
 
 - Nonlinear Dynamics and Chaos

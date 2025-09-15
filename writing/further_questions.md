@@ -13,6 +13,9 @@ context window size and chaocity
 high dimensionality and chaos?
 
 
+layernorm but more recently rms norm is used too
+
+
 --- requirements for chaos. 
 ---- universal: , continuous time systems (typically described by ODEs) , dicrete
 
