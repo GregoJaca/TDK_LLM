@@ -83,7 +83,7 @@ CONFIG = {
     "sliding_window": {
         "use_window": True,
         "window_size": 1,
-        "displacement": 1
+        "displacement": 16
     },
 
     # Pair computations
@@ -94,7 +94,7 @@ CONFIG = {
     "save_pairwise_timeseries_for": ["ref0"],  # or list of explicit pairs
     # If compute_all_pairs is False and reference_index is None,
     # use this explicit list of index pairs for computation and plotting.
-    # Example: [[0,1], [2,3]]
+    # "pairs_to_plot": [[0, 1]],
     "pairs_to_plot": [[0, 1], [0,2], [2,3]],
     },
 
@@ -151,4 +151,17 @@ CONFIG = {
     # Misc
     "random_seed": 42,
     "default_dtype": "float32"
+}
+
+# Embedding / input selection: supports two modes and lives inside CONFIG under 'EMBEDDING_CONFIG'
+CONFIG['EMBEDDING_CONFIG'] = {
+    "input_mode": "per_trajectory",
+    "embedding_methods": [
+        # examples: "sentence-transformers/all-mpnet-base-v2",
+        # For per-trajectory mode provide file-stem templates like
+        "hidden_states_cond_{i}_layer_-1",
+    ],
+    # When in per_trajectory mode, input_template is used to build filenames relative to run folder.
+    # Example: "{embed}.pt" or "hidden_states_cond_{i}_layer_-1.pt"
+    "input_template": "hidden_states_cond_{i}_layer_-1.pt"
 }

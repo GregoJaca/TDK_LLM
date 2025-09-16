@@ -45,6 +45,10 @@ def make_run_id():
 
 def main(input_path, results_root, sweep_param_value=None):
     logger.info(f"run_all.main called with input_path={input_path}, results_root={results_root}, sweep_param_value={sweep_param_value}")
+    # debug
+    embedding_cfg_dbg = CONFIG.get('EMBEDDING_CONFIG', {})
+    logger.info(f"EMBEDDING_CONFIG={embedding_cfg_dbg}")
+    logger.info(f"CONFIG.current_embed_raw={CONFIG.get('current_embed_raw')}")
     if sweep_param_value is not None:
         run_id = 'sweep'
         results_dir = os.path.join(results_root, run_id)
@@ -55,14 +59,115 @@ def main(input_path, results_root, sweep_param_value=None):
     os.makedirs(plots_dir, exist_ok=True)
     logger.info(f"Starting run {run_id}")
 
-    if not os.path.exists(input_path):
-        logger.warning(f"Input file {input_path} not found. Using example data.")
-        input_path = "examples/small_example.pt"
+    # Determine input loading mode: legacy single-file or per-trajectory files.
+    embedding_cfg = globals().get('CONFIG', {}).get('EMBEDDING_CONFIG', {})
+    input_mode = embedding_cfg.get('input_mode', 'single_file')
 
-    X = load_tensor(input_path)
-    # Log the input tensor path and shape so it's clear which file was used
-    logger.info("Loaded tensor file: %s", input_path)
-    logger.info("Loaded tensor shape %s", tuple(X.shape))
+    if input_mode == 'per_trajectory':
+        # Expect input_path to point to a single example trajectory file or a template path.
+        # If input_path is a file that exists, treat it as a single trajectory; otherwise
+        # assume it's a template or path to a .pt and let metrics_runner handle per-trajectory loading.
+        # For compatibility, if input_path is a directory, list .pt files inside.
+        X = None
+        trajectories = []
+        if os.path.isdir(input_path):
+            files = sorted([os.path.join(input_path, f) for f in os.listdir(input_path) if f.endswith('.pt')])
+            for p in files:
+                try:
+                    t = load_tensor(p)
+                    trajectories.append(t)
+                except Exception:
+                    logger.warning(f"Failed to load trajectory file {p}; skipping.")
+        else:
+            # single file path: try to load; could be a single-trajectory file
+            if os.path.exists(input_path):
+                try:
+                    t = load_tensor(input_path)
+                    # if tensor has shape (T,D) treat as single trajectory
+                    if hasattr(t, 'ndim') and t.ndim == 2:
+                        trajectories.append(t)
+                    else:
+                        # if it's (n,T,D), flatten into list
+                        try:
+                            for i in range(t.shape[0]):
+                                trajectories.append(t[i])
+                        except Exception:
+                            trajectories.append(t)
+                except Exception:
+                    logger.warning(f"Could not load input_path {input_path} as per-trajectory; falling back to example.")
+            else:
+                logger.warning(f"Input path {input_path} not found for per_trajectory mode; using example data.")
+
+        # If CONFIG specifies which pairs to compute, load only those indices
+        pairwise_cfg = CONFIG.get('pairwise', {})
+        pairs_to_plot = pairwise_cfg.get('pairs_to_plot', [])
+        indices_to_load = None
+        if pairwise_cfg.get('compute_all_pairs', False):
+            indices_to_load = None
+        else:
+            if pairwise_cfg.get('reference_index', None) is not None:
+                n_try = None
+                # leave indices_to_load None to let loader decide later
+            else:
+                # collect unique indices from explicit pairs_to_plot
+                idxs = set()
+                for p in pairs_to_plot:
+                    try:
+                        i0, i1 = int(p[0]), int(p[1])
+                        idxs.add(i0)
+                        idxs.add(i1)
+                    except Exception:
+                        pass
+                if len(idxs) > 0:
+                    indices_to_load = sorted(list(idxs))
+
+        if len(trajectories) == 0:
+            logger.warning("No per-trajectory files found; loading example data.")
+            X = load_tensor("examples/small_example.pt")
+        else:
+            # If indices_to_load is set, try to load only those files by building filenames
+            current_embed = CONFIG.get('current_embed_raw')
+            embed_cfg = CONFIG.get('EMBEDDING_CONFIG', {})
+            input_template = embed_cfg.get('input_template', '{embed}.pt')
+            base_folder = input_path if os.path.isdir(input_path) else os.path.dirname(input_path)
+
+            if indices_to_load is not None and current_embed is not None:
+                trajectories = []
+                for i in indices_to_load:
+                    fname = input_template.format(embed=current_embed, i=i)
+                    p = os.path.join(base_folder, fname)
+                    if os.path.exists(p):
+                        try:
+                            t = load_tensor(p)
+                            trajectories.append(t)
+                        except Exception:
+                            logger.warning(f"Failed to load per-trajectory file {p}; skipping.")
+                    else:
+                        logger.warning(f"Per-trajectory file {p} not found; skipping.")
+                if len(trajectories) == 0:
+                    logger.warning("No requested per-trajectory files loaded; falling back to previously loaded trajectories.")
+
+            # Stack trajectories into an (n, T, D) tensor if possible
+            try:
+                import torch
+                X = torch.stack([torch.as_tensor(t) for t in trajectories], dim=0)
+            except Exception:
+                # fallback: convert to numpy then to tensor
+                import numpy as _np
+                lst = [(_np.asarray(t)) for t in trajectories]
+                X = torch.as_tensor(_np.stack(lst, axis=0))
+
+        logger.info("Loaded per-trajectory input; num trajectories=%d", X.shape[0])
+        logger.info("Loaded tensor shape %s", tuple(X.shape))
+    else:
+        if not os.path.exists(input_path):
+            logger.warning(f"Input file {input_path} not found. Using example data.")
+            input_path = "examples/small_example.pt"
+
+        X = load_tensor(input_path)
+        # Log the input tensor path and shape so it's clear which file was used
+        logger.info("Loaded tensor file: %s", input_path)
+        logger.info("Loaded tensor shape %s", tuple(X.shape))
 
     # Reduction
     X_reduced = X

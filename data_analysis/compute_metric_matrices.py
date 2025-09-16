@@ -21,7 +21,11 @@ import torch
 
 from config import CONFIG
 from src.io.loader import load_tensor
-from run_all_experiments import EMBEDDING_METHODS, Experiment
+# Read embedding config here rather than importing run_all_experiments to avoid circular imports
+EMBEDDING_CONFIG = CONFIG.get('EMBEDDING_CONFIG', {})
+EMBEDDING_METHODS = EMBEDDING_CONFIG.get('embedding_methods', [])
+INPUT_MODE = EMBEDDING_CONFIG.get('input_mode', 'single_file')
+INPUT_TEMPLATE = EMBEDDING_CONFIG.get('input_template', '{embed}.pt')
 from src.utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -297,25 +301,78 @@ def main(input_path, results_root, save_matrices: bool = SAVE_MATRICES, save_plo
 
     logger.info(f"Processing input={input_path}")
 
-    # load tensor
-    try:
-        tensor = load_tensor(input_path)
-        logger.info(f"Loaded tensor from {input_path}")
-    except Exception as e:
-        logger.error(f"Failed to load {input_path}: {e}")
-        return
+    # load tensor(s)
+    trajectories = []
+    if INPUT_MODE == 'per_trajectory':
+        # input_path may be a run folder
+        base_folder = input_path if os.path.isdir(input_path) else os.path.dirname(input_path)
+        current_embed = CONFIG.get('current_embed_raw')
+        pairwise_cfg = CONFIG.get('pairwise', {})
+        # decide which indices to load
+        indices_to_load = None
+        if not pairwise_cfg.get('compute_all_pairs', False):
+            ref_idx = pairwise_cfg.get('reference_index', None)
+            if ref_idx is None:
+                pairs = pairwise_cfg.get('pairs_to_plot', [])
+                idxs = set()
+                for p in pairs:
+                    try:
+                        idxs.add(int(p[0])); idxs.add(int(p[1]))
+                    except Exception:
+                        pass
+                if idxs:
+                    indices_to_load = sorted(list(idxs))
 
-    # Expect (n, T, D)
-    if isinstance(tensor, torch.Tensor):
-        data = tensor.cpu().numpy()
+        # If no specific indices requested, try to load all .pt files in folder
+        if indices_to_load is None:
+            files = sorted([f for f in os.listdir(base_folder) if f.endswith('.pt')])
+            for f in files:
+                p = os.path.join(base_folder, f)
+                try:
+                    t = load_tensor(p)
+                    trajectories.append(t)
+                except Exception:
+                    logger.warning(f"Failed to load {p}; skipping")
+        else:
+            input_template = INPUT_TEMPLATE
+            for i in indices_to_load:
+                fname = input_template.format(embed=current_embed, i=i)
+                p = os.path.join(base_folder, fname)
+                if os.path.exists(p):
+                    try:
+                        t = load_tensor(p)
+                        trajectories.append(t)
+                    except Exception:
+                        logger.warning(f"Failed to load {p}; skipping")
+                else:
+                    logger.warning(f"Per-trajectory file {p} not found; skipping.")
+
+        if len(trajectories) == 0:
+            logger.error(f"No trajectories loaded from {input_path}; skipping.")
+            return
+
+        # convert to numpy array of shape (n, T, D)
+        data = np.stack([np.asarray(t) for t in trajectories], axis=0)
+        n, T, D = data.shape
     else:
-        data = np.asarray(tensor)
+        # single-file behavior
+        try:
+            tensor = load_tensor(input_path)
+            logger.info(f"Loaded tensor from {input_path}")
+        except Exception as e:
+            logger.error(f"Failed to load {input_path}: {e}")
+            return
 
-    if data.ndim != 3:
-        logger.error(f"Unexpected tensor shape {data.shape} for {input_path}; expected (n,T,D). Skipping.")
-        return
+        if isinstance(tensor, torch.Tensor):
+            data = tensor.cpu().numpy()
+        else:
+            data = np.asarray(tensor)
 
-    n, T, D = data.shape
+        if data.ndim != 3:
+            logger.error(f"Unexpected tensor shape {data.shape} for {input_path}; expected (n,T,D). Skipping.")
+            return
+
+        n, T, D = data.shape
 
     metrics_list: List[str] = CONFIG.get("metrics", {}).get("available", [])
 
@@ -417,6 +474,7 @@ if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument("--input", type=str, required=True, help="Path to the input tensor file")
-    parser.add_argument("--results", type=str, default="results", help="Path to the results directory")
+    parser.add_argument("--results", type=str, default=None, help="Path to the results directory (defaults to the input path if omitted)")
     args = parser.parse_args()
-    main(input_path=args.input, results_root=args.results)
+    results_root = args.results if args.results is not None else args.input
+    main(input_path=args.input, results_root=results_root)
