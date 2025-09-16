@@ -25,6 +25,31 @@ def save_tensor_and_meta(tensor: torch.Tensor, meta: Dict[str, Any], out_dir: st
     with open(meta_path, "w", encoding="utf-8") as f:
         json.dump(meta, f, indent=2)
 
+
+def save_single_trajectory(tensor_or_array, meta: Dict[str, Any], out_dir: str, model_id: str, cfg, traj_idx: int):
+    """
+    Save a single trajectory as its own .pt file and a per-trajectory meta JSON.
+    `tensor_or_array` can be a torch.Tensor or numpy.ndarray of shape [L, D].
+    Files will be named '{model_slug}_traj{traj_idx}.pt' and '{model_slug}_traj{traj_idx}_meta.json'.
+    """
+    os.makedirs(out_dir, exist_ok=True)
+    slug = slugify_model_id(model_id)
+    base_pt_name = cfg.PER_TRAJ_FILENAME_TEMPLATE if hasattr(cfg, 'PER_TRAJ_FILENAME_TEMPLATE') else "{model_slug}_traj{traj_idx}.pt"
+    base_meta_name = cfg.PER_TRAJ_META_TEMPLATE if hasattr(cfg, 'PER_TRAJ_META_TEMPLATE') else "{model_slug}_traj{traj_idx}_meta.json"
+
+    pt_path = os.path.join(out_dir, base_pt_name.format(model_slug=slug, traj_idx=traj_idx))
+    meta_path = os.path.join(out_dir, base_meta_name.format(model_slug=slug, traj_idx=traj_idx))
+
+    # Convert numpy arrays to torch tensors
+    if isinstance(tensor_or_array, np.ndarray):
+        tensor_to_save = torch.from_numpy(tensor_or_array)
+    else:
+        tensor_to_save = tensor_or_array
+
+    torch.save(tensor_to_save, pt_path)
+    with open(meta_path, "w", encoding="utf-8") as f:
+        json.dump(meta, f, indent=2)
+
 def mean_pool(hidden_states: torch.Tensor, attention_mask: torch.Tensor) -> torch.Tensor:
     """
     hidden_states: [batch, seq_len, dim]

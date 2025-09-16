@@ -3,19 +3,23 @@ import torch
 class Default:
     DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
     DTYPE = torch.float16 if torch.cuda.is_available() else torch.float32
-    MAX_LENGTH = 4096
+    MAX_LENGTH = 3096
     REPETITION_PENALTY = 1.1
     
     # For launch_pentek.py
-    N_INITIAL_CONDITIONS = 4
-    RESULTS_DIR = "./launch_aug"
-    SELECTED_LAYERS = [14, 22, -1]
+    N_INITIAL_CONDITIONS = 100
+    RESULTS_DIR = "./launch_sep"
+    SELECTED_LAYERS = [-1]
 
 class Experiment:
-    RADII = [0.0003, 0.0004]
-    TEMPS = [0, 0.6]
-    TOP_PS = [1, 0.95]
-    TOP_KS = [1, 50]
+    # RADII = [0.0003, 0.0004]
+    # TEMPS = [0, 0.6]
+    # TOP_PS = [1, 0.95]
+    # TOP_KS = [1, 50]
+    RADII = [0.00035]
+    TEMPS = [0]
+    TOP_PS = [1]
+    TOP_KS = [1]
 
 class Analysis:
     SAVE_PLOTS = True

@@ -75,6 +75,13 @@ TOKENIZER_TRUNCATION = True
 # Output naming
 OUTPUT_FILENAME_TEMPLATE = "{model_slug}.pt"
 META_FILENAME_TEMPLATE = "{model_slug}_meta.json"
+# Per-trajectory filename templates (used when SAVE_PER_TRAJ=True)
+PER_TRAJ_FILENAME_TEMPLATE = "{model_slug}_traj{traj_idx}.pt"
+PER_TRAJ_META_TEMPLATE = "{model_slug}_traj{traj_idx}_meta.json"
+
+# If True, save each trajectory as its own .pt file to avoid holding all embeddings in memory.
+# Default True to implement streaming-save behavior requested.
+SAVE_PER_TRAJ = True
 
 # Reproducibility / deterministic
 SEED = 42

@@ -15,7 +15,7 @@ import numpy as np
 import torch
 
 import config as cfg
-from utils import save_tensor_and_meta, slugify_model_id, pad_sequences_to_tensor
+from utils import save_tensor_and_meta, save_single_trajectory, slugify_model_id, pad_sequences_to_tensor
 from models import get_extractor
 
 from src.config import Default, ModelConfig, Prompts, Experiment
@@ -89,7 +89,48 @@ def process_model(model_id: str, texts: List[str], cfg_module) -> None:
     if cfg_module.L2_NORMALIZE:
         arrays = [ (arr if arr.size==0 else np.asarray(arr, dtype=np.float32) / (np.linalg.norm(arr, axis=1, keepdims=True)+1e-12) ) for arr in arrays ]
 
-    # pad/truncate to tensor
+    # If configured, save each trajectory separately as it's computed to avoid keeping everything in memory
+    save_per_traj = getattr(cfg_module, "SAVE_PER_TRAJ", True)
+    if save_per_traj:
+        print(f"Saving {len(arrays)} trajectories individually for model {model_id}...")
+        # Build a brief per-model meta summary
+        model_meta = {
+            "model_id": model_id,
+            "n_traj": len(arrays),
+            "emb_dim": emb_dim,
+            "padding_policy": cfg_module.PADDING_POLICY,
+            "config_snapshot": {
+                "EMBEDDING_METHODS": cfg_module.EMBEDDING_METHODS,
+                "DEFAULT_TIME_MODE": cfg_module.DEFAULT_TIME_MODE,
+                "WINDOW_SIZE_TOKENS": cfg_module.WINDOW_SIZE_TOKENS,
+                "WINDOW_STRIDE_TOKENS": cfg_module.WINDOW_STRIDE_TOKENS,
+                "PREFIX_STEP_TOKENS": cfg_module.PREFIX_STEP_TOKENS,
+                "L2_NORMALIZE": cfg_module.L2_NORMALIZE,
+                "DTYPE": cfg_module.DTYPE
+            },
+            "timestamp": time.time()
+        }
+
+        # Save aggregated model meta as well
+        meta_path = os.path.join(cfg_module.OUTPUT_DIR, cfg_module.META_FILENAME_TEMPLATE.format(model_slug=slugify_model_id(model_id)))
+        os.makedirs(cfg_module.OUTPUT_DIR, exist_ok=True)
+        with open(meta_path, "w", encoding="utf-8") as f:
+            json.dump(model_meta, f, indent=2)
+
+        # Save each trajectory
+        for i, arr in enumerate(arrays):
+            traj_meta = {
+                "model_id": model_id,
+                "traj_index": i,
+                "length": int(arr.shape[0]) if getattr(arr, 'shape', None) else 0,
+                "emb_dim": int(arr.shape[1]) if getattr(arr, 'shape', None) and len(arr.shape) > 1 else emb_dim,
+                "timestamp": time.time()
+            }
+            save_single_trajectory(arr, traj_meta, cfg_module.OUTPUT_DIR, model_id, cfg_module, traj_idx=i)
+        print(f"Saved {len(arrays)} per-trajectory files for {model_id} in {cfg_module.OUTPUT_DIR}")
+        return
+
+    # pad/truncate to tensor (fallback preserved behavior)
     torch_dtype = get_torch_dtype(cfg_module.DTYPE)
     tensor, lengths = pad_sequences_to_tensor(arrays, dtype=torch_dtype, padding_policy=cfg_module.PADDING_POLICY, max_length_truncate=cfg_module.MAX_LENGTH_TRUNCATE)
     # Save

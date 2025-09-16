@@ -58,7 +58,7 @@ def analyze_llm_chaos(initial_prompt, model, tokenizer, config):
                     "max_new_tokens": config.MAX_LENGTH,
                 },
                 "generated_text": generated_texts[i],
-                "generated_token_ids": generated_token_ids[i],
+                # "generated_token_ids": generated_token_ids[i],
                 "generated_tokens": tokens_generated_text
             }
             generation_results.append(result_data)
