@@ -50,13 +50,20 @@ def main(input_path, results_root, sweep_param_value=None):
     logger.info(f"EMBEDDING_CONFIG={embedding_cfg_dbg}")
     logger.info(f"CONFIG.current_embed_raw={CONFIG.get('current_embed_raw')}")
     if sweep_param_value is not None:
+        # When running as part of a sweep, the caller provides a per-embed
+        # results_root. Do not create an extra 'sweep' subdirectory there
+        # (it previously produced unwanted '.../sweep' folders).
         run_id = 'sweep'
-        results_dir = os.path.join(results_root, run_id)
+        results_dir = results_root
     else:
         run_id = make_run_id()
         results_dir = os.path.join(results_root, run_id)
-    plots_dir = os.path.join(results_dir, "plots")
-    os.makedirs(plots_dir, exist_ok=True)
+    # Create a top-level plots folder only for non-sweep (regular) runs.
+    if sweep_param_value is None:
+        plots_dir = os.path.join(results_dir, "plots")
+        os.makedirs(plots_dir, exist_ok=True)
+    else:
+        plots_dir = None
     logger.info(f"Starting run {run_id}")
 
     # Determine input loading mode: legacy single-file or per-trajectory files.
@@ -182,15 +189,15 @@ def main(input_path, results_root, sweep_param_value=None):
     else:
         logger.info("PCA reduction is disabled in config; skipping reduction.")
 
-    # Plot PCA explained variance (only if PCA was run)
-    if sweep_param_value is not None:
-        plot_dir = os.path.join(CONFIG["results_root"], 'pca')
-        os.makedirs(plot_dir, exist_ok=True)
-        pca_plot_path = os.path.join(plot_dir, f"pca_explained_variance_window_size_{sweep_param_value}.png")
-    else:
+    # Plot PCA explained variance (only if PCA was run). Only generate and
+    # save the PCA plot for non-sweep runs (user prefers no top-level plots
+    # folder or PCA output during sweeps).
+    if sweep_param_value is None and plots_dir is not None:
         pca_plot_path = os.path.join(plots_dir, "pca_explained_variance.png")
+    else:
+        pca_plot_path = None
 
-    if CONFIG.get("reduction", {}).get("pca", {}).get("enabled", True) and 'reducer' in locals():
+    if pca_plot_path is not None and CONFIG.get("reduction", {}).get("pca", {}).get("enabled", True) and 'reducer' in locals():
         plot_pca_explained_variance(reducer.model, pca_plot_path, sweep_param_value=sweep_param_value)
     else:
         # mark as not available
@@ -199,19 +206,24 @@ def main(input_path, results_root, sweep_param_value=None):
     # Metrics
     # run_metrics will internally respect per-metric enabled flags from CONFIG
     metrics_summary = None
-    if CONFIG.get("metrics", {}).get("available"):
+    # Run metrics when any per-metric 'enabled' flag is True
+    any_enabled = any(
+        isinstance(v, dict) and bool(v.get('enabled', False))
+        for v in CONFIG.get('metrics', {}).values()
+    )
+    if any_enabled:
         metrics_summary = run_metrics(X_reduced, run_id=run_id)
         logger.info("Metrics complete")
     else:
-        logger.info("No metrics declared in config; skipping metrics.")
+        logger.info("No metrics enabled in config; skipping metrics.")
 
-    # Plotting for metrics that were actually computed (prefer metrics_summary),
-    # fall back to CONFIG["metrics"]["available"] if needed.
+    # Plotting for metrics that were actually computed (prefer metrics_summary).
     metrics_list_for_plots = None
     if metrics_summary and "config" in metrics_summary and "metrics" in metrics_summary["config"]:
         metrics_list_for_plots = metrics_summary["config"]["metrics"]
     else:
-        metrics_list_for_plots = CONFIG["metrics"]["available"]
+        # Fall back to listing metrics that are enabled in CONFIG
+        metrics_list_for_plots = [k for k, v in CONFIG.get('metrics', {}).items() if isinstance(v, dict) and v.get('enabled', False)]
 
     for metric_name in metrics_list_for_plots:
         for agg_type in ["mean", "median", "std"]:
@@ -220,6 +232,7 @@ def main(input_path, results_root, sweep_param_value=None):
                 os.makedirs(plot_dir, exist_ok=True)
                 plot_path = os.path.join(plot_dir, f"pairwise_distance_hist_{metric_name}_{agg_type}_window_size_{sweep_param_value}.png")
             else:
+                # For regular runs, use the top-level plots_dir created earlier.
                 plot_path = os.path.join(plots_dir, f"pairwise_distance_hist_{metric_name}_{agg_type}.png")
             logger.info(f"Saving plot to {plot_path}")
             plot_pairwise_distance_distribution(metrics_summary, plot_path, metric_name=metric_name, aggregate_type=agg_type, sweep_param_value=sweep_param_value)
@@ -245,7 +258,7 @@ def main(input_path, results_root, sweep_param_value=None):
         evr = reducer.model["explained_variance_ratio"]
         summary_lines.append(f"  Individual: {np.round(evr, 4)}")
         summary_lines.append(f"  Cumulative: {np.round(np.cumsum(evr), 4)}")
-        summary_lines.append(f"  Plot: {pca_plot_path}")
+        summary_lines.append(f"  Plot: {pca_plot_path if pca_plot_path is not None else 'not_saved_in_sweep'}")
     else:
         summary_lines.append("  PCA not run or not available.")
     summary_lines.append("")
@@ -264,23 +277,25 @@ def main(input_path, results_root, sweep_param_value=None):
                     metric_medians.append(pair_data[metric_name]["median"])
                 if "std" in pair_data[metric_name]:
                     metric_stds.append(pair_data[metric_name]["std"])
+
         if metric_means:
             summary_lines.append(f"  {metric_name}:")
             summary_lines.append(f"    Mean: {np.round(np.mean(metric_means), 4)} ± {np.round(np.std(metric_means), 4)}")
             summary_lines.append(f"    Median: {np.round(np.median(metric_medians), 4)}")
             summary_lines.append(f"    Std: {np.round(np.mean(metric_stds), 4)}")
-            summary_lines.append(f"    Plot: {os.path.join(plots_dir, f'pairwise_distance_hist_{metric_name}_mean.png')}")
+            summary_lines.append(f"    Plot: {os.path.join(plots_dir, f'pairwise_distance_hist_{metric_name}_mean.png') if plots_dir is not None else 'not_saved_in_sweep'}")
     summary_lines.append("")
     summary_lines.append("Lyapunov Estimate:")
     if lyap:
         summary_lines.append(f"  Slope: {np.round(lyap.get('slope', 0), 4)}")
         summary_lines.append(f"  R2: {np.round(lyap.get('r2', 0), 4)}")
         summary_lines.append(f"  Window: {lyap.get('linear_window', [])}")
-        summary_lines.append(f"  Plot: {os.path.join(plots_dir, 'mean_log_vs_time.png')}")
+        summary_lines.append(f"  Plot: {os.path.join(plots_dir, 'mean_log_vs_time.png') if plots_dir is not None else 'not_saved_in_sweep'}")
 
-    # Save summary
-    with open(os.path.join(results_dir, "summary.txt"), "w") as f:
-        f.write("\n".join(summary_lines))
+    # Save summary only for non-sweep runs (user prefers no summary file during sweeps)
+    if sweep_param_value is None:
+        with open(os.path.join(results_dir, "summary.txt"), "w") as f:
+            f.write("\n".join(summary_lines))
 
     print("Run complete:", run_id)
 

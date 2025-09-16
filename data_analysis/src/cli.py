@@ -24,7 +24,8 @@ def main():
     # --- metrics command (placeholder) ---
     parser_metrics = subparsers.add_parser("metrics", help="Compute trajectory metrics")
     parser_metrics.add_argument("--reduced", type=str, required=True, help="Path to the reduced tensor file")
-    parser_metrics.add_argument("--metrics", type=str, nargs='+', default=CONFIG["metrics"]["available"], help="Metrics to compute")
+    # Default to empty list; metric selection is controlled by per-metric 'enabled' flags
+    parser_metrics.add_argument("--metrics", type=str, nargs='+', default=[], help="Metrics to compute (overrides config enabled flags)")
 
     # --- lyapunov command (placeholder) ---
     parser_lyapunov = subparsers.add_parser("lyapunov", help="Estimate Lyapunov exponent")

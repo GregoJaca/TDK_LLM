@@ -48,7 +48,7 @@ def run_all_experiments():
             for embedder in embed_methods:
                 RADIUS_INITIAL_CONDITIONS = rrr
                 embed_name = embedder.replace('/', '_')
-                run_folder = f"C:/Users/grego/OneDrive/Documents/BME_UNI_WORK/TDK_2025/git_repo/TDK_LLM/runs_aug/launch_aug/childhood_personality_development_{TEMPERATURE}_{RADIUS_INITIAL_CONDITIONS}"
+                run_folder = f"C:/Users/grego/OneDrive/Documents/BME_UNI_WORK/TDK_2025/git_repo/TDK_LLM/runs_aug/launch_aug/interstellar_propulsion_review_{TEMPERATURE}_{RADIUS_INITIAL_CONDITIONS}"
                 if INPUT_MODE == 'per_trajectory':
                     # pass the run folder; run_all will build per-trajectory filenames using
                     # CONFIG['current_embed_raw'] which we set below

@@ -31,8 +31,9 @@ CONFIG = {
 
     # Metrics
     "metrics": {
-    # "available": ["cos", "cos_sim", "dtw_fast", "hausdorff", "frechet", "cross_cos", "rank_eigen", "cross_corr", "wasserstein"],
-    "available": ["cos"],
+    # Metric selection now uses per-metric 'enabled' flags in the
+    # CONFIG['metrics'][<metric>] entries. Do not rely on an
+    # explicit 'available' whitelist.
     "save_plots": True,
         "rank_eigen": {
             "enabled": False,
@@ -41,14 +42,14 @@ CONFIG = {
         },
         "default_pairing": "ref0",   # "all" or "ref0"
         "cos": {
-            "enabled": True,
+            "enabled": False,
             "aggregate": ["mean", "median", "std"],
             "shifts": [0],   # absolute steps to sweep; included in sweep script
             "shift_aggregation": "min", # "min", "mean"
             "default_max_shift": 5,
         },
         "cos_sim": {
-            "enabled": False,
+            "enabled": True,
             "window_agg": "mean",  # "mean" or "min" aggregation across vectors in window
             "gaussian_weight": False,
             "centric_mode": "a",    # "a", "b", or "both"
@@ -82,7 +83,7 @@ CONFIG = {
     # Unified sliding-window parameters used by metrics that support sliding analysis
     "sliding_window": {
         "use_window": True,
-        "window_size": 1,
+        "window_size": 64,
         "displacement": 16
     },
 
@@ -94,8 +95,8 @@ CONFIG = {
     "save_pairwise_timeseries_for": ["ref0"],  # or list of explicit pairs
     # If compute_all_pairs is False and reference_index is None,
     # use this explicit list of index pairs for computation and plotting.
-    # "pairs_to_plot": [[0, 1]],
-    "pairs_to_plot": [[0, 1], [0,2], [2,3]],
+    "pairs_to_plot": [[0, 1]],
+    # "pairs_to_plot": [[0, 1], [0,2], [2,3]],
     },
 
     # Lyapunov (fast pairwise slope)

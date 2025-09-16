@@ -38,8 +38,8 @@ for rrr in Experiment.RADII:
             TEMPERATURE = Experiment.TEMPS[ttt]
             RADIUS_INITIAL_CONDITIONS = rrr
             RESULTS_DIR = f"./run_{TEMPERATURE}_{RADIUS_INITIAL_CONDITIONS}/"
-            RESULTS_DIR = f"{Default.RESULTS_DIR}/{Prompts.prompt_names[prompt_idx]}_{TEMPERATURE}_{rrr}/"
-            PLOTS_DIR = f"{Default.RESULTS_DIR}/{Prompts.prompt_names[prompt_idx]}_{TEMPERATURE}_{rrr}/"
+            RESULTS_DIR = "C:/Users/grego/OneDrive/Documents/BME_UNI_WORK/TDK_2025/git_repo/TDK_LLM/runs_aug/launch_aug/interstellar_propulsion_review_0_0.00035" # f"{Default.RESULTS_DIR}/{Prompts.prompt_names[prompt_idx]}_{TEMPERATURE}_{rrr}/"
+            PLOTS_DIR = "C:/Users/grego/OneDrive/Documents/BME_UNI_WORK/TDK_2025/git_repo/TDK_LLM/runs_aug/launch_aug/interstellar_propulsion_review_0_0.00035"# f"{Default.RESULTS_DIR}/{Prompts.prompt_names[prompt_idx]}_{TEMPERATURE}_{rrr}/"
             os.makedirs(PLOTS_DIR, exist_ok=True)
 
             # =============================================================================
@@ -61,9 +61,9 @@ for rrr in Experiment.RADII:
 
             # List of [seq_len, hidden_dim] tensors for each generation. Each tensor contains the hidden state for every generated token at the last layer.
             # trajectories = torch.load(os.path.join(RESULTS_DIR, "sentence-transformers_all-mpnet-base-v2.pt"), weights_only=True, map_location=torch.device('cpu'))
-            trajectories = torch.load(os.path.join(RESULTS_DIR, "hidden_states_layer_-1.pt"), weights_only=True, map_location=torch.device('cpu'))
+            # trajectories = torch.load(os.path.join(RESULTS_DIR, "hidden_states_layer_-1.pt"), weights_only=True, map_location=torch.device('cpu'))
             
-            print(f"trajectories shape: {trajectories.shape}")
+            # print(f"trajectories shape: {trajectories.shape}")
             # minimum_trajectory_len = min( [len(t) for t in trajectories] )
 
             # =============================================================================

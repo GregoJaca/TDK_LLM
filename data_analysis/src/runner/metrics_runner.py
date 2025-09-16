@@ -54,15 +54,46 @@ def _compute_metric_for_pair(pair, trajectories, metrics_to_run, results_dir):
             if CONFIG["logging"]["enabled"]:
                 print(f"[metrics_runner] computing metric '{metric_name}' for pair {pair}")
             try:
-                # Decide plots directory: for sweeps we want results_root/<metric_name>/
-                if os.path.basename(results_dir) == "sweep":
+                # Decide plots directory. If a sweep is active (set via CONFIG['sweep']),
+                # prefer a per-metric directory under results_root (so we don't create
+                # a top-level 'plots' folder). Otherwise use the run's plots folder.
+                sw = CONFIG.get('sweep')
+                if sw:
+                    # results_dir is usually CONFIG['results_root']/run_id; place
+                    # per-metric plots alongside results_dir (i.e., results_root/<metric_name>)
                     plots_dir = os.path.join(os.path.dirname(results_dir), metric_name)
                 else:
                     plots_dir = os.path.join(results_dir, "plots")
                 os.makedirs(plots_dir, exist_ok=True)
 
                 # Pass pair-specific identifiers and output root so metrics can save per-pair plots
-                timeseries, aggregates = METRIC_FUNCTIONS[metric_name](traj_a, traj_b, pair_id=pair_id_sweep, out_root=plots_dir)
+                # Also forward sliding-window configuration explicitly so callers that
+                # modify CONFIG at runtime (e.g., sweep scripts) are always honored.
+                sw_cfg = CONFIG.get('sliding_window', {}) or {}
+                # Some metric modules read CONFIG['sliding_window'] directly at
+                # call time. To ensure sweep overrides are always honored even
+                # if metric implementations ignore kwargs, temporarily set
+                # CONFIG['sliding_window'] to the sw_cfg for the duration of
+                # the call.
+                prev_sw = CONFIG.get('sliding_window', None)
+                try:
+                    CONFIG['sliding_window'] = dict(sw_cfg) if isinstance(sw_cfg, dict) else sw_cfg
+                    timeseries, aggregates = METRIC_FUNCTIONS[metric_name](
+                        traj_a,
+                        traj_b,
+                        pair_id=pair_id_sweep,
+                        out_root=plots_dir,
+                        sliding_window=sw_cfg,
+                        window_size=sw_cfg.get('window_size'),
+                        displacement=sw_cfg.get('displacement'),
+                        use_window=sw_cfg.get('use_window'),
+                    )
+                finally:
+                    # restore previous sliding-window config
+                    if prev_sw is None:
+                        CONFIG.pop('sliding_window', None)
+                    else:
+                        CONFIG['sliding_window'] = prev_sw
 
                 # Normalize scalar aggregates to standard keys so summaries/plots work uniformly
                 if not any(k in aggregates for k in ("mean", "median", "std")):
@@ -108,32 +139,22 @@ def run_metrics(trajectories: np.ndarray, run_id: str) -> Dict:
     # Precedence: compute_all_pairs -> reference_index -> explicit pairs_to_plot
     pairwise_cfg = CONFIG.get("pairwise", {})
     cfg_metrics = CONFIG.get("metrics", {})
-    declared = cfg_metrics.get("available", [])
+
+    # Build metrics_to_run from per-metric enabled flags only. This removes
+    # reliance on an explicit 'available' whitelist; metrics are included if
+    # CONFIG['metrics'][<metric>]['enabled'] is True.
     metrics_to_run = []
-    # Select metrics that both declared in CONFIG and have implementations in METRIC_FUNCTIONS.
     for metric_name in METRIC_FUNCTIONS.keys():
-        # Only consider metrics the user declared in CONFIG['metrics']['available']
-        if metric_name not in declared:
-            continue
-
-        # Look up config for this metric using name or base alias
         base = metric_name.split('_')[0]
-        m_cfg = cfg_metrics.get(metric_name, None) or cfg_metrics.get(base, None) or CONFIG.get(metric_name, None) or CONFIG.get(base, None)
-
-        # If we found a dict-like config, respect its 'enabled' flag (default True)
+        m_cfg = cfg_metrics.get(metric_name, None) or cfg_metrics.get(base, None)
+        if m_cfg is None:
+            m_cfg = CONFIG.get(metric_name, None) or CONFIG.get(base, None)
+        enabled_flag = None
         if isinstance(m_cfg, dict):
-            if m_cfg.get("enabled", True):
-                metrics_to_run.append(metric_name)
-        else:
-            # If no config object was found anywhere, include the metric by default.
-            if m_cfg is None or bool(m_cfg):
-                metrics_to_run.append(metric_name)
-
-    # Warn about declared metrics that have no implementation
-    for m in declared:
-        if m not in METRIC_FUNCTIONS:
-            if CONFIG["logging"]["enabled"]:
-                print(f"[metrics_runner] Warning: metric '{m}' declared in CONFIG but has no implementation and will be skipped.")
+            enabled_flag = bool(m_cfg.get("enabled", False))
+        # Include only when explicitly enabled
+        if enabled_flag is True:
+            metrics_to_run.append(metric_name)
 
     # Build pairs list
     n_trajectories = trajectories.shape[0]
@@ -153,7 +174,7 @@ def run_metrics(trajectories: np.ndarray, run_id: str) -> Dict:
 
     # DEBUG: report selection
     if CONFIG["logging"]["enabled"]:
-        print(f"[metrics_runner] pairing_mode={pairing_mode}, declared={declared}")
+        print(f"[metrics_runner] pairing_mode={pairing_mode}")
         print(f"[metrics_runner] metrics_to_run={metrics_to_run}")
 
     # Use a lambda to pass additional arguments to the worker function

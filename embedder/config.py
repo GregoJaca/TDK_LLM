@@ -17,8 +17,8 @@ HF_TOKEN = os.environ.get("HF_TOKEN", None)
 EMBEDDING_METHODS = [
     # Sentence level encoders
     "sentence-transformers/all-mpnet-base-v2",
-    "intfloat/e5-large-v2",
-    "facebook/contriever",
+    # "intfloat/e5-large-v2",
+    # "facebook/contriever",
     # "Alibaba-NLP/gte-Qwen2-7B-instruct",
     # "BAAI/bge-large-en-v1.5",
     # Token level encoders

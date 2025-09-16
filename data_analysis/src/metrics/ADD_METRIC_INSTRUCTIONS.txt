@@ -13,7 +13,7 @@ High-level contract for a metric module
 
 Files/places to update
 1. `config.py`
-   - Add the metric name to `CONFIG["metrics"]["available"]`.
+  - Set the metric's `enabled` flag to `True` in `CONFIG["metrics"]["<metric_name>"]`.
    - Add a per-metric config under `CONFIG["metrics"]["<base_name>"]` (for enabled flag and metric-specific params). You may also add a top-level `CONFIG["<metric_name>"]` entry; the runner checks both.
    - Use the unified sliding window under `CONFIG["sliding_window"]` instead of custom per-metric fields.
    - If your metric needs extra libraries, list them in `requirements.txt`.
@@ -44,7 +44,7 @@ Testing & smoke checks
 Checklist before submitting
 - Metric module created at `src/metrics/<metric_name>.py` with the required public function.
 - Imported and registered in `METRIC_FUNCTIONS` in `src/runner/metrics_runner.py`.
-- Added to `CONFIG["metrics"]["available"]` and per-metric config (enabled flag).
+- Add the per-metric entry under `CONFIG["metrics"]` and set `"enabled": True`.
 - If new dependencies: update `requirements.txt`.
 - Run `python run_all.py --input <small_example>` and confirm the metric appears in `results/<run_id>/metrics.json` and `summary.txt` and (if enabled) the plot(s) are in `results/<run_id>/plots/`.
 

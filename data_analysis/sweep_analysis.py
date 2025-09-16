@@ -43,8 +43,12 @@ def run_sweep(sweep_param, sweep_values, run_experiments, compute_matrices):
                     prev_sweep = CONFIG.get('sweep')
                     CONFIG['sweep'] = {'param': sweep_param, 'value': value}
 
-                    run_folder = f"C:/Users/grego/OneDrive/Documents/BME_UNI_WORK/TDK_2025/git_repo/TDK_LLM/runs_aug/launch_aug/childhood_personality_development_{TEMPERATURE}_{rrr}"
-                    results_root = os.path.normpath(os.path.join(run_folder, 'results_sweep', embed_name))
+                    run_folder = f"C:/Users/grego/OneDrive/Documents/BME_UNI_WORK/TDK_2025/git_repo/TDK_LLM/runs_aug/launch_aug/interstellar_propulsion_review_{TEMPERATURE}_{rrr}"
+                    # Use a per-embed results folder directly; do not create an
+                    # additional 'results_sweep' level which led to unwanted
+                    # 'sweep' and 'plots' directories being made by downstream
+                    # code. The folder layout will be: run_folder/<embed_name>
+                    results_root = os.path.normpath(os.path.join(run_folder + "/sweep_results", embed_name))
 
                     if INPUT_MODE == 'per_trajectory':
                         input_path = os.path.normpath(run_folder)
@@ -111,8 +115,8 @@ def run_sweep(sweep_param, sweep_values, run_experiments, compute_matrices):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Perform a parameter sweep analysis.')
     parser.add_argument('--sweep_param', type=str, default='window_size', help='The parameter to sweep.')
-    parser.add_argument('--sweep_values', type=int, nargs='+', default=[1,32], help='The values to sweep.')
-    parser.add_argument('--run_experiments', type=bool, default=False, help='Run the analysis from run_all_experiments.')
+    parser.add_argument('--sweep_values', type=int, nargs='+', default=[1, 32], help='The values to sweep.')
+    parser.add_argument('--run_experiments', type=bool, default=True, help='Run the analysis from run_all_experiments.')
     parser.add_argument('--compute_matrices', type=bool, default=True, help='Run the analysis from compute_metric_matrices.')
     args = parser.parse_args()
 

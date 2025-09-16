@@ -41,7 +41,13 @@ def _make_results_dirs(base: str) -> str:
 
     This flattens plotting output into one folder as requested.
     """
-    out_dir = os.path.join(base, "metric_matrices")
+    # Preserve backward-compatible single-folder behavior when called with a
+    # top-level results root. If `base` already ends with a metric name or
+    # otherwise points to the intended output directory, don't append extra
+    # folders. The caller typically passes `results_root` and we want files to
+    # go into `results_root/<metric_name>` (handled by callers). For any other
+    # case, create the supplied base directory.
+    out_dir = base
     os.makedirs(out_dir, exist_ok=True)
     return out_dir
 
@@ -105,15 +111,49 @@ def _compute_matrix_for_trajectory(
             seg_j = get_segment(sj)
 
             # Call metric: prefer not to produce timeseries in this call
+            # Some metric implementations read CONFIG['sliding_window'] directly.
+            prev_sw = CONFIG.get('sliding_window', None)
             try:
-                # pass out_root=None to avoid metric modules saving their own plots
-                _, agg_ij = metric_mod.compare_trajectories(seg_i, seg_j, return_timeseries=False, out_root=None, pair_id=None)
-            except Exception:
-                agg_ij = {}
-            try:
-                _, agg_ji = metric_mod.compare_trajectories(seg_j, seg_i, return_timeseries=False, out_root=None, pair_id=None)
-            except Exception:
-                agg_ji = {}
+                CONFIG['sliding_window'] = dict(use_window=use_window, window_size=window_size, displacement=displacement)
+                try:
+                    _, agg_ij = metric_mod.compare_trajectories(
+                        seg_i,
+                        seg_j,
+                        return_timeseries=False,
+                        out_root=None,
+                        pair_id=None,
+                        sliding_window=CONFIG.get('sliding_window', {}),
+                        window_size=window_size,
+                        displacement=displacement,
+                        use_window=use_window,
+                    )
+                except Exception as e:
+                    logger.error(f"Error computing metric {metric_name} for traj {traj_idx} (i->j): {e}")
+                    import traceback
+                    logger.error(traceback.format_exc())
+                    agg_ij = {}
+                try:
+                    _, agg_ji = metric_mod.compare_trajectories(
+                        seg_j,
+                        seg_i,
+                        return_timeseries=False,
+                        out_root=None,
+                        pair_id=None,
+                        sliding_window=CONFIG.get('sliding_window', {}),
+                        window_size=window_size,
+                        displacement=displacement,
+                        use_window=use_window,
+                    )
+                except Exception as e:
+                    logger.error(f"Error computing metric {metric_name} for traj {traj_idx} (j->i): {e}")
+                    import traceback
+                    logger.error(traceback.format_exc())
+                    agg_ji = {}
+            finally:
+                if prev_sw is None:
+                    CONFIG.pop('sliding_window', None)
+                else:
+                    CONFIG['sliding_window'] = prev_sw
 
             v1 = _select_scalar_from_aggregates(agg_ij)
             v2 = _select_scalar_from_aggregates(agg_ji)
@@ -374,7 +414,22 @@ def main(input_path, results_root, save_matrices: bool = SAVE_MATRICES, save_plo
 
         n, T, D = data.shape
 
-    metrics_list: List[str] = CONFIG.get("metrics", {}).get("available", [])
+    # Determine metrics to run: build list from per-metric 'enabled' flags only.
+    # The project historically allowed an explicit 'available' whitelist; that
+    # key has been removed from policy here and we treat per-metric
+    # CONFIG['metrics'][<metric>]['enabled'] as the source of truth.
+    cfg_metrics = CONFIG.get("metrics", {})
+    metrics_list: List[str] = []
+    for k, v in cfg_metrics.items():
+        # skip non-dict entries
+        if not isinstance(v, dict):
+            continue
+        try:
+            if bool(v.get('enabled', False)):
+                metrics_list.append(k)
+        except Exception:
+            continue
+    logger.info(f"compute_metric_matrices: running metrics_list (from 'enabled' flags)={metrics_list}")
 
     for metric_name in metrics_list:
         # Only run metrics explicitly enabled in CONFIG
@@ -382,10 +437,26 @@ def main(input_path, results_root, save_matrices: bool = SAVE_MATRICES, save_plo
         if not metric_cfg.get("enabled", True):
             logger.info(f"Skipping metric {metric_name} (enabled=False)")
             continue
-        try:
-            metric_mod = importlib.import_module(f"src.metrics.{metric_name}")
-        except Exception as e:
-            logger.error(f"Failed to import metric {metric_name}: {e}. Skipping.")
+        # Try to import metric module; allow some common name fallbacks
+        metric_mod = None
+        tried_names = []
+        candidates = [metric_name]
+        # common fallback: 'dtw' -> 'dtw_fast'
+        if metric_name == 'dtw':
+            candidates.append('dtw_fast')
+        if not metric_name.endswith('_fast'):
+            candidates.append(metric_name + '_fast')
+
+        for cand in candidates:
+            try:
+                tried_names.append(cand)
+                metric_mod = importlib.import_module(f"src.metrics.{cand}")
+                break
+            except Exception:
+                metric_mod = None
+
+        if metric_mod is None:
+            logger.error(f"Failed to import metric {metric_name} (tried: {tried_names}). Skipping.")
             continue
 
         logger.info(f" Computing metric '{metric_name}' for {n} trajectories (this may take a while)...")

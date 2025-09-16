@@ -70,7 +70,8 @@ def estimate_lyapunov(trajs_reduced: np.ndarray, run_id: str):
     times = np.arange(len(mean_log_dist))
     start_idx, end_idx, r2, slope, intercept = auto_detect_linear_window(times, mean_log_dist, lyapunov_config)
 
-    # Save results
+    # Save results. Skip saving JSON and plots when running inside a sweep
+    # (user does not want 'plots' or sweep-level summary files).
     lyapunov_results = {
         "slope": slope,
         "intercept": intercept,
@@ -79,24 +80,26 @@ def estimate_lyapunov(trajs_reduced: np.ndarray, run_id: str):
         "mean_log_dist": mean_log_dist.tolist() # for JSON serialization
     }
 
-    with open(os.path.join(results_dir, "lyapunov.json"), "w") as f:
-        json.dump(lyapunov_results, f, indent=4)
+    sw = CONFIG.get('sweep')
+    if not sw:
+        with open(os.path.join(results_dir, "lyapunov.json"), "w") as f:
+            json.dump(lyapunov_results, f, indent=4)
 
-    # Save raw data for plotting
-    if CONFIG["save"]["save_reduced_tensors"]:
-        save_tensor(torch.from_numpy(mean_log_dist), os.path.join(results_dir, "raw_for_lyapunov.pt"))
+        # Save raw data for plotting
+        if CONFIG["save"]["save_reduced_tensors"]:
+            save_tensor(torch.from_numpy(mean_log_dist), os.path.join(results_dir, "raw_for_lyapunov.pt"))
 
-    # Generate plot
-    plots_dir = os.path.join(results_dir, "plots")
-    os.makedirs(plots_dir, exist_ok=True)
-    plot_path = os.path.join(plots_dir, "mean_log_vs_time.png")
-    plot_mean_log_distance_vs_time(
-        mean_log_dist, 
-        plot_path, 
-        window=(start_idx, end_idx), 
-        slope=slope, 
-        r2=r2
-    )
+        # Generate plot
+        plots_dir = os.path.join(results_dir, "plots")
+        os.makedirs(plots_dir, exist_ok=True)
+        plot_path = os.path.join(plots_dir, "mean_log_vs_time.png")
+        plot_mean_log_distance_vs_time(
+            mean_log_dist,
+            plot_path,
+            window=(start_idx, end_idx),
+            slope=slope,
+            r2=r2,
+        )
 
     print(f"Lyapunov estimation complete. Slope: {slope:.4f}, R2: {r2:.4f}")
     return lyapunov_results

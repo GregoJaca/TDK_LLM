@@ -28,6 +28,37 @@ def compare_trajectories(
     a = np.asarray(a, dtype=float)
     b = np.asarray(b, dtype=float)
 
+    # Sliding-window handling: if enabled in CONFIG and inputs are full
+    # trajectories, represent each window by the mean vector across the
+    # window so the rest of the function can operate on sequence reps.
+    # Allow callers (e.g., metrics_runner) to pass explicit sliding-window
+    # parameters via kwargs. Prefer explicit values over CONFIG defaults.
+    kw_sw = kwargs.get('sliding_window', None)
+    if kw_sw is not None and isinstance(kw_sw, dict):
+        sw = kw_sw
+    else:
+        sw = CONFIG.get("sliding_window", {})
+
+    use_window = bool(kwargs.get('use_window', sw.get("use_window", False)))
+    window_size = int(kwargs.get('window_size', sw.get("window_size", 0) or 0))
+    displacement = int(kwargs.get('displacement', sw.get("displacement", 1) or 1))
+
+    # Only apply when inputs are full trajectories (T x D). If inputs look
+    # like already-windowed segments (ndim != 2 or length equals window_size),
+    # skip this transformation.
+    try:
+        Ta = a.shape[0]
+        Tb = b.shape[0]
+    except Exception:
+        Ta = None
+        Tb = None
+
+    if use_window and window_size and Ta is not None and Tb is not None and Ta >= window_size and Tb >= window_size:
+        starts = list(range(0, min(Ta, Tb) - window_size + 1, displacement))
+        if len(starts) > 0:
+            a = np.vstack([np.mean(a[s : s + window_size], axis=0) for s in starts])
+            b = np.vstack([np.mean(b[s : s + window_size], axis=0) for s in starts])
+
     # Compute norms and guard zeros to avoid invalid value warnings
     na = np.linalg.norm(a, axis=-1, keepdims=True)
     nb = np.linalg.norm(b, axis=-1, keepdims=True)
