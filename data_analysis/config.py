@@ -4,9 +4,9 @@ from dataclasses import dataclass
 
 CONFIG = {
     # IO
-    "input_path": "C:/Users/grego/OneDrive/Documents/BME_UNI_WORK/TDK_2025/git_repo/TDK_LLM/runs_aug/run_0_0.0001/sentence-transformers_all-mpnet-base-v2.pt",   # path to input tensor (n, T, D)
+    # "input_path": "C:/Users/grego/OneDrive/Documents/BME_UNI_WORK/TDK_2025/git_repo/TDK_LLM/runs_aug/run_0_0.0001/sentence-transformers_all-mpnet-base-v2.pt",   # AAA delete
     "run_id_format": "%Y%m%d-%H%M%S",        # used with random suffix
-    "results_root": "results",               # root folder for outputs
+    # "results_root": "results",               # AAA delete
 
     # Reduction
     "reduction": {
@@ -36,7 +36,7 @@ CONFIG = {
     # explicit 'available' whitelist.
     "save_plots": True,
         "rank_eigen": {
-            "enabled": False,
+            "enabled": True,
             "deviation_metric": 'rms', # 'sum_cos_dist', # "rms",
             "run_rank_eigenvectors": True
         },
@@ -49,7 +49,7 @@ CONFIG = {
             "default_max_shift": 5,
         },
         "cos_sim": {
-            "enabled": True,
+            "enabled": False,
             "window_agg": "mean",  # "mean" or "min" aggregation across vectors in window
             "gaussian_weight": False,
             "centric_mode": "a",    # "a", "b", or "both"
@@ -83,20 +83,21 @@ CONFIG = {
     # Unified sliding-window parameters used by metrics that support sliding analysis
     "sliding_window": {
         "use_window": True,
-        "window_size": 64,
+        "window_size": 16,
         "displacement": 16
     },
 
     # Pair computations
     "pairwise": {
-        "compute_all_pairs": False,  
-        "save_all_pair_timeseries": False,
-    "reference_index": None,
-    "save_pairwise_timeseries_for": ["ref0"],  # or list of explicit pairs
-    # If compute_all_pairs is False and reference_index is None,
-    # use this explicit list of index pairs for computation and plotting.
-    "pairs_to_plot": [[0, 1]],
-    # "pairs_to_plot": [[0, 1], [0,2], [2,3]],
+        "compute_all_pairs": False,
+        # Single, simple toggle: when True, save one aggregated per-metric
+        # timeseries file containing all pairs. No per-pair files are written.
+        "save_pairwise_aggregated": True,
+        "reference_index": None,
+        # If compute_all_pairs is False and reference_index is None,
+        # use this explicit list of index pairs for computation and plotting.
+        # "pairs_to_plot": [[0, 1]],
+        "pairs_to_plot": [[0, 1], [0,2], [2,3]],
     },
 
     # Lyapunov (fast pairwise slope)

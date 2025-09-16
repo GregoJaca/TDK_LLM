@@ -225,17 +225,21 @@ def main(input_path, results_root, sweep_param_value=None):
         # Fall back to listing metrics that are enabled in CONFIG
         metrics_list_for_plots = [k for k, v in CONFIG.get('metrics', {}).items() if isinstance(v, dict) and v.get('enabled', False)]
 
-    for metric_name in metrics_list_for_plots:
-        for agg_type in ["mean", "median", "std"]:
-            if sweep_param_value is not None:
-                plot_dir = os.path.join(results_root, metric_name)
-                os.makedirs(plot_dir, exist_ok=True)
-                plot_path = os.path.join(plot_dir, f"pairwise_distance_hist_{metric_name}_{agg_type}_window_size_{sweep_param_value}.png")
-            else:
-                # For regular runs, use the top-level plots_dir created earlier.
-                plot_path = os.path.join(plots_dir, f"pairwise_distance_hist_{metric_name}_{agg_type}.png")
-            logger.info(f"Saving plot to {plot_path}")
-            plot_pairwise_distance_distribution(metrics_summary, plot_path, metric_name=metric_name, aggregate_type=agg_type, sweep_param_value=sweep_param_value)
+    save_hist = CONFIG.get('plots', {}).get('save_histograms', True)
+    if save_hist:
+        for metric_name in metrics_list_for_plots:
+            for agg_type in ["mean", "median", "std"]:
+                if sweep_param_value is not None:
+                    plot_dir = os.path.join(results_root, metric_name)
+                    os.makedirs(plot_dir, exist_ok=True)
+                    plot_path = os.path.join(plot_dir, f"pairwise_distance_hist_{metric_name}_{agg_type}_window_size_{sweep_param_value}.png")
+                else:
+                    # For regular runs, use the top-level plots_dir created earlier.
+                    plot_path = os.path.join(plots_dir, f"pairwise_distance_hist_{metric_name}_{agg_type}.png")
+                logger.info(f"Saving plot to {plot_path}")
+                plot_pairwise_distance_distribution(metrics_summary, plot_path, metric_name=metric_name, aggregate_type=agg_type, sweep_param_value=sweep_param_value)
+    else:
+        logger.info("Skipping histogram plots: CONFIG['plots']['save_histograms'] is False")
 
     logger.info("Plotting done")
 

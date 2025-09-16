@@ -47,10 +47,13 @@ def compare_trajectories(
         if min_len >= window_size:
             values = []
             centers = []
-            for start in range(0, min_len - window_size + 1, displacement):
-                wa = a[start : start + window_size]
-                wb = b[start : start + window_size]
+            for center in range(0, min_len, displacement):
+                s = max(0, center - window_size)
+                e = min(min_len, center + window_size)
+                wa = a[s:e]
+                wb = b[s:e]
                 # compute symmetric per-window Hausdorff via per-point mins
+                # GGG why doing this distance manually and not using directed_hausdorff? is this equivalent? (i think not and probably max_of_min would be equivalent) what would be the equivalent to directed_hausdorff?
                 a_to_b = per_point_min_dists(wa, wb)
                 b_to_a = per_point_min_dists(wb, wa)
                 aggregation_method = CONFIG["metrics"]["hausdorff"].get("aggregation", "max_of_mean")
@@ -59,7 +62,7 @@ def compare_trajectories(
                 else: # Default to max_of_mean
                     val = max(np.mean(a_to_b), np.mean(b_to_a))
                 values.append(val)
-                centers.append(start + window_size // 2)
+                centers.append(center)
 
             timeseries = np.array(values) if return_timeseries else None
             aggregates = {"mean": float(np.mean(values)), "median": float(np.median(values)), "std": float(np.std(values))}

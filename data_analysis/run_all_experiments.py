@@ -78,6 +78,8 @@ def run_all_experiments():
                     if INPUT_MODE == 'per_trajectory':
                         CONFIG['current_embed_raw'] = embedder
 
+                    # Use CONFIG['pairwise']['save_pairwise_aggregated'] directly
+
                     # pass input_path and results_root explicitly
                     print(f"[run_all_experiments] calling run_all.main input_path={input_path} results_root={results_root}")
                     run_all.main(input_path=input_path, results_root=results_root)
@@ -98,6 +100,7 @@ def run_all_experiments():
                         CONFIG.pop("results_root", None)
                     else:
                         CONFIG["results_root"] = prev_results
+                    # no local pairwise state to restore
                     # restore embed raw
                     if INPUT_MODE == 'per_trajectory':
                         if prev_embed_raw is None:

@@ -34,12 +34,9 @@ def _compute_column_sums(cross_dist: np.ndarray, use_window: bool, window_size: 
     s = max(1, int(window_stride))
     col_sums = []
     for j in range(0, Tb, s):
-        # center around j, compute row start/end
-        half = w // 2
-        start = max(0, j - half)
-        end = min(Ta, start + w)
-        # adjust start if at end
-        start = max(0, end - w)
+        # centered window around column j
+        start = max(0, j - w)
+        end = min(Ta, j + w)
         col_sums.append(np.nansum(cross_dist[start:end, j]))
     return np.array(col_sums)
 

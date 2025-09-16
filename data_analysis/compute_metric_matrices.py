@@ -33,7 +33,8 @@ logger = get_logger(__name__)
 
 # Options (simple knobs)
 SAVE_MATRICES = False
-SAVE_PLOTS = True
+# Default plot saving follows the user config flag to avoid unexpected logs
+SAVE_PLOTS = bool(CONFIG.get('plots', {}).get('save_histograms', True))
 TRAJECTORIES_TO_PROCESS: Optional[list[int]] = [0,1,2,3]
 
 def _make_results_dirs(base: str) -> str:
@@ -478,11 +479,12 @@ def main(input_path, results_root, save_matrices: bool = SAVE_MATRICES, save_plo
                     M = _compute_cross_cos_matrix(traj, window_size=window_size, displacement=displacement, use_window=use_window)
                     if save_matrices:
                         torch.save(torch.tensor(M), os.path.join(out_root, f"{metric_name}_traj{traj_idx}.pt"))
-                    if save_plots:
+                    if save_plots and CONFIG.get('plots', {}).get('save_histograms', True):
                         if sweep_param_value is not None:
                             plot_path = os.path.join(out_root, f"{metric_name}_traj{traj_idx}_window_size_{sweep_param_value}.png")
                         else:
                             plot_path = os.path.join(out_root, f"{metric_name}_traj{traj_idx}.png")
+                        os.makedirs(os.path.dirname(plot_path), exist_ok=True)
                         logger.info(f"Saving plot to {plot_path}")
                         _plot_matrix(M, plot_path, title=f"{metric_name} matrix traj {traj_idx}", sweep_param_value=sweep_param_value)
                     # skip the generic per-window pairwise routine
@@ -503,11 +505,12 @@ def main(input_path, results_root, save_matrices: bool = SAVE_MATRICES, save_plo
                     )
                     if save_matrices:
                         torch.save(torch.tensor(M), os.path.join(out_root, f"{metric_name}_traj{traj_idx}.pt"))
-                    if save_plots:
+                    if save_plots and CONFIG.get('plots', {}).get('save_histograms', True):
                         if sweep_param_value is not None:
                             plot_path = os.path.join(out_root, f"{metric_name}_traj{traj_idx}_window_size_{sweep_param_value}.png")
                         else:
                             plot_path = os.path.join(out_root, f"{metric_name}_traj{traj_idx}.png")
+                        os.makedirs(os.path.dirname(plot_path), exist_ok=True)
                         logger.info(f"Saving plot to {plot_path}")
                         _plot_matrix(M, plot_path, title=f"{metric_name} matrix traj {traj_idx}", sweep_param_value=sweep_param_value)
                     continue

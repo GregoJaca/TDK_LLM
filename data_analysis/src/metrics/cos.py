@@ -53,11 +53,18 @@ def compare_trajectories(
         Ta = None
         Tb = None
 
-    if use_window and window_size and Ta is not None and Tb is not None and Ta >= window_size and Tb >= window_size:
-        starts = list(range(0, min(Ta, Tb) - window_size + 1, displacement))
-        if len(starts) > 0:
-            a = np.vstack([np.mean(a[s : s + window_size], axis=0) for s in starts])
-            b = np.vstack([np.mean(b[s : s + window_size], axis=0) for s in starts])
+    if use_window and window_size and Ta is not None and Tb is not None and min(Ta, Tb) > 0:
+        min_len = min(Ta, Tb)
+        centers = list(range(0, min_len, displacement))
+        if len(centers) > 0:
+            a = np.vstack([
+                np.mean(a[max(0, c - window_size) : min(min_len, c + window_size)], axis=0)
+                for c in centers
+            ])
+            b = np.vstack([
+                np.mean(b[max(0, c - window_size) : min(min_len, c + window_size)], axis=0)
+                for c in centers
+            ])
 
     # Compute norms and guard zeros to avoid invalid value warnings
     na = np.linalg.norm(a, axis=-1, keepdims=True)

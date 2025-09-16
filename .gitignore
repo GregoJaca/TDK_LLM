@@ -11,4 +11,5 @@ autoencoder_trying.py
 *Guidelines.md
 *writing_plan.md
 *description_and_dump_results.txt
+*.npz
 # *runs_aug/

@@ -10,6 +10,7 @@ from src.runner.pair_manager import get_pairs
 from src.utils.parallel import map_pairs
 from src.io.saver import save_tensor
 from src.metrics import cos, dtw_fast, hausdorff, frechet, cross_cos, rank_eigen, cross_corr, cos_sim, wasserstein
+from src.io.saver import save_npz
 
 METRIC_FUNCTIONS = {
     "cos": cos.compare_trajectories,
@@ -40,6 +41,8 @@ def _compute_metric_for_pair(pair, trajectories, metrics_to_run, results_dir):
     except Exception:
         pass
     pair_results = {}
+    # collect any timeseries returned by metric functions for this pair
+    pair_timeseries = {}
     pair_id = f"{i}_{j}"
 
     # If a sweep is active (set by sweep_analysis), include its info in filenames
@@ -113,12 +116,18 @@ def _compute_metric_for_pair(pair, trajectories, metrics_to_run, results_dir):
                 if CONFIG["logging"]["enabled"]:
                     print(f"[metrics_runner] computed '{metric_name}' for pair {pair}; aggregates keys={list(aggregates.keys())}")
 
-                # Save timeseries if configured
-                if timeseries is not None and CONFIG["pairwise"]["save_all_pair_timeseries"]:
-                    ts_dir = os.path.join(results_dir, "timeseries")
-                    os.makedirs(ts_dir, exist_ok=True)
-                    ts_filename = f"{i}_{j}_{metric_name}.pt"
-                    save_tensor(timeseries, os.path.join(ts_dir, ts_filename))
+                # Collect timeseries in-memory if configured to save aggregated
+                if timeseries is not None and CONFIG.get("pairwise", {}).get("save_pairwise_aggregated", False):
+                    try:
+                        # convert tensors to numpy for safe stacking later
+                        if isinstance(timeseries, torch.Tensor):
+                            ts_arr = timeseries.cpu().numpy()
+                        else:
+                            ts_arr = np.asarray(timeseries)
+                        pair_timeseries[metric_name] = ts_arr
+                    except Exception:
+                        # fallback: store raw object
+                        pair_timeseries[metric_name] = timeseries
             except Exception as e:
                 if CONFIG["logging"]["enabled"]:
                     print(f"Could not compute metric {metric_name} for pair {pair}: {e}")
@@ -129,7 +138,7 @@ def _compute_metric_for_pair(pair, trajectories, metrics_to_run, results_dir):
             if CONFIG["logging"]["enabled"]:
                 print(f"Unknown metric: {metric_name}")
 
-    return (pair, pair_results)
+    return (pair, pair_results, pair_timeseries)
 
 def run_metrics(trajectories: np.ndarray, run_id: str) -> Dict:
     """Computes all configured metrics for all configured pairs of trajectories."""
@@ -192,8 +201,29 @@ def run_metrics(trajectories: np.ndarray, run_id: str) -> Dict:
             "pairing_mode": pairing_mode,
             "metrics": metrics_to_run
         },
-        "pairs": {f"{p[0]}_{p[1]}": res for p, res in results}
+        "pairs": {f"{p[0]}_{p[1]}": res for p, res in [(r[0], r[1]) for r in results]}
     }
+
+    # Optionally aggregate and save per-metric per-pair timeseries collected in-memory
+    if CONFIG.get("pairwise", {}).get("save_pairwise_aggregated", False):
+        # Collect lists per metric
+        metric_collections = {}
+        for (_, _res, _ts) in results:
+            # _ts is a dict metric->array for this pair
+            for m, arr in (_ts or {}).items():
+                metric_collections.setdefault(m, []).append(arr)
+
+        import numpy as _np
+        for m, lst in metric_collections.items():
+            try:
+                stacked = _np.stack([_np.asarray(x) for x in lst], axis=0)
+                save_path = os.path.join(results_dir, f"{m}_pairwise_timeseries.npz")
+                save_npz({"timeseries": stacked}, save_path)
+                if CONFIG["logging"]["enabled"]:
+                    print(f"[metrics_runner] Saved aggregated timeseries for metric {m} to {save_path}")
+            except Exception as e:
+                if CONFIG["logging"]["enabled"]:
+                    print(f"[metrics_runner] Failed to aggregate timeseries for metric {m}: {e}")
 
     # Save metrics.json (optional)
     if CONFIG.get("save_metrics_json", True):

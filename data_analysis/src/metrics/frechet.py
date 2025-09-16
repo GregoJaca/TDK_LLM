@@ -89,13 +89,17 @@ def compare_trajectories(
     # If use_window: compute frechet on sliding windows and aggregate
     if use_window and window_size is not None:
         min_len = min(a.shape[0], b.shape[0])
-        if min_len < window_size:
+        if min_len <= 0:
             return None, {"frechet_distance": float('nan')}
 
         values = []
-        for start in range(0, min_len - window_size + 1, displacement):
-            wa = a[start : start + window_size]
-            wb = b[start : start + window_size]
+        for center in range(0, min_len, displacement):
+            s = max(0, center - window_size)
+            e = min(min_len, center + window_size)
+            wa = a[s:e]
+            wb = b[s:e]
+            if wa.shape[0] == 0 or wb.shape[0] == 0:
+                continue
             dist, _ = _discrete_frechet(wa, wb)
             values.append(dist)
 

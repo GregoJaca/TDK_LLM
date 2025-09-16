@@ -69,9 +69,11 @@ def sliding_window_rank_deviation(
 
     deviations = []
     positions = []
-    for start in range(0, min_len - window_size + 1, displacement):
-        w1 = t1[start : start + window_size]
-        w2 = t2[start : start + window_size]
+    for center in range(0, min_len, displacement):
+        s = max(0, center - window_size)
+        e = min(min_len, center + window_size)
+        w1 = t1[s:e]
+        w2 = t2[s:e]
 
         k = min(window_size, w1.shape[1])
         v1 = _compute_pca_eigenvectors_torch(w1, k=k)
@@ -98,7 +100,7 @@ def sliding_window_rank_deviation(
             else:
                 dev = float(np.mean(np.abs(arr)))
         deviations.append(dev)
-        positions.append(start + window_size // 2)
+        positions.append(center)
 
     return np.array(positions), np.array(deviations)
 

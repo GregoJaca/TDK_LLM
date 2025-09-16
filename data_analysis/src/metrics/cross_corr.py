@@ -46,10 +46,11 @@ def compare_trajectories(a, b, *, return_timeseries=True, pair_id=None, out_root
     min_len = min(len(cos_sim_a), len(cos_sim_b))
     time_series = []
     
-    for start in range(0, min_len - window_size + 1, displacement):
-        end = start + window_size
-        window_a = cos_sim_a[start:end, start:end]
-        window_b = cos_sim_b[start:end, start:end]
+    for center in range(0, min_len, displacement):
+        s = max(0, center - window_size)
+        e = min(min_len, center + window_size)
+        window_a = cos_sim_a[s:e, s:e]
+        window_b = cos_sim_b[s:e, s:e]
 
         window_a_flat = window_a.flatten()
         window_b_flat = window_b.flatten()

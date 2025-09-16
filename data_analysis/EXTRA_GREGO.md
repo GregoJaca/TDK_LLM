@@ -5,8 +5,6 @@ linear techniques dim reduction: NMF , FACTOR ANALYSIS, pLSA
 Use random, structure-oblivious projections rather than learned ones:
 Johnson-Lindenstrauss (dense Gaussian RP)
 
-WASSERSTEIN DISTANCE
-
 is the shift properly implemented
 
 

@@ -95,10 +95,12 @@ def compare_trajectories(
     def compute_a_centric():
         values = []
         positions = []
-        for start in range(0, min_len - window_size + 1, displacement):
-            # compare a[start] to window in b
-            av = a[start]
-            wb = b[start : start + window_size]
+        for center in range(0, min_len, displacement):
+            # compare a[center] to window in b (centered window)
+            av = a[center]
+            s = max(0, center - window_size)
+            e = min(min_len, center + window_size)
+            wb = b[s:e]
             av_n, _ = _normalize_rows(av[np.newaxis, :])
             wb_n, _ = _normalize_rows(wb)
             sims = (wb_n @ av_n.squeeze())
@@ -114,15 +116,17 @@ def compare_trajectories(
                     mean_sim = float(np.nanmean(sims))
                 dist = 1.0 - mean_sim
             values.append(dist)
-            positions.append(start)
+            positions.append(center)
         return np.array(positions), np.array(values)
 
     def compute_b_centric():
         values = []
         positions = []
-        for start in range(0, min_len - window_size + 1, displacement):
-            bv = b[start]
-            wa = a[start : start + window_size]
+        for center in range(0, min_len, displacement):
+            bv = b[center]
+            s = max(0, center - window_size)
+            e = min(min_len, center + window_size)
+            wa = a[s:e]
             bv_n, _ = _normalize_rows(bv[np.newaxis, :])
             wa_n, _ = _normalize_rows(wa)
             sims = (wa_n @ bv_n.squeeze())
@@ -138,7 +142,7 @@ def compare_trajectories(
                     mean_sim = float(np.nanmean(sims))
                 dist = 1.0 - mean_sim
             values.append(dist)
-            positions.append(start)
+            positions.append(center)
         return np.array(positions), np.array(values)
 
     timeseries = None

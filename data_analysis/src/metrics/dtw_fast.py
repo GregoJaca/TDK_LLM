@@ -53,12 +53,16 @@ def compare_trajectories(
 
         distances = []
         positions = []
-        for start in range(0, min_len - window_size + 1, displacement):
-            seg_a = a[start : start + window_size]
-            seg_b = b[start : start + window_size]
+        for center in range(0, min_len, displacement):
+            s = max(0, center - window_size)
+            e = min(min_len, center + window_size)
+            seg_a = a[s:e]
+            seg_b = b[s:e]
+            if seg_a.shape[0] == 0 or seg_b.shape[0] == 0:
+                continue
             d, path = _dtw_with_path(seg_a, seg_b)
             distances.append(d)
-            positions.append(start + window_size // 2)
+            positions.append(center)
 
         aggregates = {"mean": float(np.mean(distances)), "median": float(np.median(distances)), "std": float(np.std(distances))}
         timeseries = np.array(distances) if return_timeseries else None
