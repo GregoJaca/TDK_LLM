@@ -104,12 +104,32 @@ CONFIG = {
     "lyapunov": {
     "enabled": False,
         "method": "pairwise_slope",
+        "operation_mode": "fit_first",  # "fit_first" or "average_first"
+        "fit": {
+            "type": "exponential",  # default fitter type
+            "log_offset_eps": 1e-12,
+        },
         "linear_window": {
             "auto_detect": True,
-            "min_window_len": 20,
-            "r2_threshold": 0.9,   # heuristic, not strict
+            "min_window_len": 5,
+            "r2_threshold": 0.85,   # heuristic, not strict
         },
-        "initial_time_cutoff_frac": 0.25,  # default region to examine for slope-fitting
+        "initial_time_cutoff_frac": 0.15,  # default region to examine for slope-fitting
+        "averaging": {
+            "method": "aligned_mean",  # "mean", "median", "aligned_mean"
+            "outlier_detection": {
+                "method": "no_rise",  # "no_rise" or "threshold"
+                "max_baseline_frac": 0.1, # fraction of max to consider baseline
+            },
+            "align_on": "rise_index", # alignment strategy
+            "truncate_saturation": True,
+            "saturation_trim_frac": 0.1
+        },
+        "plot": {
+            "save": True,
+            "log_plot": False,
+            "show_fit": True
+        }
     },
 
     # Parallel & performance
