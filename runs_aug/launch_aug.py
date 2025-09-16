@@ -31,6 +31,7 @@ def analyze_llm_chaos(initial_prompt, model, tokenizer, config):
         top_p=config.TOP_P,
         top_k=config.TOP_K,
         repetition_penalty=config.REPETITION_PENALTY,
+        results_dir=config.RESULTS_DIR,
     )
 
     print("\nAnalyzing trajectories...")
@@ -68,8 +69,8 @@ def analyze_llm_chaos(initial_prompt, model, tokenizer, config):
         with open(os.path.join(config.RESULTS_DIR, "generated_text.json"), "w") as f:
             json.dump(generated_texts, f, indent=2)
 
-        for layer_idx, layer_hidden_states in hidden_states.items():
-            torch.save(layer_hidden_states, os.path.join(config.RESULTS_DIR, f"hidden_states_layer_{layer_idx}.pt"))
+        # Hidden states were saved per-generation inside `generate_fixed_length`.
+        # Keep only the aggregated last-layer trajectories returned in `hidden_states` for analysis.
 
         torch.save(hypervolumes, os.path.join(config.RESULTS_DIR, "hypervolume.pt"))
         torch.save(axis_lengths, os.path.join(config.RESULTS_DIR, "axis_lengths.pt"))

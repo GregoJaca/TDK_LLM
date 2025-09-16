@@ -50,13 +50,13 @@ class ModelConfig:
 class Prompts:
     prompts = [
         # Space Technology (Detailed Technical Review)
-        # "Provide a comprehensive technical review of current and proposed propulsion systems for interstellar travel. Compare chemical rockets, nuclear propulsion, laser sails, antimatter drives, and other theoretical concepts in terms of energy requirements, achievable speeds, technological feasibility, and projected timelines for development. Include discussion of major projects in the history of the field."
+        "Provide a comprehensive technical review of current and proposed propulsion systems for interstellar travel. Compare chemical rockets, nuclear propulsion, laser sails, antimatter drives, and other theoretical concepts in terms of energy requirements, achievable speeds, technological feasibility, and projected timelines for development. Include discussion of major projects in the history of the field."
 
         # Psychology (Exploratory Tone)
-        "Examine how childhood experiences shape personality development. Discuss various influences including family environment, education, friendships, and significant life events. Explain psychological concepts like attachment theory and nature vs. nurture in accessible terms. Provide examples of how positive and negative experiences can affect adult personality traits and behaviors."
+        # "Examine how childhood experiences shape personality development. Discuss various influences including family environment, education, friendships, and significant life events. Explain psychological concepts like attachment theory and nature vs. nurture in accessible terms. Provide examples of how positive and negative experiences can affect adult personality traits and behaviors."
     ]
    
     prompt_names = [
-        # "interstellar_propulsion_review",       # Space Technology (Detailed Technical Review)
-        "childhood_personality_development",    # Psychology (Exploratory Tone)
+        "interstellar_propulsion_review",       # Space Technology (Detailed Technical Review)
+        # "childhood_personality_development",    # Psychology (Exploratory Tone)
     ]

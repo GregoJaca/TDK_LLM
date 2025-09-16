@@ -8,7 +8,7 @@ from src.config import Default
 
 def generate_fixed_length(
     model, tokenizer, initial_embeddings, attention_mask, max_length, selected_layers, device, 
-    temperature, top_p, top_k, repetition_penalty):
+    temperature, top_p, top_k, repetition_penalty, results_dir=None):
     n_conditions = initial_embeddings.shape[0]
     
     hidden_states_storages = {layer: [] for layer in selected_layers}
@@ -41,9 +41,24 @@ def generate_fixed_length(
                 for step_hidden_states in outputs.hidden_states:
                     state = step_hidden_states[layer_idx][0, 0, :].to(device)
                     layer_hidden_states.append(state)
-                
+
                 trajectory = torch.stack(layer_hidden_states, dim=0)
-                hidden_states_storages[layer_idx].append(trajectory)
+
+                # Save per-generation trajectory to disk immediately to avoid keeping all
+                # hidden states in memory. Save on CPU to reduce GPU memory consumption.
+                if results_dir is not None:
+                    ensure_dir(results_dir)
+                    filepath = os.path.join(results_dir, f"hidden_states_cond_{i}_layer_{layer_idx}.pt")
+                    torch.save(trajectory.cpu(), filepath)
+
+                # Keep only the last selected layer in memory for downstream analysis
+                try:
+                    last_layer = selected_layers[-1]
+                except Exception:
+                    last_layer = None
+
+                if layer_idx == last_layer:
+                    hidden_states_storages[layer_idx].append(trajectory)
 
             generated_text = tokenizer.decode(outputs.sequences[0], skip_special_tokens=True)
             generated_texts.append(generated_text)
