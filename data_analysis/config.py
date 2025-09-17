@@ -104,7 +104,7 @@ CONFIG = {
     "lyapunov": {
     "enabled": False,
         "method": "pairwise_slope",
-        "operation_mode": "fit_first",  # "fit_first" or "average_first"
+        "operation_mode": "average_first",  # "fit_first" or "average_first"
         "fit": {
             "type": "exponential",  # default fitter type
             "log_offset_eps": 1e-12,
