@@ -181,13 +181,13 @@ A deterministic dynamical system is one whose future evolution is uniquely deter
 \end{equation}
 where $\mathbf{x}(t) \in \mathbb{R}^n$ is the state vector in an $n$-dimensional phase space, and $f$ is a nonlinear function. The sequence of states over time, $\mathbf{x}(t)$, traces a path known as a trajectory in this phase space.
 
-Chaotic systems are a fascinating subclass of deterministic nonlinear systems that exhibit complex and unpredictable behavior. This apparent randomness arises not from stochastic inputs, but from the system's intrinsic dynamics. The defining characteristic of chaos is \textbf{sensitivity to initial conditions (SIC)}, colloquially known as the "butterfly effect". This property implies that trajectories originating from infinitesimally close initial states, say $\mathbf{x}(0)$ and $\mathbf{x}(0) + \bm{\delta}(0)$, will diverge exponentially over time. The separation distance $\|\bm{\delta}(t)\|$ grows according to:
+Chaotic systems are a fascinating subclass of deterministic nonlinear systems that exhibit complex and unpredictable behavior. This apparent randomness arises not from stochastic inputs, but from the system's intrinsic dynamics. The defining characteristic of chaos is \textbf{sensitivity to initial conditions (SIC)}. This property implies that trajectories originating from infinitesimally close initial states, say $\mathbf{x}(0)$ and $\mathbf{x}(0) + \bm{\delta}(0)$, will diverge exponentially over time. The separation distance $\|\bm{\delta}(t)\|$ grows according to:
 \begin{equation}
     \|\bm{\delta}(t)\| \approx \|\bm{\delta}(0)\| e^{\lambda t}
 \end{equation}
-where $\lambda$ is the maximal Lyapunov exponent. A positive maximal Lyapunov exponent ($\lambda > 0$) is the primary indicator of chaos. It signifies that any measurement error or uncertainty in the initial state, no matter how small, will be amplified exponentially, rendering long-term prediction impossible.
+where $\lambda$ is the maximal Lyapunov exponent. A positive maximal Lyapunov exponent is a strong indicator of chaos. It signifies that any measurement error or uncertainty in the initial state, no matter how small, will be amplified exponentially, rendering long-term prediction impossible.
 
-Despite their unpredictability, the trajectories of dissipative chaotic systems are not entirely random; they are confined to a bounded, zero-volume region in phase space called a \textbf{strange attractor}. These attractors often possess a complex, self-similar geometry known as a fractal structure. The dimensionality of this structure can be characterized by a non-integer value. A common measure is the \textbf{correlation dimension ($D_2$)}, estimated using the Grassberger-Procaccia algorithm. It is based on the correlation integral, $C(\epsilon)$, which measures the probability that two points on the attractor are closer than a distance $\epsilon$. For small $\epsilon$, the correlation integral scales as a power law:
+Despite their unpredictability, the trajectories of dissipative chaotic systems are not entirely random; they are confined to a bounded, lower dimensional subregion in phase space called a \textbf{strange attractor}. These attractors often possess a complex, self-similar geometry known as a fractal structure. The dimensionality of this structure can be characterized by a non-integer value. A common measure is the \textbf{correlation dimension ($D_2$)}. It is based on the correlation integral, $C(\epsilon)$, which measures the probability that two points on the attractor are closer than a distance $\epsilon$. For small $\epsilon$, the correlation integral scales as a power law:
 \begin{equation}
     C(\epsilon) = \lim_{N \to \infty} \frac{2}{N(N-1)} \sum_{i<j} \Theta(\epsilon - \|\mathbf{x}_i - \mathbf{x}_j\|) \sim \epsilon^{D_2}
 \end{equation}
@@ -197,13 +197,14 @@ Another powerful tool for analyzing dynamical systems is \textbf{Recurrence Anal
 \begin{equation}
     R_{i,j}(\epsilon) = \Theta(\epsilon - \|\mathbf{x}_i - \mathbf{x}_j\|), \quad i,j = 1, \dots, N
 \end{equation}
+% G: any distance metric can be used
 The visual patterns in an RP provide deep insight: periodic systems produce long, parallel diagonal lines, random systems produce a uniform, noisy plot, and chaotic systems produce a complex geometric structure with short, interrupted diagonal lines. These structures can be quantified using Recurrence Quantification Analysis (RQA).
 
 
 % G: I would like to generally describe the necessary conditions for chaos. (I dont mean SIC and exponential divergence, but rather the underlying characteristics of the system which will make it be chaotic). Then I'd like to explain which components of LLM architecture correspond to these. example: nonlinear coupling and attention
 
 In general, the following structural conditions of a system cause it to be chaotic:
-Nonlinearity:
+Nonlinearity: % GGG
 Stretching and Folding mechanism: Stretching separates close trajectories, causing SIC, while folding confines them to a bounded subset of the state space, a strange attractor.
 
 
@@ -214,8 +215,9 @@ The process begins with tokenization, where input text is broken down into a seq
 \begin{equation}
     \text{Attention}(Q, K, V) = \text{softmax}\left(\frac{QK^T}{\sqrt{d_k}}\right)V
 \end{equation}
-% TODO: explain what each variable is. concise. definition + intuition
-This operation creates a powerful, nonlinear feedback and coupling mechanism between all elements of the sequence. The MLP further processes these representations through additional nonlinear transformations. Normalization is . The output of the final layer is a sequence of hidden states, which represent the contextualized meaning of each token.
+% TODO: explain what each variable is. concise. definition + intuition. also show how it updates the hidden states
+This operation creates a powerful, nonlinear feedback and coupling mechanism between all elements of the sequence. The MLP further processes these representations through additional nonlinear transformations. Normalization is (GGG). 
+% The output of the final layer is a sequence of hidden states, which represent the contextualized meaning of each token. % G: clarify that for all layers we can get it and also connect it better to how the logits are obtained
 
 During inference, the LLM generates text autoregressively, which can be viewed as a discrete-time dynamical system:
 \begin{equation}
@@ -233,6 +235,7 @@ Layer normalization (LayerNorm) acts on a single hidden state vector \(h\in\math
 y &\;=\; \gamma \odot \widehat{h} + \beta \;=\; D\widehat{h} + \beta, \label{eq:ln_affine}
 \end{align}
 where \(\mathbf{1}=(1,\dots,1)^\top , \gamma, \beta \in\mathbb{R}^d\), and \(D=\operatorname{diag}(\gamma)\).
+% G: pretty unreadable. 
 
 \begin{itemize}
   \item \(h\in\mathbb{R}^d\): input hidden state (one token, one sample).
@@ -267,7 +270,9 @@ and the full LayerNorm Jacobian (including \(D\)) is \(J_y(h)=D\,J_{\widehat{h}}
 % G: could emphasize that the radial direction u is specific for every h, but the mean centering is global.
 
 \paragraph{Interpretation for dynamics}
-LayerNorm is therefore a structured \emph{many-to-one} nonlinear map: it (i) removes one linear degree of freedom (the mean), (ii) collapses the radial coordinate in the centered hyperplane (folding onto a compact manifold), and (iii) applies an anisotropic linear rescaling and shift.  In dynamical terms this provides a strong folding/bounding operation; any stretching/expansion must come from the other components (linear layers, attention, pointwise nonlinearities) for the overall layer-to-layer map to exhibit expansion+folding behavior.
+LayerNorm is therefore a structured \emph{many-to-one} nonlinear map: it (i) removes one linear degree of freedom (the mean), (ii) collapses the radial coordinate in the centered hyperplane (folding onto a compact manifold), and (iii) applies an anisotropic linear rescaling and shift.
+% G: (ii) is too much
+% In dynamical terms this provides a strong folding/bounding operation; any stretching/expansion must come from the other components (linear layers, attention, pointwise nonlinearities) for the overall layer-to-layer map to exhibit expansion+folding behavior.
 
 
 \subsection{Analogy and Limitations}
@@ -294,7 +299,9 @@ Measurement Uncertainty & Floating Point Precision, Quantization \\ \bottomrule
 \end{table}
 % G: could add stretching and folding. table too big rn
 
-However, the analogy is not perfect and has critical limitations. LLM dynamics are discrete, not continuous, with a fixed "time step" of one token. The act of sampling a token from the probability distribution and appending it to the input can be seen as a "collapse" or a sharp discontinuity in the trajectory's evolution. LLMs are usually used with probabilistic sampling, which adds a random component and makes it non-deterministic. Furthermore, the dimensionality of the state space is extraordinarily high (thousands of dimensions), which poses significant challenges for traditional chaos analysis techniques.
+However, the analogy is not perfect and has critical limitations. LLM dynamics are discrete, not continuous, with a fixed "time step" of one token. The act of sampling a token from the probability distribution and appending it to the input can be seen as a "collapse" or a sharp discontinuity in the trajectory's evolution. 
+% G: can clarify that it matters in that this new token is the starting point for the processing in the 1st layer, but all the previous hidden states remain and will influence at each layer.
+LLMs are usually used with probabilistic sampling, which adds a random component and makes it non-deterministic. Furthermore, the dimensionality of the state space is extraordinarily high (thousands of dimensions), which poses significant challenges for traditional chaos analysis techniques.
 
 % G: also in chaotic systems the nonlinear coupling is between variables, but in llm it is between tokens, which would be the state of the system (so all the variables) at different times
 
@@ -305,11 +312,13 @@ However, the analogy is not perfect and has critical limitations. LLM dynamics a
 \section{Methods}
 
 \subsection{Initial Condition Generation}
-To test for sensitivity to initial conditions, we generate a set of trajectories from infinitesimally close starting points. We begin with a single prompt, tokenize it, and retrieve its initial embedding tensor $\mathbf{E}_0 \in \mathbb{R}^{L \times D}$, where $L$ is the prompt length and $D$ is the model's hidden dimension. We then create a "blob" (GGG) of $N$ perturbed initial conditions by adding a small, random perturbation tensor $\in \mathbb{R}^{L \times D}$ of fixed magnitude (radius $r$).
-% G: idk if perturbation is the best word here
+To test for sensitivity to initial conditions, we generate a set of trajectories from infinitesimally close starting points. We begin with a single prompt, tokenize it, and retrieve its initial embedding tensor $\mathbf{E}_0 \in \mathbb{R}^{L \times D}$, where $L$ is the prompt length and $D$ is the model's hidden dimension. We then create a "blob" (GGG) of $N$ perturbed initial conditions by adding a small, random perturbation tensor $\in \mathbb{R}^{L \times D}$ of fixed magnitude (radius $r$). Then we use LLM to continue (GGG generate) each trajectory.
+% G: idk if perturbation is the best word here. disturbance?
 
 \subsection{Trajectory Distance Metrics}
-We use a suite of metrics to quantify the divergence between pairs of trajectories, $\mathbf{X} = (\mathbf{x}_1, ..., \mathbf{x}_n)$ and $\mathbf{Y} = (\mathbf{y}_1, ..., \mathbf{y}_m)$.
+We use a suite of metrics to quantify the divergence between pairs of trajectories, $\mathbf{X} = (\mathbf{x}_1, ..., \mathbf{x}_n)$ and $\mathbf{Y} = (\mathbf{y}_1, ..., \mathbf{y}_m)$. Distance between vector representations of text encode meaning about its semantic similarity.
+% G: encode? similarty/closeness? improve last sentence
+% G: cite word2vec and some paper with clustering from LLM or show my clustering. also some from text2vec embedders
 
 \subsubsection{Vector-wise Metrics}
 These metrics are applied pointwise between corresponding vectors of two trajectories, yielding a time series of distance values.
@@ -345,19 +354,23 @@ These metrics yield a single scalar value for the distance between two entire tr
 \end{itemize}
 
 \subsection{Recurrence Analysis}
-We generate Recurrence Plots (RPs) using the self-similarity matrix of a single hidden state trajectory with cosine distance. We analyze the plots qualitatively and quantitatively using Recurrence Quantification Analysis (RQA) metrics, including:
+We generate Recurrence Plots (RPs) using the self-similarity matrix of a single hidden state trajectory with all the distance metrics. We analyze the plots qualitatively and quantitatively using Recurrence Quantification Analysis (RQA) metrics, including:
 \begin{itemize}
     \item \textbf{Determinism (DET):} The percentage of recurrence points forming diagonal lines, indicating predictability.
     \item \textbf{Laminarity (LAM):} The percentage of recurrence points forming vertical lines, indicating periods of stable or "laminar" states.
     \item \textbf{Entropy (ENT):} The Shannon entropy of the distribution of diagonal line lengths, reflecting the complexity of the deterministic structure.
 \end{itemize}
+% G: could show example how cos sim matrix is calculated and the shape for clarity
 
 \subsection{Dimensionality}
-We estimate the correlation dimension ($D_2$) of the trajectories using the Grassberger-Procaccia algorithm as described previously. This can be calculated from the self-similarity matrix by applying different thresholds (which correspond to the distance $\epsilon$). 
+We estimate the correlation dimension ($D_2$) of the trajectories using the Grassberger-Procaccia algorithm. This can be calculated from the self-similarity matrix by applying different thresholds (which correspond to the distance $\epsilon$). 
+% G: expand
 
 \subsection{Clustering}
 
 Furthermore, we apply clustering algorithms to the set of hidden state vectors within a trajectory to identify distinct operational states or regions in the model's high-dimensional phase space.
+
+% G: either do an Experiments section or here I need to conretely explain what I did: model choice, params, dim, fix length generation, context window, etc...
 
 \section(Results)
 
