@@ -120,14 +120,20 @@ BME Elméleti Fizika Tanszék
 \section{Introduction and Motivation}
 
 % G: This paragraph wants to say: Mathematicians study silly nonlinear diff eqs for fun. LLMs are even more interesting.
-Deep Neural Networks, such as LLMs, are highly nonlinear systems whose parameters are not explicitly determined, but rather they are trained on large sets of data. This allows these models to learn huge amounts of knowledge with little human intervention, which allows for escalation at the cost of interpretability.
+Deep Neural Networks, such as LLMs, are highly nonlinear systems whose parameters are not explicitly determined, but rather they are determined by training on huge sets of data.
+% but rather they are trained on large sets of data. 
+This allows these models to learn huge amounts of knowledge with little human intervention, which allows for escalation at the cost of interpretability.
 % Studying these systems is extremely interesting
 
 There is growing interest in the sensitivity of LLMs (and other generative deep neural networks) to initial conditions and small perturbations. For some applications, like Reinforcement Learning (RL) (G: or in cases where there is one right answer) (GGG), determinism and predictability (and reproducibility) are desireable, while for other uses like synthetic data generation, paraphrasing, and novel image generation, divergence (GGG) is desired.
 % Understanding fixed/stable points in LLMs can clarify their generative capability constraints.
 % G: needs a more natural phrasing, not forcing it into the SIC chaos direction until the end
 
+% G: I want to say: LLMs are trained on all human data. what they learn is representative of human civilization (if we consider the written data is). more insights into LLMs is insights into us. maybe read motivation for some interpretability articles
+% G: but this is not so much within the scope of this study
+Given that LLMs are trained of a large corpus of human data, what they know says a lot about humanity (at least what is captured in text). Improving our understanding of the inner representations of LLMs yields insights about us.
 
+% G: also these tools can be applied to other DNNs that handle audio image video
 
 \section{Related Work}
 
@@ -371,6 +377,7 @@ We estimate the correlation dimension ($D_2$) of the trajectories using the Gras
 Furthermore, we apply clustering algorithms to the set of hidden state vectors within a trajectory to identify distinct operational states or regions in the model's high-dimensional phase space.
 
 % G: either do an Experiments section or here I need to conretely explain what I did: model choice, params, dim, fix length generation, context window, etc...
+% brief comment about T
 
 \section(Results)
 
