@@ -120,9 +120,10 @@ BME Elméleti Fizika Tanszék
 \section{Introduction and Motivation}
 
 % G: This paragraph wants to say: Mathematicians study silly nonlinear diff eqs for fun. LLMs are even more interesting.
-Deep Neural Networks, such as LLMs, are highly nonlinear systems whose parameters are not explicitly determined, but rather they are determined by training on huge sets of data.
+Deep Neural Networks (DNNs), such as LLMs, are highly nonlinear systems whose parameters are not explicitly determined, but rather they are determined by training on huge sets of data.
 % but rather they are trained on large sets of data. 
 This allows these models to learn huge amounts of knowledge with little human intervention, which allows for escalation at the cost of interpretability.
+DNNs provide a facsinating case of study for nonlinear dynamics.
 % Studying these systems is extremely interesting
 
 There is growing interest in the sensitivity of LLMs (and other generative deep neural networks) to initial conditions and small perturbations. For some applications, like Reinforcement Learning (RL) (G: or in cases where there is one right answer) (GGG), determinism and predictability (and reproducibility) are desireable, while for other uses like synthetic data generation, paraphrasing, and novel image generation, divergence (GGG) is desired.
@@ -154,7 +155,7 @@ Recent engineering efforts have focused on achieving deterministic inference by 
  %Knowing the LLMs sensitivity to disturbances is important for this.
  %This highlights the practical sensitivity of LLMs to small numerical perturbations. 
 
-\ref{wang2025unveiling_attractor_cycles} show that LLMs uses for paraphrasing converge to periodic attractor cycles, reducing linguistic diversity.
+\ref{wang2025unveiling_attractor_cycles} show that LLMs used for paraphrasing converge to periodic attractor cycles, reducing linguistic diversity.
 
 \ref{cyclegan} % Comment: PLOS Complex Systems article - 
 demonstrate that CycleGAN image generators' space is more limited than the training data's with Positive Lyapunov exponents and attractor dimensions similar to the training data intrinsic dimension. Chaotic dynamics contribute to the diversity of the generated images.
@@ -325,6 +326,8 @@ To test for sensitivity to initial conditions, we generate a set of trajectories
 We use a suite of metrics to quantify the divergence between pairs of trajectories, $\mathbf{X} = (\mathbf{x}_1, ..., \mathbf{x}_n)$ and $\mathbf{Y} = (\mathbf{y}_1, ..., \mathbf{y}_m)$. Distance between vector representations of text encode meaning about its semantic similarity.
 % G: encode? similarty/closeness? improve last sentence
 % G: cite word2vec and some paper with clustering from LLM or show my clustering. also some from text2vec embedders
+% G: also mention that some metrics are based on other metrics: like rank eigen uses cos similarity to compare pairs of vectors. check which use L2
+% We justify the use of cosine similarity as it is a meaningful metric both in the hidden state and embedded text space.
 
 \subsubsection{Vector-wise Metrics}
 These metrics are applied pointwise between corresponding vectors of two trajectories, yielding a time series of distance values.
@@ -356,7 +359,34 @@ These metrics yield a single scalar value for the distance between two entire tr
 
 \subsubsection{Structural Metric}
 \begin{itemize}
-    \item \textbf{SVD Eigenvector Ranking Deviation:} To compare the structural properties of two trajectories, we compute the covariance matrix for each sequence of hidden states. We then perform Singular Value Decomposition (SVD) on these matrices. The resulting singular vectors represent the principal axes of variance for each trajectory. We compare the orientation and ranking of these corresponding vectors between two trajectories to produce a measure of structural divergence.
+        
+    \item \textbf{SVD Eigenvector Ranking Deviation:} To compare the structural properties of two trajectories, we first compute the covariance matrix for each sequence of hidden states. We then perform Singular Value Decomposition (SVD) on the centered data matrices, yielding principal directions (eigenvectors $V^{(i)}$) for each trajectory.
+
+    To compare the two sets of eigenvectors, we compute the cosine similarity matrix.
+    \[
+    S_{ab} = \frac{v^{(1)}_a \cdot v^{(2)}_b}{\|v^{(1)}_a\| \|v^{(2)}_b\|}
+    \]
+    where $v^{(1)}_a$ and $v^{(2)}_b$ are the $a$-th and $b$-th eigenvectors of the first and second trajectory, respectively.
+
+    For each eigenvector $v^{(1)}_a$, we find the index $b^*$ of the most similar eigenvector in the second trajectory:
+    \[
+    b^* = \arg\max_b S_{ab}
+    \]
+
+    We can show the ranking of eigenvectors to show how similar two trajectories are. The closer to the proportionality line, the more similar two trajectories.
+    % TODO: Plot diagonal
+
+    We then compute the sum of cosine distances for these matched pairs:
+    \[
+    D_{\text{sum\_cos\_dist}} = \sum_{a=1}^k \left[1 - S_{a b^*}\right]
+    \]
+    where $D_{\text{sum\_cos\_dist}}$ is the scalar metric quantifying the dissimilarity between the two trajectories.
+
+    \textbf{Symmetry:} This metric is \emph{not symmetric}. Matching is performed from the eigenvectors of the first trajectory to those of the second, and the assignment is not necessarily reciprocal. That is, $D_{\text{sum\_cos\_dist}}(X^{(1)}, X^{(2)}) \neq D_{\text{sum\_cos\_dist}}(X^{(2)}, X^{(1)})$ in general.
+
+
+
+
 \end{itemize}
 
 \subsection{Recurrence Analysis}
@@ -393,7 +423,7 @@ Chaotic features are more strongly present at the last layers of the LLM as show
 
 % \subsection{Possible Explanations for LLMs being chaotic}
 
-
+% mention the challenges and successes with high dim data. also distance metrics. and the ones I invented
 
 \section{Acknowledgements }
 
