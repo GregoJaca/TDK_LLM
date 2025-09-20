@@ -160,14 +160,16 @@ def main(input_path, results_root, sweep_param_value=None):
                 X = torch.stack([torch.as_tensor(t) for t in trajectories], dim=0)
             except Exception:
                 # fallback: convert to numpy then to tensor
-                import numpy as _np
-                lst = [(_np.asarray(t)) for t in trajectories]
+                import numpy as np
+                lst = [(np.asarray(t)) for t in trajectories]
                 if len(lst) > 1:
                     shapes = [arr.shape for arr in lst]
                     if not all(shape == shapes[0] for shape in shapes):
                         min_len = min(shape[0] for shape in shapes)
                         lst = [arr[:min_len] for arr in lst]
-                X = torch.as_tensor(_np.stack(lst, axis=0))
+                else:
+                    print("XXX ------- Grego stupiduss ---------------- XXXXX")
+                X = torch.as_tensor(np.stack(lst, axis=0))
 
         logger.info("Loaded per-trajectory input; num trajectories=%d", X.shape[0])
         logger.info("Loaded tensor shape %s", tuple(X.shape))

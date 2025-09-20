@@ -393,7 +393,17 @@ def main(input_path, results_root, save_matrices: bool = SAVE_MATRICES, save_plo
             return
 
         # convert to numpy array of shape (n, T, D)
-        data = np.stack([np.asarray(t) for t in trajectories], axis=0)
+        # data = np.stack([np.asarray(t) for t in trajectories], axis=0)
+
+        lst = [(np.asarray(t)) for t in trajectories]
+        if len(lst) > 1:
+            shapes = [arr.shape for arr in lst]
+            if not all(shape == shapes[0] for shape in shapes):
+                min_len = min(shape[0] for shape in shapes)
+                lst = [arr[:min_len] for arr in lst]
+        else:
+            print("Grego stupiduss ---------------- XXXXX")
+        data = torch.as_tensor(np.stack(lst, axis=0))
         n, T, D = data.shape
     else:
         # single-file behavior

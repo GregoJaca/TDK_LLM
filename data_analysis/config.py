@@ -104,7 +104,7 @@ CONFIG = {
         # If compute_all_pairs is False and reference_index is None,
         # use this explicit list of index pairs for computation and plotting.
         # "pairs_to_plot": [[0, 1]],
-        "pairs_to_plot": [[0, 1], [0,2], [1,3]],
+        "pairs_to_plot": [[0, 1], [0,2], [1,3]], #[ [i, j] for i in range(5) for j in range(i,10) ],
     },
 
     # Lyapunov (fast pairwise slope)

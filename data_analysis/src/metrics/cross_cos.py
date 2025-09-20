@@ -37,7 +37,13 @@ def _compute_column_sums(cross_dist: np.ndarray, use_window: bool, window_size: 
         # centered window around column j
         start = max(0, j - w)
         end = min(Ta, j + w)
-        col_sums.append(np.nansum(cross_dist[start:end, j]))
+        window_len = end - start
+        if window_len > 0:
+            sum_val = np.nansum(cross_dist[start:end, j])
+            col_sums.append(sum_val / window_len)
+        else:
+            col_sums.append(0.0)
+            print("------- XXXX ---------- GREGO STUPID") # AA
     return np.array(col_sums)
 
 def compare_trajectories(a: np.ndarray, b: np.ndarray, *, return_timeseries: bool = True, pair_id: Optional[str] = None, out_root: Optional[str] = None, **kwargs) -> Tuple[Optional[np.ndarray], Dict[str, float]]:
@@ -90,14 +96,14 @@ def compare_trajectories(a: np.ndarray, b: np.ndarray, *, return_timeseries: boo
     if CONFIG.get("plots", {}).get("save_timeseries", False):
         timeseries_fname = os.path.join(out_root, f"cross_cos_col_sums_{pair_id}.png")
         try:
-            plots.plot_time_series_for_pair(col_sums, timeseries_fname, title=f"Cross-Cos Column Sums ({pair_id})", ylabel="Cross Cosine Distance")
+            plots.plot_time_series_for_pair(col_sums, timeseries_fname, title=f"Cross-Cos Column Averages ({pair_id})", ylabel="Cross Cosine Distance")
         except Exception:
             import matplotlib.pyplot as plt
             plt.figure()
             plt.plot(col_sums)
-            plt.title(f'Cross Cos Column Sums ({pair_id})')
+            plt.title(f'Cross Cos Column Averages ({pair_id})')
             plt.xlabel('Index b')
-            plt.ylabel('Cross Cosine Distance (sum)')
+            plt.ylabel('Cross Cosine Distance')
             plt.tight_layout()
             plt.savefig(timeseries_fname)
             plt.close()
