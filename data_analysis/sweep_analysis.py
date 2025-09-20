@@ -116,7 +116,7 @@ def run_sweep(sweep_param, sweep_values, run_experiments, compute_matrices):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Perform a parameter sweep analysis.')
     parser.add_argument('--sweep_param', type=str, default='window_size', help='The parameter to sweep.')
-    parser.add_argument('--sweep_values', type=int, nargs='+', default=[1, 8], help='The values to sweep.')
+    parser.add_argument('--sweep_values', type=int, nargs='+', default=[1], help='The values to sweep.')
     parser.add_argument('--run_experiments', type=bool, default=True, help='Run the analysis from run_all_experiments.')
     parser.add_argument('--compute_matrices', type=bool, default=True, help='Run the analysis from compute_metric_matrices.') # CLUSTER
     args = parser.parse_args()

@@ -35,6 +35,8 @@ logger = get_logger(__name__)
 SAVE_MATRICES = False
 # Default plot saving follows the user config flag to avoid unexpected logs
 SAVE_PLOTS = bool(CONFIG.get('plots', {}).get('save_histograms', True))
+PLOT_RP_THRESHOLD = bool(CONFIG.get('plots', {}).get('plot_rp_threshold', True))
+RP_THRESHOLD = float(CONFIG.get('plots', {}).get('rp_threshold', 0.3))
 TRAJECTORIES_TO_PROCESS: Optional[list[int]] = [0,1,2,3]
 
 def _make_results_dirs(base: str) -> str:
@@ -159,6 +161,11 @@ def _compute_matrix_for_trajectory(
             v1 = _select_scalar_from_aggregates(agg_ij)
             v2 = _select_scalar_from_aggregates(agg_ji)
 
+            # Convert similarity to distance for cross_corr
+            if metric_name == "cross_corr":
+                v1 = 1.0 - v1 if not np.isnan(v1) else v1
+                v2 = 1.0 - v2 if not np.isnan(v2) else v2
+
             # If aggregates are NaN, try to compute timeseries and derive a scalar (fallback)
             if np.isnan(v1):
                 try:
@@ -193,7 +200,10 @@ def _plot_matrix(M: np.ndarray, out_path: str, title: Optional[str] = None, swee
         import matplotlib.pyplot as plt
 
         plt.figure(figsize=(6, 6))
-        plt.imshow(M, aspect="equal", origin="lower", cmap="viridis")
+        # Use inverted gray colormap for binary matrices (0=white, 1=black)
+        is_binary = np.all(np.isin(M, [0.0, 1.0]))
+        cmap = 'gray_r' if is_binary else 'viridis'
+        plt.imshow(M, aspect="equal", origin="lower", cmap=cmap)
         plt.colorbar()
         if title:
             if sweep_param_value is not None:
@@ -497,8 +507,16 @@ def main(input_path, results_root, save_matrices: bool = SAVE_MATRICES, save_plo
                         os.makedirs(os.path.dirname(plot_path), exist_ok=True)
                         logger.info(f"Saving plot to {plot_path}")
                         _plot_matrix(M, plot_path, title=f"{metric_name} matrix traj {traj_idx}", sweep_param_value=sweep_param_value)
-                    # skip the generic per-window pairwise routine
-                    continue
+
+                        # Optional threshold plot
+                        if PLOT_RP_THRESHOLD:
+                            if sweep_param_value is not None:
+                                threshold_plot_path = os.path.join(out_root, f"{metric_name}_traj{traj_idx}_window_size_{sweep_param_value}_rp_{RP_THRESHOLD}.png")
+                            else:
+                                threshold_plot_path = os.path.join(out_root, f"{metric_name}_traj{traj_idx}_rp_{RP_THRESHOLD}.png")
+                            binary_M = (M < RP_THRESHOLD).astype(float)
+                            logger.info(f"Saving threshold plot to {threshold_plot_path}")
+                            _plot_matrix(binary_M, threshold_plot_path, title=f"{metric_name} matrix traj {traj_idx} < {RP_THRESHOLD}", sweep_param_value=sweep_param_value)
                 except Exception as e:
                     logger.error(f"Failed to compute full cross_cos matrix for traj {traj_idx}: {e}")
 
@@ -523,6 +541,16 @@ def main(input_path, results_root, save_matrices: bool = SAVE_MATRICES, save_plo
                         os.makedirs(os.path.dirname(plot_path), exist_ok=True)
                         logger.info(f"Saving plot to {plot_path}")
                         _plot_matrix(M, plot_path, title=f"{metric_name} matrix traj {traj_idx}", sweep_param_value=sweep_param_value)
+
+                        # Optional threshold plot
+                        if PLOT_RP_THRESHOLD:
+                            if sweep_param_value is not None:
+                                threshold_plot_path = os.path.join(out_root, f"{metric_name}_traj{traj_idx}_window_size_{sweep_param_value}_rp_{RP_THRESHOLD}.png")
+                            else:
+                                threshold_plot_path = os.path.join(out_root, f"{metric_name}_traj{traj_idx}_rp_{RP_THRESHOLD}.png")
+                            binary_M = (M < RP_THRESHOLD).astype(float)
+                            logger.info(f"Saving threshold plot to {threshold_plot_path}")
+                            _plot_matrix(binary_M, threshold_plot_path, title=f"{metric_name} matrix traj {traj_idx} < {RP_THRESHOLD}", sweep_param_value=sweep_param_value)
                     continue
                 except Exception as e:
                     logger.error(f"Failed to compute rank_eigen matrix for traj {traj_idx}: {e}")
@@ -551,6 +579,16 @@ def main(input_path, results_root, save_matrices: bool = SAVE_MATRICES, save_plo
                     plot_path = os.path.join(out_root, f"{metric_name}_traj{traj_idx}.png")
                 logger.info(f"Saving plot to {plot_path}")
                 _plot_matrix(M, plot_path, title=f"{metric_name} matrix traj {traj_idx}", sweep_param_value=sweep_param_value)
+
+                # Optional threshold plot
+                if PLOT_RP_THRESHOLD:
+                    if sweep_param_value is not None:
+                        threshold_plot_path = os.path.join(out_root, f"{metric_name}_traj{traj_idx}_window_size_{sweep_param_value}_rp_{RP_THRESHOLD}.png")
+                    else:
+                        threshold_plot_path = os.path.join(out_root, f"{metric_name}_traj{traj_idx}_rp_{RP_THRESHOLD}.png")
+                    binary_M = (M < RP_THRESHOLD).astype(float)
+                    logger.info(f"Saving threshold plot to {threshold_plot_path}")
+                    _plot_matrix(binary_M, threshold_plot_path, title=f"{metric_name} matrix traj {traj_idx} < {RP_THRESHOLD}", sweep_param_value=sweep_param_value)
 
 
 

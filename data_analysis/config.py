@@ -36,13 +36,13 @@ CONFIG = {
     # explicit 'available' whitelist.
     "save_plots": True,
         "rank_eigen": {
-            "enabled": False,
+            "enabled": True,
             "deviation_metric": 'sum_cos_dist', # 'sum_cos_dist', # "rms", # JJ
             "run_rank_eigenvectors": True
         },
         # "default_pairing": "ref0",   # "all" or "ref0" # AA
         "cos": {
-            "enabled": False,
+            "enabled": True,
             "aggregate": ["mean", "median", "std"],
             "shifts": [0],   # absolute steps to sweep; included in sweep script
             "shift_aggregation": "mean", # "min", "mean"
@@ -55,22 +55,22 @@ CONFIG = {
         },
         
         "cross_corr": {
-            "enabled": False,
+            "enabled": True,
             "correlation_type": "spearman" # "pearson" or "spearman" # JJ almost the same
         },
         
         "wasserstein": {
-            "enabled": False
+            "enabled": True
         },
 
         # Best without sliding window
         "hausdorff": {
-            "enabled": False,
+            "enabled": True,
             # "symmetric": True, # AA
             "aggregation": "mean_of_max" # "max_of_mean", "mean_of_max" # JJ
         },
         "frechet": {
-            "enabled": False,
+            "enabled": True,
             # "discrete": True # AA
         },
         
@@ -79,7 +79,7 @@ CONFIG = {
             "enabled": False,
         },
         "cos_sim": { # okaish with window size 1
-            "enabled": True,
+            "enabled": False,
             "window_agg": "min",  # "mean" or "min" aggregation across vectors in window # JJ
             "gaussian_weight": True,
             "centric_mode": "both",    # "a", "b", or "both"
@@ -96,7 +96,7 @@ CONFIG = {
 
     # Pair computations
     "pairwise": {
-        "compute_all_pairs": False,
+        "compute_all_pairs": False, # AA XX doesnt work
         # Single, simple toggle: when True, save one aggregated per-metric
         # timeseries file containing all pairs. No per-pair files are written.
         "save_pairwise_aggregated": False,
@@ -104,7 +104,8 @@ CONFIG = {
         # If compute_all_pairs is False and reference_index is None,
         # use this explicit list of index pairs for computation and plotting.
         # "pairs_to_plot": [[0, 1]],
-        "pairs_to_plot": [[0, 1], [0,2], [1,3]], #[ [i, j] for i in range(5) for j in range(i,10) ],
+        # "pairs_to_plot": [[0, 1], [0,2], [1,3]], #[ [i, j] for i in range(5) for j in range(i,10) ],
+        "pairs_to_plot": [ [i, j] for i in range(100) for j in range(i,100) ],
     },
 
     # Lyapunov (fast pairwise slope)
@@ -168,6 +169,8 @@ CONFIG = {
     "plots": {
         "save_histograms": False,
         "save_timeseries": True,
+        "plot_rp_threshold": True,
+        "rp_threshold": 0.3,
     },
 
     # Logging
