@@ -1,5 +1,5 @@
-# STATUS: DONE
-from src.cli import main
+# # STATUS: DONE
+# from src.cli import main
 
-if __name__ == "__main__":
-    main()
+# if __name__ == "__main__":
+#     main()

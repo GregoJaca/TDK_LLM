@@ -44,6 +44,7 @@ def run_sweep(sweep_param, sweep_values, run_experiments, compute_matrices):
                     CONFIG['sweep'] = {'param': sweep_param, 'value': value}
 
                     run_folder = f"C:/Users/grego/OneDrive/Documents/BME_UNI_WORK/TDK_2025/git_repo/TDK_LLM/runs_aug/launch_aug/interstellar_propulsion_review_{TEMPERATURE}_{rrr}"
+                    # run_folder = f"/home/grego/LLM/launch_sep/interstellar_propulsion_review_{TEMPERATURE}_{rrr}" # CLUSTER
                     # Use a per-embed results folder directly; do not create an
                     # additional 'results_sweep' level which led to unwanted
                     # 'sweep' and 'plots' directories being made by downstream
@@ -115,9 +116,9 @@ def run_sweep(sweep_param, sweep_values, run_experiments, compute_matrices):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Perform a parameter sweep analysis.')
     parser.add_argument('--sweep_param', type=str, default='window_size', help='The parameter to sweep.')
-    parser.add_argument('--sweep_values', type=int, nargs='+', default=[1, 32], help='The values to sweep.')
+    parser.add_argument('--sweep_values', type=int, nargs='+', default=[1, 8], help='The values to sweep.')
     parser.add_argument('--run_experiments', type=bool, default=True, help='Run the analysis from run_all_experiments.')
-    parser.add_argument('--compute_matrices', type=bool, default=True, help='Run the analysis from compute_metric_matrices.')
+    parser.add_argument('--compute_matrices', type=bool, default=False, help='Run the analysis from compute_metric_matrices.') # CLUSTER
     args = parser.parse_args()
 
     run_sweep(args.sweep_param, args.sweep_values, args.run_experiments, args.compute_matrices)

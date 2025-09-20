@@ -28,7 +28,7 @@ from src.io.loader import load_tensor
 from src.io.saver import save_tensor
 from src.reduce.pca import PCAReducer
 from src.runner.metrics_runner import run_metrics
-from src.runner.lyapunov import estimate_lyapunov
+# from src.runner.lyapunov import estimate_lyapunov
 from src.viz.plots import plot_pairwise_distance_distribution, plot_pca_explained_variance
 from src.utils.logging import get_logger
 import time
@@ -162,6 +162,11 @@ def main(input_path, results_root, sweep_param_value=None):
                 # fallback: convert to numpy then to tensor
                 import numpy as _np
                 lst = [(_np.asarray(t)) for t in trajectories]
+                if len(lst) > 1:
+                    shapes = [arr.shape for arr in lst]
+                    if not all(shape == shapes[0] for shape in shapes):
+                        min_len = min(shape[0] for shape in shapes)
+                        lst = [arr[:min_len] for arr in lst]
                 X = torch.as_tensor(_np.stack(lst, axis=0))
 
         logger.info("Loaded per-trajectory input; num trajectories=%d", X.shape[0])
@@ -246,8 +251,9 @@ def main(input_path, results_root, sweep_param_value=None):
     # Lyapunov
     lyap = None
     if CONFIG.get("lyapunov", {}).get("enabled", True):
-        lyap = estimate_lyapunov(X_reduced, run_id=run_id)
-        logger.info("Lyapunov done")
+        # lyap = estimate_lyapunov(X_reduced, run_id=run_id)
+        # logger.info("Lyapunov done")
+        logger.info("-------- HEY -------- THIS SHOULNT HAPPEN. NO LYAPU") # AA
     else:
         logger.info("Lyapunov computation is disabled in config; skipping.")
 

@@ -61,7 +61,9 @@ def compare_trajectories(
             if seg_a.shape[0] == 0 or seg_b.shape[0] == 0:
                 continue
             d, path = _dtw_with_path(seg_a, seg_b)
-            distances.append(d)
+            len_seg = seg_a.shape[0]
+            d_norm = d / len_seg if len_seg > 0 else 0
+            distances.append(d_norm)
             positions.append(center)
 
         aggregates = {"mean": float(np.mean(distances)), "median": float(np.median(distances)), "std": float(np.std(distances))}

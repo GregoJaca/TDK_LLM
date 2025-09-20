@@ -2,11 +2,11 @@
 from datetime import timedelta
 from dataclasses import dataclass
 
+### /home/grego/LLM/launch_sep/interstellar_propulsion_review_0_0.00035
+
 CONFIG = {
     # IO
-    # "input_path": "C:/Users/grego/OneDrive/Documents/BME_UNI_WORK/TDK_2025/git_repo/TDK_LLM/runs_aug/run_0_0.0001/sentence-transformers_all-mpnet-base-v2.pt",   # AAA delete
     "run_id_format": "%Y%m%d-%H%M%S",        # used with random suffix
-    # "results_root": "results",               # AAA delete
 
     # Reduction
     "reduction": {
@@ -14,7 +14,7 @@ CONFIG = {
         "default_method": "pca",
         "pca": {
             "enabled": False,
-            "r_values": [16, 64],     # sweep list
+            "r_values": [16, 64], # AA now only the first [0] is used
             "explained_variance_thresholds": [0.90, 0.95],
             "use_gpu": False,
         },
@@ -36,55 +36,62 @@ CONFIG = {
     # explicit 'available' whitelist.
     "save_plots": True,
         "rank_eigen": {
-            "enabled": True,
-            "deviation_metric": 'rms', # 'sum_cos_dist', # "rms",
+            "enabled": False,
+            "deviation_metric": 'sum_cos_dist', # 'sum_cos_dist', # "rms", # JJ
             "run_rank_eigenvectors": True
         },
-        "default_pairing": "ref0",   # "all" or "ref0"
+        # "default_pairing": "ref0",   # "all" or "ref0" # AA
         "cos": {
             "enabled": False,
             "aggregate": ["mean", "median", "std"],
             "shifts": [0],   # absolute steps to sweep; included in sweep script
-            "shift_aggregation": "min", # "min", "mean"
-            "default_max_shift": 5,
+            "shift_aggregation": "mean", # "min", "mean"
+            # "default_max_shift": 5,
         },
-        "cos_sim": {
-            "enabled": False,
-            "window_agg": "mean",  # "mean" or "min" aggregation across vectors in window
-            "gaussian_weight": False,
-            "centric_mode": "a",    # "a", "b", or "both"
-            "centric_agg": "mean",  # when both: "mean" or "min"
-        },
+        
         "dtw": {
-            "enabled": False,
-            "use_fastdtw": True, # why is this not being used anywhere ??
+            "enabled": True,
+            # "use_fastdtw": True, # AA  this not being used anywhere 
         },
+        
+        "cross_corr": {
+            "enabled": False,
+            "correlation_type": "spearman" # "pearson" or "spearman" # JJ almost the same
+        },
+        
+        "wasserstein": {
+            "enabled": False
+        },
+
+        # Best without sliding window
         "hausdorff": {
             "enabled": False,
-            "symmetric": True, # XX
-            "aggregation": "max_of_mean" # "max_of_mean", "mean_of_max"
+            # "symmetric": True, # AA
+            "aggregation": "mean_of_max" # "max_of_mean", "mean_of_max" # JJ
         },
         "frechet": {
             "enabled": False,
-            "discrete": True # XX
+            # "discrete": True # AA
         },
-        "cross_corr": {
-            "enabled": False,
-            "correlation_type": "pearson" # "pearson" or "spearman"
-        },
-        "cross_cos": {
+        
+
+        "cross_cos": { # rossz
             "enabled": False,
         },
-        "wasserstein": {
-            "enabled": False
-        }
+        "cos_sim": { # okaish with window size 1
+            "enabled": True,
+            "window_agg": "min",  # "mean" or "min" aggregation across vectors in window # JJ
+            "gaussian_weight": True,
+            "centric_mode": "both",    # "a", "b", or "both"
+            "centric_agg": "min",  # when both: "mean" or "min" 
+        },
     },
 
     # Unified sliding-window parameters used by metrics that support sliding analysis
     "sliding_window": {
         "use_window": True,
-        "window_size": 16,
-        "displacement": 16
+        "window_size": 1,
+        "displacement": 1
     },
 
     # Pair computations
@@ -92,12 +99,12 @@ CONFIG = {
         "compute_all_pairs": False,
         # Single, simple toggle: when True, save one aggregated per-metric
         # timeseries file containing all pairs. No per-pair files are written.
-        "save_pairwise_aggregated": True,
+        "save_pairwise_aggregated": False,
         "reference_index": None,
         # If compute_all_pairs is False and reference_index is None,
         # use this explicit list of index pairs for computation and plotting.
         # "pairs_to_plot": [[0, 1]],
-        "pairs_to_plot": [[0, 1], [0,2], [2,3]],
+        "pairs_to_plot": [[0, 1], [0,2], [1,3]],
     },
 
     # Lyapunov (fast pairwise slope)
@@ -181,9 +188,12 @@ CONFIG['EMBEDDING_CONFIG'] = {
     "embedding_methods": [
         # examples: "sentence-transformers/all-mpnet-base-v2",
         # For per-trajectory mode provide file-stem templates like
-        "hidden_states_cond_{i}_layer_-1",
+        # "hidden_states_cond_{i}_layer_-1",
+        "sentence-transformers_all-mpnet-base-v2_traj{i}",
     ],
     # When in per_trajectory mode, input_template is used to build filenames relative to run folder.
     # Example: "{embed}.pt" or "hidden_states_cond_{i}_layer_-1.pt"
-    "input_template": "hidden_states_cond_{i}_layer_-1.pt"
+    # "input_template": "hidden_states_cond_{i}_layer_-1.pt"
+    "input_template": "sentence-transformers_all-mpnet-base-v2_traj{i}.pt"
+    
 }

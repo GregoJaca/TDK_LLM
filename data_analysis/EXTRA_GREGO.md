@@ -7,6 +7,7 @@ Johnson-Lindenstrauss (dense Gaussian RP)
 
 is the shift properly implemented
 
+sliding window averaging or dividing by window size, check. also at the edges, the window size shrinks so do appropriately
 
 Add  slice or max-sliced Wasserstein-1 
 Use the POT library (Python Optimal Transport). import as ot
