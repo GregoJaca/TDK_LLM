@@ -31,14 +31,14 @@ CONFIG = {
 
     # Metrics
     "metrics": {
-    # Metric selection now uses per-metric 'enabled' flags in the
-    # CONFIG['metrics'][<metric>] entries. Do not rely on an
-    # explicit 'available' whitelist.
     "save_plots": True,
         "rank_eigen": {
             "enabled": True,
             "deviation_metric": 'sum_cos_dist', # 'sum_cos_dist', # "rms", # JJ
-            "run_rank_eigenvectors": True
+            "run_rank_eigenvectors": True,
+            "window_size": 4, # embed
+            "window_size": 4, # hidden
+            "threshold": 1.2, # XX window normalization currently is wrong, this is for window_size 4
         },
         # "default_pairing": "ref0",   # "all" or "ref0" # AA
         "cos": {
@@ -47,38 +47,54 @@ CONFIG = {
             "shifts": [0],   # absolute steps to sweep; included in sweep script
             "shift_aggregation": "mean", # "min", "mean"
             # "default_max_shift": 5,
+            "window_size": 8, # embed
+            "window_size": 1, # hidden
+            "threshold": 0.25, # 
         },
         
-        "dtw": {
+        
+        "cross_corr": { # only works with window_size > 1 and is a bit noisy + window_size adds some diagonal distortion to time series distance. rp are cool across different window_size too.
             "enabled": True,
-            # "use_fastdtw": True, # AA  this not being used anywhere 
+            "correlation_type": "spearman", # "pearson" or "spearman" # JJ almost the same
+            "window_size": 4, # embed (but for rp 4 is better)
+            "window_size": 1, # hidden
+            "threshold": 0.25, # 
         },
         
-        "cross_corr": {
-            "enabled": True,
-            "correlation_type": "spearman" # "pearson" or "spearman" # JJ almost the same
-        },
         
-        "wasserstein": {
-            "enabled": True
-        },
 
         # Best without sliding window
         "hausdorff": {
-            "enabled": True,
+            "enabled": False,
             # "symmetric": True, # AA
-            "aggregation": "mean_of_max" # "max_of_mean", "mean_of_max" # JJ
+            "aggregation": "mean_of_max", # "max_of_mean", "mean_of_max" # JJ
+            "window_size": 1, # embed
+            "window_size": 1, # hidden
+            "threshold": 0.4, # 
         },
         "frechet": {
-            "enabled": True,
+            "enabled": False,
             # "discrete": True # AA
+            "window_size": 1, # embed
+            "window_size": 1, # hidden
+            "threshold": 0.4, # 
+        },
+        "dtw": {
+            "enabled": True,
+            # "use_fastdtw": True, # AA  this not being used anywhere 
+            "window_size": 1, # embed
+            "window_size": 1, # hidden
+            "threshold": 0.4, # 
         },
         
-
+        # not so good
         "cross_cos": { # rossz
             "enabled": False,
         },
-        "cos_sim": { # okaish with window size 1
+        "wasserstein": { # maybe the diverging region could be ok, but the saturated region is too noisy. also window size normalization is wrong-. looked at embed only.  
+            "enabled": False,
+        },
+        "cos_sim": { # okaish with window size 1. but then i guess it's same as cos
             "enabled": False,
             "window_agg": "min",  # "mean" or "min" aggregation across vectors in window # JJ
             "gaussian_weight": True,
@@ -105,7 +121,7 @@ CONFIG = {
         # use this explicit list of index pairs for computation and plotting.
         # "pairs_to_plot": [[0, 1]],
         # "pairs_to_plot": [[0, 1], [0,2], [1,3]], #[ [i, j] for i in range(5) for j in range(i,10) ],
-        "pairs_to_plot": [ [i, j] for i in range(100) for j in range(i,100) ],
+        "pairs_to_plot": [ [i, j] for i in range(100) for j in range(i+1,100) ],
     },
 
     # Lyapunov (fast pairwise slope)
@@ -170,7 +186,7 @@ CONFIG = {
         "save_histograms": False,
         "save_timeseries": True,
         "plot_rp_threshold": True,
-        "rp_threshold": 0.3,
+        "rp_threshold": 0.3, # XX GG different for different metric. reuse that for the outlier detector
     },
 
     # Logging

@@ -38,14 +38,18 @@ def compare_trajectories(
     distances = []
     
     for center in range(0, min_len, displacement):
-        s = max(0, center - window_size)
-        e = min(min_len, center + window_size)
+        half = window_size // 2
+        s = max(0, center - half)
+        e = min(min_len, center + half + (window_size % 2))
         window_a = a[s:e].flatten()
         window_b = b[s:e].flatten()
         if window_a.size == 0 or window_b.size == 0:
             continue
         dist = wasserstein_distance(window_a, window_b)
-        distances.append(dist)
+        # Normalize by window size to account for varying window sizes at edges
+        actual_size = e - s
+        normalized_dist = dist / actual_size
+        distances.append(normalized_dist)
 
     if not distances:
         return None, {"mean": np.nan, "median": np.nan, "std": np.nan}

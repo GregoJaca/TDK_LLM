@@ -27,8 +27,10 @@ from src.viz import plots as viz_plots
 
 def _compute_pca_eigenvectors_torch(X: torch.Tensor, k: Optional[int] = None) -> torch.Tensor:
     X_centered = X - X.mean(dim=0, keepdim=True)
-    # SVD on centered data to get principal directions (Vh)
-    U, S, Vh = torch.linalg.svd(X_centered, full_matrices=False)
+    X_std = X_centered.std(dim=0, keepdim=True) + 1e-12
+    X_standardized = X_centered / X_std
+    # SVD on standardized data to get principal directions (Vh)
+    U, S, Vh = torch.linalg.svd(X_standardized, full_matrices=False)
     if k is not None:
         Vh = Vh[:k]
     return Vh
@@ -70,12 +72,14 @@ def sliding_window_rank_deviation(
     deviations = []
     positions = []
     for center in range(0, min_len, displacement):
-        s = max(0, center - window_size)
-        e = min(min_len, center + window_size)
+        half = window_size // 2
+        s = max(0, center - half)
+        e = min(min_len, center + half + (window_size % 2))
         w1 = t1[s:e]
         w2 = t2[s:e]
 
-        k = min(window_size, w1.shape[1])
+        actual_window_size = e - s
+        k = min(actual_window_size, w1.shape[1])
         v1 = _compute_pca_eigenvectors_torch(w1, k=k)
         v2 = _compute_pca_eigenvectors_torch(w2, k=k)
 
@@ -99,6 +103,8 @@ def sliding_window_rank_deviation(
                 dev = float(np.sqrt(np.mean(arr ** 2)))
             else:
                 dev = float(np.mean(np.abs(arr)))
+        # Normalize by number of eigenvectors to account for varying k at edges
+        dev = dev / k if k > 0 else 0.0
         deviations.append(dev)
         positions.append(center)
 
@@ -148,7 +154,8 @@ def compare_trajectories(
     if deviation_metric_cfg == "sum_cos_dist":
         row_idx = torch.arange(sim_matrix.shape[0])
         cos_sims = sim_matrix[row_idx, indices]
-        full_metric_value = float(torch.sum(1.0 - cos_sims).item())
+        k_full = sim_matrix.shape[0]
+        full_metric_value = float(torch.sum(1.0 - cos_sims).item()) / k_full
 
     # sliding-window timeseries
     positions, deviations = sliding_window_rank_deviation(
