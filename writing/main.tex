@@ -411,8 +411,15 @@ Furthermore, we apply clustering algorithms to the set of hidden state vectors w
 
 \section(Results)
 
+\subsection{Trajectory Divergence and Lyapunov} % GGG
+
+There were some challenges inherent to the system under study. In any bounded (GGG) system, there is a maximum possible value for the distance, and the distance between two diverging trajectories will eventually reach the maximum and saturate. In our case, especially when using sentence embeddings, the number of datapoints until the saturation region was often small (GGG around 6), making any type of curve fitting difficult.
+% G: am i using the word bounded properly
+
+\subsection{RP}
 
 Strong similarities can be seen between the RP from the Lorez system \ref{XXX} and from the LLMs output.
+
 
 Chaotic features are more strongly present at the last layers of the LLM as showed in the RP and pointwise dimension. This is due to the progressive addition of more nonlinearity and coupling at each layer. 
 % As pointwise dimension is calculated from RP, it makes sense that they agree on this.
@@ -422,6 +429,8 @@ Chaotic features are more strongly present at the last layers of the LLM as show
 \section{Conclusions and Discussion}
 
 % \subsection{Possible Explanations for LLMs being chaotic}
+
+% (rough) invariance for different metrics {hausdorf, frechet, dtw} (and also embedders). discuss. they literally look the same. I mean to be fair the data is the same. quite trivial
 
 % mention the challenges and successes with high dim data. also distance metrics. and the ones I invented
 
@@ -439,6 +448,11 @@ I would like to thank my supervisors Dr. János Török and Kristóf Benedek for
 
 In order to gain a more intuitive understanding of each metric (GGG and maybe embedding too), we show RP from the same trajectory.
 
+
 % G: Here i want to show how embeddings kind of do some averaging and pooling and context, and how some metrics pick up different features, some more global some more detail. 
+% G: mention window size
+
+\subsection{Handling outliers}
+
 
 \end{document}
