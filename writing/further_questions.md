@@ -15,6 +15,9 @@ high dimensionality and chaos?
 
 layernorm but more recently rms norm is used too
 
+i say that last layers are more chaotic bc of attention and noramlization. stretch and folding. how does the volume of the hidden state vectors evolves as they go through the layers? easy to measure. do it for every trajectory individually. (lorenz has volume contraction which brings about the strange attractor). strogatz page 434 and 435.
+if a map or flow contracts volumes in phase space, it is called dissipative. volume preserving ones are called conservative. where do LLMs stand?
+
 chaotic features more pronounced at hidden state last layers. what abt the text embed?
 
 
