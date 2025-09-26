@@ -89,17 +89,27 @@ def compute_layer_volumes_per_trajectory(layer_trajectories, method='pca_svd', n
 
 
 def compute_all_layers_volumes(hidden_states_storages, method='pca_svd', normalize=False, n_axes=None):
-    # hidden_states_storages: dict[layer_idx] = tensor (N_conditions, T, D)
-    device = next(iter(hidden_states_storages.values())).device
+    # hidden_states_storages: dict[layer_idx] = tensor (N_conditions, T, D) OR list of (T, D) tensors
     result = {}
-    for layer_idx, tensor in hidden_states_storages.items():
+    for layer_idx, tensor_or_list in hidden_states_storages.items():
+        # Normalize input to a tensor of shape (N, T, D)
+        if isinstance(tensor_or_list, list):
+            if len(tensor_or_list) == 0:
+                raise ValueError(f"Empty trajectory list for layer {layer_idx}")
+            tensor = torch.stack([t.cpu() for t in tensor_or_list], dim=0)
+        elif isinstance(tensor_or_list, torch.Tensor):
+            tensor = tensor_or_list.cpu()
+        else:
+            # Try to convert
+            tensor = torch.as_tensor(tensor_or_list).cpu()
+
         # tensor: (N, T, D) where N = n_initial_conditions
         n, T, D = tensor.shape
         per_trajectory_volumes = []
         per_trajectory_axes = []
         per_trajectory_logvol = []
         for i in range(n):
-            X = tensor[i].cpu()
+            X = tensor[i]
             if normalize:
                 X = _normalize_states(X)
             if method == 'pca_svd':
