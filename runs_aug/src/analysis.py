@@ -35,59 +35,57 @@ def _pca_svd_volume(X, n_axes=None, eps=1e-12):
     # X: (T, D) samples x dims
     if n_axes is None:
         n_axes = min(X.shape)
-    # center
     Xc = X - X.mean(dim=0, keepdim=True)
-    # SVD on covariance proxy: compute compact SVD
-    # Use torch.linalg.svd for stability
-    U, S, Vh = torch.linalg.svd(Xc, full_matrices=False)
-    # singular values S are sqrt of eigenvalues of Xc^T Xc
-    svals = S[:n_axes]
-    svals = torch.clamp(svals, min=eps)
-    # denominator for unbiased scaling similar to existing code
-    denom = torch.sqrt(torch.tensor(max(X.shape[0] - 1, 1), dtype=torch.float32, device=X.device))
-    lengths = svals / denom
-    volume = torch.prod(lengths)
-    return volume, lengths
+    # compute SVD in float64 for numerical stability
+    Xc64 = Xc.to(torch.float64)
+    U, S, Vh = torch.linalg.svd(Xc64, full_matrices=False)
+    svals = S[:n_axes].clamp(min=eps)
+    denom = torch.sqrt(torch.tensor(max(X.shape[0] - 1, 1), dtype=torch.float64, device=Xc64.device))
+    lengths = (svals / denom).to(torch.float64)
+    log_volume = torch.sum(torch.log(lengths))
+    volume = torch.exp(log_volume)
+    return volume.to(torch.float64), lengths.to(torch.float64), log_volume.to(torch.float64)
 
 
 def _logdet_cov_volume(X, n_axes=None, eps=1e-12):
     # X: (T, D)
     # compute covariance (D x D)
-    Xc = X - X.mean(dim=0, keepdim=True)
+    Xc = (X - X.mean(dim=0, keepdim=True)).to(torch.float64)
     cov = (Xc.T @ Xc) / max(X.shape[0] - 1, 1)
-    if n_axes is not None and n_axes < cov.shape[0]:
-        eigvals = torch.linalg.eigvalsh(cov)
-        eigvals = torch.flip(eigvals, dims=[0])[:n_axes]
-    else:
-        eigvals = torch.linalg.eigvalsh(cov)
-        eigvals = torch.clamp(torch.flip(eigvals, dims=[0]), min=eps)
-    # volume ~ sqrt(prod(eigvals)) (since cov determinant = prod(eigvals))
+    eigvals = torch.linalg.eigvalsh(cov)
+    eigvals = torch.flip(eigvals, dims=[0])
+    if n_axes is not None and n_axes < eigvals.shape[0]:
+        eigvals = eigvals[:n_axes]
+    eigvals = eigvals.clamp(min=eps)
     logdet = 0.5 * torch.sum(torch.log(eigvals))
-    volume = torch.exp(logdet)
+    log_volume = logdet
+    volume = torch.exp(log_volume)
     lengths = torch.sqrt(eigvals)
-    return volume, lengths
+    return volume.to(torch.float64), lengths.to(torch.float64), log_volume.to(torch.float64)
 
 
 def compute_layer_volumes_per_trajectory(layer_trajectories, method='pca_svd', normalize=False, n_axes=None):
     # layer_trajectories: list of tensors each (T, D) for a single trajectory for a layer
     device = layer_trajectories[0].device
     n_traj = len(layer_trajectories)
-    volumes = torch.zeros(n_traj, device=device)
+    volumes = torch.zeros(n_traj, dtype=torch.float64)
+    log_volumes = torch.zeros(n_traj, dtype=torch.float64)
     axes = []
     for i, X in enumerate(layer_trajectories):
-        X = X.to(device)
+        X = X.cpu()
         if normalize:
             X = _normalize_states(X)
         if method == 'pca_svd':
-            vol, lengths = _pca_svd_volume(X, n_axes=n_axes)
+            vol, lengths, logv = _pca_svd_volume(X, n_axes=n_axes)
         elif method == 'logdet_cov':
-            vol, lengths = _logdet_cov_volume(X, n_axes=n_axes)
+            vol, lengths, logv = _logdet_cov_volume(X, n_axes=n_axes)
         else:
             raise ValueError(f"Unknown layer volume method: {method}")
         volumes[i] = vol
+        log_volumes[i] = logv
         axes.append(lengths.cpu())
     axes = torch.stack(axes, dim=0)
-    return volumes, axes
+    return volumes, axes, log_volumes
 
 
 def compute_all_layers_volumes(hidden_states_storages, method='pca_svd', normalize=False, n_axes=None):
@@ -97,24 +95,27 @@ def compute_all_layers_volumes(hidden_states_storages, method='pca_svd', normali
     for layer_idx, tensor in hidden_states_storages.items():
         # tensor: (N, T, D) where N = n_initial_conditions
         n, T, D = tensor.shape
-        per_trajectory_volumes = torch.zeros(n, device=device)
+        per_trajectory_volumes = []
         per_trajectory_axes = []
+        per_trajectory_logvol = []
         for i in range(n):
-            X = tensor[i]
+            X = tensor[i].cpu()
             if normalize:
                 X = _normalize_states(X)
             if method == 'pca_svd':
-                vol, lengths = _pca_svd_volume(X, n_axes=n_axes)
+                vol, lengths, logv = _pca_svd_volume(X, n_axes=n_axes)
             elif method == 'logdet_cov':
-                vol, lengths = _logdet_cov_volume(X, n_axes=n_axes)
+                vol, lengths, logv = _logdet_cov_volume(X, n_axes=n_axes)
             else:
                 raise ValueError(f"Unknown layer volume method: {method}")
-            per_trajectory_volumes[i] = vol
+            per_trajectory_volumes.append(vol.cpu())
+            per_trajectory_logvol.append(logv.cpu())
             per_trajectory_axes.append(lengths.cpu())
         per_trajectory_axes = torch.stack(per_trajectory_axes, dim=0)
         result[int(layer_idx)] = {
-            'volumes': per_trajectory_volumes.cpu(),
+            'volumes': torch.stack(per_trajectory_volumes).cpu(),
             'axes': per_trajectory_axes,
+            'log_volumes': torch.stack(per_trajectory_logvol).cpu(),
         }
     return result
 
