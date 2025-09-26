@@ -7,8 +7,8 @@ class Default:
     REPETITION_PENALTY = 1.1
     
     # For launch_pentek.py
-    N_INITIAL_CONDITIONS = 100
-    RESULTS_DIR = "./launch_sep"
+    N_INITIAL_CONDITIONS = 3
+    RESULTS_DIR = "./launch_sep_area_preserving"
     SELECTED_LAYERS = [-1]
 
 class Experiment:
@@ -23,7 +23,7 @@ class Experiment:
 
 class Analysis:
     SAVE_PLOTS = True
-    PAIRS_TO_PLOT = [[0, 1], [0, -1], [1, 2]]
+    PAIRS_TO_PLOT = [[0, 1], [0, 2], [1, 2]]
     SLIDING_WINDOW_SIZE = 16
     SLIDING_WINDOW_DISPLACEMENT = 16
     MINIMUM_VARIANCE_EXPLANATION = 0.9
@@ -32,6 +32,16 @@ class Analysis:
     PLOT_HYPER_AND_AXIS = True
     RUN_LOCAL_DIMENSIONALITY = False
     RUN_RANK_EIGENVECTORS = False
+    # Layer-volume analysis options
+    DO_LAYER_VOLUME_ANALYSIS = True
+    # methods: list containing any of 'pca_svd' (product of PCA singular values) or 'logdet_cov' (sqrt(det(cov)))
+    LAYER_VOLUME_METHOD = ['pca_svd','logdet_cov']
+    # If True, normalize each hidden-state vector to unit L2 norm before computing volumes
+    NORMALIZE_HIDDEN_STATES = False
+    # Number of principal axes to include in the volume computation. None = use all
+    LAYER_VOLUME_N_AXES = None
+    # Output filename for saved per-trajectory per-layer volumes
+    LAYER_VOLUME_OUTPUT_FILENAME = 'layer_volumes.pt'
 
 # Model Configurations
 class ModelConfig:

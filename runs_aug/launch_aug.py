@@ -10,6 +10,8 @@ from src.generation import generate_fixed_length
 from src.analysis import (
     calculate_hypervolume_and_axes
 )
+from src.analysis import compute_all_layers_volumes
+from src.config import Analysis as AnalysisConfig
 
 def analyze_llm_chaos(initial_prompt, model, tokenizer, config):
     """Main function to analyze chaotic behavior in LLM text generation."""
@@ -38,6 +40,22 @@ def analyze_llm_chaos(initial_prompt, model, tokenizer, config):
     
     trajectories = hidden_states[-1]
     hypervolumes, axis_lengths = calculate_hypervolume_and_axes(trajectories, n_axes=4)
+
+    if AnalysisConfig.DO_LAYER_VOLUME_ANALYSIS:
+        print("Computing per-layer volumes for each trajectory...")
+        methods = AnalysisConfig.LAYER_VOLUME_METHOD
+        normalize = AnalysisConfig.NORMALIZE_HIDDEN_STATES
+        n_axes = AnalysisConfig.LAYER_VOLUME_N_AXES
+        ensure_dir(config.RESULTS_DIR)
+        for method in methods:
+            layer_volumes = compute_all_layers_volumes(hidden_states, method=method, normalize=normalize, n_axes=n_axes)
+            fname = AnalysisConfig.LAYER_VOLUME_OUTPUT_FILENAME
+            base, ext = os.path.splitext(fname)
+            if base == '':
+                base = fname
+                ext = '.pt'
+            outpath = os.path.join(config.RESULTS_DIR, f"{base}_{method}{ext}")
+            torch.save(layer_volumes, outpath)
 
     if config.SAVE_RESULTS:
         ensure_dir(config.RESULTS_DIR)
