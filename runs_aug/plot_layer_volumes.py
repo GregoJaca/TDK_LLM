@@ -24,7 +24,7 @@ def safe_index(idx, N):
 def plot_pairs(vol_matrix, layers, pairs, outpath, method):
     # vol_matrix: (n_layers, N_traj)
     n_layers, N = vol_matrix.shape
-    x = np.arange(n_layers)
+    x = np.array(layers)
     plt.figure(figsize=(10, 6))
     cmap = plt.get_cmap('tab10')
     color_i = 0
@@ -37,10 +37,11 @@ def plot_pairs(vol_matrix, layers, pairs, outpath, method):
         plt.plot(x, vol_matrix[:, ai], label=f'traj_{a}', color=cmap(color_i % 10))
         plt.plot(x, vol_matrix[:, bi], label=f'traj_{b}', linestyle='--', color=cmap((color_i + 1) % 10))
         color_i += 2
-    plt.xlabel('layer (ordered)')
+    plt.xlabel('layer index')
     plt.ylabel('volume')
     plt.title(f'Layer volumes - pairs - {method}')
     plt.legend()
+    plt.xticks(x)
     plt.tight_layout()
     plt.savefig(outpath)
     plt.close()
@@ -48,16 +49,17 @@ def plot_pairs(vol_matrix, layers, pairs, outpath, method):
 
 def plot_all_with_mean(vol_matrix, layers, outpath, method):
     n_layers, N = vol_matrix.shape
-    x = np.arange(n_layers)
+    x = np.array(layers)
     plt.figure(figsize=(10, 6))
     for i in range(N):
         plt.plot(x, vol_matrix[:, i], color='C0', alpha=0.12)
     mean = vol_matrix.mean(axis=1)
     plt.plot(x, mean, color='black', linewidth=2.0, label='mean')
-    plt.xlabel('layer (ordered)')
+    plt.xlabel('layer index')
     plt.ylabel('volume')
     plt.title(f'Layer volumes - all trajectories + mean - {method}')
     plt.legend()
+    plt.xticks(x)
     plt.tight_layout()
     plt.savefig(outpath)
     plt.close()

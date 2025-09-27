@@ -1,6 +1,7 @@
 import torch
 from scipy import stats
 import torch.nn.functional as F
+from src.config import Analysis as AnalysisConfig
 
 def calculate_hypervolume_and_axes(trajectories, n_axes=1):
     N, seq_len, D = trajectories.shape
@@ -64,6 +65,23 @@ def _logdet_cov_volume(X, n_axes=None, eps=1e-12):
     return volume.to(torch.float64), lengths.to(torch.float64), log_volume.to(torch.float64)
 
 
+def _choose_n_axes_by_explained_variance(X, min_explained=0.9, max_axes=None):
+    # X: (T, D)
+    Xc = X - X.mean(dim=0, keepdim=True)
+    Xc64 = Xc.to(torch.float64)
+    # compute singular values
+    U, S, Vh = torch.linalg.svd(Xc64, full_matrices=False)
+    eigvals = S**2
+    total = eigvals.sum()
+    if total == 0:
+        return 1
+    cum = torch.cumsum(eigvals, dim=0) / total
+    r = int((cum >= min_explained).nonzero(as_tuple=True)[0][0].item()) + 1 if (cum >= min_explained).any() else eigvals.shape[0]
+    if max_axes is not None:
+        r = min(r, max_axes)
+    return max(1, r)
+
+
 def compute_layer_volumes_per_trajectory(layer_trajectories, method='pca_svd', normalize=False, n_axes=None):
     # layer_trajectories: list of tensors each (T, D) for a single trajectory for a layer
     device = layer_trajectories[0].device
@@ -112,10 +130,15 @@ def compute_all_layers_volumes(hidden_states_storages, method='pca_svd', normali
             X = tensor[i]
             if normalize:
                 X = _normalize_states(X)
+            # choose number of axes if not provided
+            chosen_n_axes = n_axes
+            if chosen_n_axes is None:
+                min_expl = getattr(AnalysisConfig, 'LAYER_VOLUME_EXPLAINED_VAR', 0.9)
+                chosen_n_axes = _choose_n_axes_by_explained_variance(X, min_explained=min_expl, max_axes=None)
             if method == 'pca_svd':
-                vol, lengths, logv = _pca_svd_volume(X, n_axes=n_axes)
+                vol, lengths, logv = _pca_svd_volume(X, n_axes=chosen_n_axes)
             elif method == 'logdet_cov':
-                vol, lengths, logv = _logdet_cov_volume(X, n_axes=n_axes)
+                vol, lengths, logv = _logdet_cov_volume(X, n_axes=chosen_n_axes)
             else:
                 raise ValueError(f"Unknown layer volume method: {method}")
             per_trajectory_volumes.append(vol.cpu())

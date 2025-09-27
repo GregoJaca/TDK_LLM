@@ -7,17 +7,49 @@ from src.analysis import compute_all_layers_volumes
 
 def collect_hidden_states(results_dir: str, selected_layers, n_conditions):
     res = {}
-    for layer_idx in selected_layers:
+    results_path = Path(results_dir)
+    # auto-detect available layer indices from filenames
+    found_layers = set()
+    for p in results_path.glob('hidden_states_cond_*_layer_*.pt'):
+        parts = p.name.split('_')
+        # expected pattern: hidden_states_cond_{i}_layer_{layer_idx}.pt
+        try:
+            layer_pos = parts.index('layer')
+            layer_idx = int(parts[layer_pos + 1].split('.pt')[0])
+            found_layers.add(layer_idx)
+        except Exception:
+            continue
+
+    if not found_layers:
+        # fallback to provided selected_layers
+        layer_candidates = list(selected_layers)
+    else:
+        # use detected layers (do not intersect with config; prefer actual saved files)
+        layer_candidates = sorted(found_layers)
+
+    print(f"Detected layers in {results_dir}: {sorted(found_layers)}")
+    print(f"Using layer candidates: {layer_candidates}")
+
+    for layer_idx in layer_candidates:
         layer_list = []
+        missing = False
         for i in range(n_conditions):
             fname = os.path.join(results_dir, f"hidden_states_cond_{i}_layer_{layer_idx}.pt")
             if not os.path.exists(fname):
-                raise FileNotFoundError(f"Missing hidden state file: {fname}")
+                missing = True
+                break
             tensor = torch.load(fname, map_location='cpu')
-            # tensor expected shape (T, D)
             layer_list.append(tensor)
-        # stack into (N, T, D)
-        res[int(layer_idx)] = torch.stack(layer_list, dim=0)
+        if missing:
+            # skip layers that don't have a full set of trajectories
+            print(f"Skipping layer {layer_idx} in {results_dir}: missing some trajectory files")
+            continue
+        stacked = torch.stack(layer_list, dim=0)
+        print(f"Layer {layer_idx} stacked shape: {stacked.shape}")
+        res[int(layer_idx)] = stacked
+
+    if not res:
+        raise FileNotFoundError(f"No complete layers found under {results_dir}")
     return res
 
 
@@ -57,6 +89,13 @@ def main():
 
         for method in methods:
             result = compute_all_layers_volumes(hidden_states, method=method, normalize=normalize, n_axes=n_axes)
+            # debug: print result shapes per layer
+            for L, entry in result.items():
+                vols = entry.get('volumes')
+                axes = entry.get('axes')
+                logv = entry.get('log_volumes')
+                chosen = entry.get('chosen_n_axes')
+                print(f"Layer {L} -> volumes shape: {getattr(vols,'shape',None)}, axes shape: {getattr(axes,'shape',None)}, log_vol shape: {getattr(logv,'shape',None)}, chosen_n_axes shape: {getattr(chosen,'shape',None)}")
             outpath = run_dir / f"{base_no_ext}_{method}{ext}"
             torch.save(result, str(outpath))
             print(f"Saved volumes for method {method} to {outpath}")
