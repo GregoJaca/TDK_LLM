@@ -38,7 +38,7 @@ def analyze_llm_chaos(initial_prompt, model, tokenizer, config):
 
     print("\nAnalyzing trajectories...")
     
-    trajectories = hidden_states[-1]
+    trajectories = hidden_states[config.SELECTED_LAYERS[-1]] # GG this is quite hardcoded not great but hey, only used fot the hypervolume shit
     hypervolumes, axis_lengths = calculate_hypervolume_and_axes(trajectories, n_axes=4)
 
     if AnalysisConfig.DO_LAYER_VOLUME_ANALYSIS:

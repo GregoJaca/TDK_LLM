@@ -246,6 +246,12 @@ y &\;=\; \gamma \odot \widehat{h} + \beta \;=\; D\widehat{h} + \beta, \label{eq:
 \end{align}
 where \(\mathbf{1}=(1,\dots,1)^\top , \gamma, \beta \in\mathbb{R}^d\), and \(D=\operatorname{diag}(\gamma)\).
 % G: pretty unreadable. 
+% benefits:
+% Introducing a normalization of the hidden states after every operation as part of the model architecture made th training between 4 and 20 times faster \cite{loshchilov2025ngptnormalizedtransformerrepresentation}
+% Representation learning on the hypersphere leads to more stable training, greater embedding space separability, and better performance on downstream tasks \cite{wang2022understandingcontrastiverepresentationlearning}
+% Normalization techniques are beneficial \cite{salimans2016weightnormalizationsimplereparameterization}
+
+% G: maybe we can hypothesize whether norm keeps the model more stable by limiting lyapunov exponents and keeping it at the edge of chaos
 
 \begin{itemize}
   \item \(h\in\mathbb{R}^d\): input hidden state (one token, one sample).
