@@ -35,7 +35,8 @@ class Analysis:
     # Layer-volume analysis options
     DO_LAYER_VOLUME_ANALYSIS = True
     # methods: list containing any of 'pca_svd' (product of PCA singular values) or 'logdet_cov' (sqrt(det(cov)))
-    LAYER_VOLUME_METHOD = ['pca_svd', 'logdet_cov']
+    # Added 'pair_dist' to compute pairwise-distance-based volume (sum of distance matrix)
+    LAYER_VOLUME_METHOD = ['pair_dist']
     # If True, normalize each hidden-state vector to unit L2 norm before computing volumes
     NORMALIZE_HIDDEN_STATES = True # GG
     # Number of principal axes to include in the volume computation. None = use all
@@ -44,6 +45,12 @@ class Analysis:
     LAYER_VOLUME_EXPLAINED_VAR = 0.9 # GG
     # Output filename for saved per-trajectory per-layer volumes
     LAYER_VOLUME_OUTPUT_FILENAME = 'layer_volumes.pt'
+    # Pairwise-distance specific options (used by 'pair_dist' method)
+    # Use sliding-window when computing pairwise distances (values are in timesteps)
+    LAYER_VOLUME_PAIR_USE_WINDOW = True
+    # Window size / displacement for pairwise distance computation. Default to the sliding window values above.
+    LAYER_VOLUME_PAIR_WINDOW_SIZE = SLIDING_WINDOW_SIZE
+    LAYER_VOLUME_PAIR_DISPLACEMENT = SLIDING_WINDOW_DISPLACEMENT
 
 # Model Configurations
 class ModelConfig:

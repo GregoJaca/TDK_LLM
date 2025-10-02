@@ -97,6 +97,112 @@ def compute_layer_volumes_per_trajectory(layer_trajectories, method='pca_svd', n
             vol, lengths, logv = _pca_svd_volume(X, n_axes=n_axes)
         elif method == 'logdet_cov':
             vol, lengths, logv = _logdet_cov_volume(X, n_axes=n_axes)
+        elif method == 'pair_dist':
+            # Compute pairwise distance matrix (cosine distance by default)
+            # We follow the same windowing behavior as compute_metric_matrices:
+            # if sliding windows are used, represent each window by its mean vector.
+            # Then compute normalized cosine similarity matrix S = An @ An.T and
+            # distance matrix D = 1 - S, symmetric; sum all elements -> scalar volume.
+            A = X.numpy()
+            T = A.shape[0]
+            # Fetch pairwise window params from AnalysisConfig if present
+            win_use = getattr(AnalysisConfig, 'LAYER_VOLUME_PAIR_USE_WINDOW', True)
+            win_size = getattr(AnalysisConfig, 'LAYER_VOLUME_PAIR_WINDOW_SIZE', None)
+            disp = getattr(AnalysisConfig, 'LAYER_VOLUME_PAIR_DISPLACEMENT', 1)
+
+            if win_size is not None and win_size > 0 and T >= win_size and win_use:
+                starts = list(range(0, T - win_size + 1, disp))
+                reps = [A[s: s + win_size].mean(axis=0) for s in starts]
+            else:
+                starts = list(range(0, T))
+                reps = [A[s] for s in starts]
+
+            if len(reps) == 0:
+                vol = torch.tensor(0.0, dtype=torch.float64)
+                lengths = torch.zeros(0, dtype=torch.float64)
+                logv = torch.tensor(float('nan'), dtype=torch.float64)
+            else:
+                # Try to reuse the project's metric-matrix utilities when available
+                traj_np = A
+                try:
+                    # Try to use data_analysis APIs: iterate enabled metrics and sum their matrices
+                    from data_analysis import config as da_config
+                    from data_analysis import compute_metric_matrices as da_cmm
+                    cfg_metrics = getattr(da_config, 'CONFIG', {}).get('metrics', {}) or {}
+                    sw_use = getattr(AnalysisConfig, 'LAYER_VOLUME_PAIR_USE_WINDOW', True)
+                    sw_size = getattr(AnalysisConfig, 'LAYER_VOLUME_PAIR_WINDOW_SIZE', None)
+                    sw_disp = getattr(AnalysisConfig, 'LAYER_VOLUME_PAIR_DISPLACEMENT', 1)
+
+                    total_sum = 0.0
+                    any_metric = False
+                    for metric_name, metric_cfg in cfg_metrics.items():
+                        if not isinstance(metric_cfg, dict):
+                            continue
+                        if not bool(metric_cfg.get('enabled', False)):
+                            continue
+                        any_metric = True
+                        # Special-case matrix builders available in data_analysis
+                        try:
+                            if hasattr(da_cmm, '_compute_cross_cos_matrix') and metric_name == 'cos':
+                                M = da_cmm._compute_cross_cos_matrix(traj_np, window_size=sw_size, displacement=sw_disp, use_window=sw_use)
+                            elif hasattr(da_cmm, '_compute_matrix_for_trajectory'):
+                                # this function mirrors compute_metric_matrices._compute_matrix_for_trajectory signature
+                                # use the metric module loader behavior from that script
+                                # We call it with the same arguments used there
+                                M = da_cmm._compute_matrix_for_trajectory(
+                                    traj=traj_np,
+                                    metric_mod=__import__(f"src.metrics.{metric_name}", fromlist=['dummy']) if True else None,
+                                    use_window=sw_use,
+                                    window_size=sw_size,
+                                    displacement=sw_disp,
+                                    out_root=None,
+                                    metric_name=metric_name,
+                                    traj_idx=0,
+                                )
+                            else:
+                                # no helper for this metric; skip
+                                continue
+                            import numpy as _np
+                            s = float(_np.nansum(M))
+                            total_sum += s
+                        except Exception:
+                            # skip metric on failure and continue with others
+                            continue
+
+                    if any_metric and total_sum is not None:
+                        vol = torch.tensor(float(total_sum), dtype=torch.float64)
+                        import numpy as _np
+                        R = _np.vstack([_np.asarray(r, dtype=float).reshape(1, -1) for r in reps])
+                        lengths = torch.tensor(_np.linalg.norm(R, axis=-1), dtype=torch.float64)
+                        logv = torch.tensor(float('nan'), dtype=torch.float64)
+                    else:
+                        # Fallback: cosine-only local computation
+                        import numpy as _np
+                        R = _np.vstack([_np.asarray(r, dtype=float).reshape(1, -1) for r in reps])
+                        norms = _np.linalg.norm(R, axis=-1, keepdims=True)
+                        norms[norms == 0] = 1e-12
+                        Rn = R / norms
+                        S = Rn @ Rn.T
+                        D = 1.0 - S
+                        D = 0.5 * (D + D.T)
+                        sum_all = float(_np.nansum(D))
+                        vol = torch.tensor(sum_all, dtype=torch.float64)
+                        lengths = torch.tensor(_np.linalg.norm(R, axis=-1), dtype=torch.float64)
+                        logv = torch.tensor(float('nan'), dtype=torch.float64)
+                except Exception:
+                    # any import or runtime error -> fallback to local cosine-distance sum
+                    import numpy as _np
+                    R = _np.vstack([_np.asarray(r, dtype=float).reshape(1, -1) for r in reps])
+                    norms = _np.linalg.norm(R, axis=-1, keepdims=True)
+                    norms[norms == 0] = 1e-12
+                    Rn = R / norms
+                    S = Rn @ Rn.T
+                    D = 1.0 - S
+                    D = 0.5 * (D + D.T)
+                    sum_all = float(_np.nansum(D))
+                    vol = torch.tensor(sum_all, dtype=torch.float64)
+                    lengths = torch.tensor(_np.linalg.norm(R, axis=-1), dtype=torch.float64)
+                    logv = torch.tensor(float('nan'), dtype=torch.float64)
         else:
             raise ValueError(f"Unknown layer volume method: {method}")
         volumes[i] = vol
@@ -139,6 +245,17 @@ def compute_all_layers_volumes(hidden_states_storages, method='pca_svd', normali
                 vol, lengths, logv = _pca_svd_volume(X, n_axes=chosen_n_axes)
             elif method == 'logdet_cov':
                 vol, lengths, logv = _logdet_cov_volume(X, n_axes=chosen_n_axes)
+            elif method == 'pair_dist':
+                vol, lengths, logv = None, None, None
+                # reuse the per-trajectory function to compute pair_dist
+                try:
+                    vols, axes_vals, logs = compute_layer_volumes_per_trajectory([X], method='pair_dist', normalize=False, n_axes=chosen_n_axes)
+                    # compute_layer_volumes_per_trajectory returns volumes tensor of length 1
+                    vol = vols[0]
+                    lengths = axes_vals[0]
+                    logv = logs[0]
+                except Exception:
+                    raise
             else:
                 raise ValueError(f"Unknown layer volume method: {method}")
             per_trajectory_volumes.append(vol.cpu())

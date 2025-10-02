@@ -33,7 +33,7 @@ CONFIG = {
     "metrics": {
     "save_plots": True,
         "rank_eigen": {
-            "enabled": True,
+            "enabled": False,
             "deviation_metric": 'sum_cos_dist', # 'sum_cos_dist', # "rms", # JJ
             "run_rank_eigenvectors": True,
             "window_size": 4, # embed
@@ -54,7 +54,7 @@ CONFIG = {
         
         
         "cross_corr": { # only works with window_size > 1 and is a bit noisy + window_size adds some diagonal distortion to time series distance. rp are cool across different window_size too.
-            "enabled": True,
+            "enabled": False,
             "correlation_type": "spearman", # "pearson" or "spearman" # JJ almost the same
             "window_size": 4, # embed (but for rp 4 is better)
             "window_size": 1, # hidden
@@ -80,7 +80,7 @@ CONFIG = {
             "threshold": 0.4, # 
         },
         "dtw": {
-            "enabled": True,
+            "enabled": False,
             # "use_fastdtw": True, # AA  this not being used anywhere 
             "window_size": 1, # embed
             "window_size": 1, # hidden

@@ -55,6 +55,14 @@ def collect_hidden_states(results_dir: str, selected_layers, n_conditions):
 
 def main():
     base_results_dir = Path(Default.RESULTS_DIR)
+    # Temporary, minimal fallback: if the configured results dir does not exist,
+    # try the known run folder used during development so the script finds
+    # hidden_states files without changing defaults permanently.
+    if not base_results_dir.exists():
+        alt = Path(r"C:/Users/grego/OneDrive/Documents/BME_UNI_WORK/TDK_2025/git_repo/TDK_LLM/runs_aug/launch_sep/interstellar_propulsion_review_0_0.00035")
+        if alt.exists():
+            print(f"Default results dir {base_results_dir} not found, falling back to {alt}")
+            base_results_dir = alt
     selected_layers = Default.SELECTED_LAYERS
     n_conditions = Default.N_INITIAL_CONDITIONS
 
