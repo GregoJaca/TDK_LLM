@@ -17,7 +17,8 @@ layernorm but more recently rms norm is used too
 
 i say that last layers are more chaotic bc of attention and noramlization. stretch and folding. how does the volume of the hidden state vectors evolves as they go through the layers? easy to measure. do it for every trajectory individually. (lorenz has volume contraction which brings about the strange attractor). strogatz page 434 and 435.
 if a map or flow contracts volumes in phase space, it is called dissipative. volume preserving ones are called conservative. where do LLMs stand?
-XXX FOR THE NORMALIZATION NORMALIZE_HIDDEN_STATES = True maybe use layernorm or find the norm method used for all the rest of layers. i suspect the last layer is nor normalized as it probably is normalized right before softmax, not here
+XXX FOR THE NORMALIZATION NORMALIZE_HIDDEN_STATES = True maybe use layernorm or find the norm method used for all the rest of layers. i suspect the last layer is nor normalized as it probably is normalized right before softmax, not here.
+also this volume method is too sensitive to number of dimensions used
 
 chaotic features more pronounced at hidden state last layers. what abt the text embed?
 

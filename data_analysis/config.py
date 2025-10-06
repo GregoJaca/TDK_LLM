@@ -42,7 +42,7 @@ CONFIG = {
         },
         # "default_pairing": "ref0",   # "all" or "ref0" # AA
         "cos": {
-            "enabled": True,
+            "enabled": False,
             "aggregate": ["mean", "median", "std"],
             "shifts": [0],   # absolute steps to sweep; included in sweep script
             "shift_aggregation": "mean", # "min", "mean"
@@ -65,7 +65,7 @@ CONFIG = {
 
         # Best without sliding window
         "hausdorff": {
-            "enabled": False,
+            "enabled": True,
             # "symmetric": True, # AA
             "aggregation": "mean_of_max", # "max_of_mean", "mean_of_max" # JJ
             "window_size": 1, # embed

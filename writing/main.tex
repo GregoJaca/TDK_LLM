@@ -302,7 +302,7 @@ We propose viewing the autoregressive process of an LLM as a high-dimensional, d
 \textbf{Chaotic System} & \textbf{Large Language Model (LLM)} \\ \midrule
 Phase Space & Embedding / Hidden State Space \\
 State Vector & Hidden State Vector \\
-Phase Space Trajectory & Sequence os Token Text or Hidden States \\
+Phase Space Trajectory & Sequence of Token Text or Hidden States \\
 Continuous Time Evolution & Discrete Token Generation Step \\
 Differential Equation & Autoregressive Function \\
 Numerical Solution & Forward Pass Inference \\
@@ -314,6 +314,7 @@ Measurement Uncertainty & Floating Point Precision, Quantization \\ \bottomrule
 \label{tab:analogy}
 \end{table}
 % G: could add stretching and folding. table too big rn
+
 
 However, the analogy is not perfect and has critical limitations. LLM dynamics are discrete, not continuous, with a fixed "time step" of one token. The act of sampling a token from the probability distribution and appending it to the input can be seen as a "collapse" or a sharp discontinuity in the trajectory's evolution. 
 % G: can clarify that it matters in that this new token is the starting point for the processing in the 1st layer, but all the previous hidden states remain and will influence at each layer.
