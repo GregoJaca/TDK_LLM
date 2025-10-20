@@ -108,6 +108,12 @@ BME Elméleti Fizika Tanszék
 % It's easier for me if you use your initials before your comments, so i can quickly understand who they come from
 
 
+% General TODO: 
+% remove boldf, embedding dimension should be "d". hidden states should be h always (not s)
+
+
+
+
 \begin{abstract}
 \end{abstract}
 \newpage
@@ -122,19 +128,23 @@ BME Elméleti Fizika Tanszék
 % G: This paragraph wants to say: Mathematicians study silly nonlinear diff eqs for fun. LLMs are even more interesting.
 Deep Neural Networks (DNNs), such as LLMs, are highly nonlinear systems whose parameters are not explicitly determined, but rather they are determined by training on huge sets of data.
 % but rather they are trained on large sets of data. 
-This allows these models to learn huge amounts of knowledge with little human intervention, which allows for escalation at the cost of interpretability.
-DNNs provide a facsinating case of study for nonlinear dynamics.
+This allows these models to learn huge amounts of knowledge with little human intervention, which allows for scaling at the cost of interpretability.
+DNNs provide a fascinating case study for nonlinear dynamics.
 % Studying these systems is extremely interesting
 
-There is growing interest in the sensitivity of LLMs (and other generative deep neural networks) to initial conditions and small perturbations. For some applications, like Reinforcement Learning (RL) (G: or in cases where there is one right answer) (GGG), determinism and predictability (and reproducibility) are desireable, while for other uses like synthetic data generation, paraphrasing, and novel image generation, divergence (GGG) is desired.
+There is growing interest in the sensitivity of LLMs (and other generative deep neural networks) to initial conditions and small perturbations. For some applications, like Reinforcement Learning (RL), determinism and reproducibility are desireable in order to keep the RL on-policy, while for other uses like synthetic data generation, paraphrasing, and novel image generation, diversity and divergence is desired.
 % Understanding fixed/stable points in LLMs can clarify their generative capability constraints.
 % G: needs a more natural phrasing, not forcing it into the SIC chaos direction until the end
+% G: also divergence is kind of off-topic
 
 % G: I want to say: LLMs are trained on all human data. what they learn is representative of human civilization (if we consider the written data is). more insights into LLMs is insights into us. maybe read motivation for some interpretability articles
 % G: but this is not so much within the scope of this study
 Given that LLMs are trained of a large corpus of human data, what they know says a lot about humanity (at least what is captured in text). Improving our understanding of the inner representations of LLMs yields insights about us.
 
 % G: also these tools can be applied to other DNNs that handle audio image video
+
+Working with LLMs presents some challenges, such as the discrete nature of tokens and their hidden state representations, and the high dimensionality of the embedding space. We 
+% G: add more challenges
 
 \section{Related Work}
 
@@ -182,30 +192,42 @@ demonstrate that CycleGAN image generators' space is more limited than the train
 % This section describes the background knowledge required to understand Nonlinear Dynamics and Chaos, LLMs, and their similarities and differences. This provides us with the starting point for this paper.
 
 \subsection{Nonlinear Dynamics and Chaos}
-A deterministic dynamical system is one whose future evolution is uniquely determined by its current state. Such systems are often modeled by a set of coupled ordinary differential equations (ODEs) of the form:
+
+- Nonlinear Dynamics and Chaos
+-- Definition. determinism. Trajectories in Phase Space. numerical solution.
+-- differential equations and iterated maps
+-- importance of nonlinearity
+
+% start very bad. todo: I want this rewritten. do not mention "uniquely determined by its current state", do not emphasize ODEs so much (but mention that they can be described with differential equations or iterated maps). use the list above for things that must be mentioned
+A deterministic dynamical system is one whose future evolution is uniquely determined by its current state (GGG but in LLMs it also depends on previous tokens within context window). Such systems are often modeled by a set of coupled ordinary differential equations (ODEs) of the form:
 \begin{equation}
     \frac{d\mathbf{x}}{dt} = f(\mathbf{x}(t))
 \end{equation}
 where $\mathbf{x}(t) \in \mathbb{R}^n$ is the state vector in an $n$-dimensional phase space, and $f$ is a nonlinear function. The sequence of states over time, $\mathbf{x}(t)$, traces a path known as a trajectory in this phase space.
+% end very bad
 
-Chaotic systems are a fascinating subclass of deterministic nonlinear systems that exhibit complex and unpredictable behavior. This apparent randomness arises not from stochastic inputs, but from the system's intrinsic dynamics. The defining characteristic of chaos is \textbf{sensitivity to initial conditions (SIC)}. This property implies that trajectories originating from infinitesimally close initial states, say $\mathbf{x}(0)$ and $\mathbf{x}(0) + \bm{\delta}(0)$, will diverge exponentially over time. The separation distance $\|\bm{\delta}(t)\|$ grows according to:
+
+Chaotic systems are a subclass of deterministic nonlinear systems that exhibit complex and practically unpredictable behavior. This apparent randomness arises not from a stochastic nature, but from the system's intrinsic dynamics. The defining characteristics of chaos are non-periodicity and sensitivity to initial conditions (SIC). This property implies that trajectories originating from infinitesimally close initial states, say $\mathbf{x}(0)$ and $\mathbf{x}(0) + \bm{\delta}(0)$, will diverge exponentially over time. The separation distance $\|\bm{\delta}(t)\|$ grows according to:
 \begin{equation}
     \|\bm{\delta}(t)\| \approx \|\bm{\delta}(0)\| e^{\lambda t}
 \end{equation}
-where $\lambda$ is the maximal Lyapunov exponent. A positive maximal Lyapunov exponent is a strong indicator of chaos. It signifies that any measurement error or uncertainty in the initial state, no matter how small, will be amplified exponentially, rendering long-term prediction impossible.
+where $\lambda$ is the maximal Lyapunov exponent. A positive maximal Lyapunov exponent is a strong indicator of chaos. It signifies that any measurement error or uncertainty in the initial state, no matter how small, will be amplified exponentially, making long-term prediction impossible.
 
-Despite their unpredictability, the trajectories of dissipative chaotic systems are not entirely random; they are confined to a bounded, lower dimensional subregion in phase space called a \textbf{strange attractor}. These attractors often possess a complex, self-similar geometry known as a fractal structure. The dimensionality of this structure can be characterized by a non-integer value. A common measure is the \textbf{correlation dimension ($D_2$)}. It is based on the correlation integral, $C(\epsilon)$, which measures the probability that two points on the attractor are closer than a distance $\epsilon$. For small $\epsilon$, the correlation integral scales as a power law:
+Despite their unpredictability, the trajectories of dissipative \footnote{In general if a map contracts volumes in phase space it is called dissipative. A physical system with friction is an example} chaotic systems are not random; often they are confined to a bounded, lower dimensional subset of phase space, a \textbf{strange attractor} \footnote{In contrast, conservative systems cannot have strange attractors, because attractors attract all trajectories in a small open set containing it, which contracts the volume} \footnote{The 'strangeness' partly comes from the fact that trajectories diverge exponentially but remain confined in a zero-volume subset of the phase space. The explanation for this is that they diverge in the direction parallel to the attractor and get attracted in the direction orthogonal to it. GGG}.
+These attractors often possess a complex, self-similar fractal structure of non-integer dimension. A common measure is the \textbf{correlation dimension ($D_2$)}. It is based on the correlation integral, $C(\epsilon)$, which measures the probability that two points on the attractor are closer than a distance $\epsilon$. For small $\epsilon$, the correlation integral scales as a power law:
 \begin{equation}
     C(\epsilon) = \lim_{N \to \infty} \frac{2}{N(N-1)} \sum_{i<j} \Theta(\epsilon - \|\mathbf{x}_i - \mathbf{x}_j\|) \sim \epsilon^{D_2}
 \end{equation}
 where $N$ is the number of points on the trajectory and $\Theta$ is the Heaviside step function. The dimension $D_2$ is then found as the slope of the linear region in a log-log plot of $C(\epsilon)$ versus $\epsilon$.
 
-Another powerful tool for analyzing dynamical systems is \textbf{Recurrence Analysis}. A Recurrence Plot (RP) visualizes the times at which a trajectory revisits a previously visited neighborhood in phase space. The recurrence matrix is defined as:
+Another powerful tool for analyzing dynamical systems is \textbf{Recurrence Analysis}. A Recurrence Plot (RP) visualizes the times at which a trajectory revisits a previously visited neighborhood in phase space, within a threshold $\epsilon$. The recurrence matrix is defined as:
 \begin{equation}
     R_{i,j}(\epsilon) = \Theta(\epsilon - \|\mathbf{x}_i - \mathbf{x}_j\|), \quad i,j = 1, \dots, N
 \end{equation}
 % G: any distance metric can be used
 The visual patterns in an RP provide deep insight: periodic systems produce long, parallel diagonal lines, random systems produce a uniform, noisy plot, and chaotic systems produce a complex geometric structure with short, interrupted diagonal lines. These structures can be quantified using Recurrence Quantification Analysis (RQA).
+
+% plot: rp_comparison.png
 
 
 % G: I would like to generally describe the necessary conditions for chaos. (I dont mean SIC and exponential divergence, but rather the underlying characteristics of the system which will make it be chaotic). Then I'd like to explain which components of LLM architecture correspond to these. example: nonlinear coupling and attention
@@ -219,21 +241,22 @@ Stretching and Folding mechanism: Stretching separates close trajectories, causi
 
 
 \subsection{Large Language Models (LLMs)}
-Large Language Models are a class of deep neural networks, with the Transformer architecture being the de facto standard. They are trained on massive text corpora to predict the probability distribution for the next token in a sequence. They are autoregressive models used to generate a text output sequentially.
+Large Language Models are a class of deep neural networks, typically using the Transformer architecture. They are trained on massive text corpora to predict the probability distribution for the next token in a sequence. They are autoregressive models used to generate a text output sequentially by sampling from that distribution.
 
-The process begins with tokenization, where input text is broken down into a sequence of integers (tokens). Each token is then mapped to a high-dimensional vector, its embedding. These embeddings are processed through a stack of Transformer layers. Each layer is primarily composed of two sub-modules: a multi-head self-attention mechanism and a position-wise feed-forward network (MLP). The self-attention mechanism is the key source of nonlinearity and contextual understanding, allowing the model to dynamically weigh the importance of all other tokens in the context window when updating the representation of a single token. It can be expressed as:
+The process begins with tokenization, where input text is broken down into a sequence of integers (tokens). Each token is then mapped to a high-dimensional vector, its embedding. These embeddings are processed through a stack of Transformer layers. Each layer is primarily composed of two sub-modules: a multi-head self-attention mechanism and a position-wise feed-forward network called Multi-Layer Perceptron (MLP). The self-attention mechanism is the key source of nonlinearity and contextual understanding, allowing the model to dynamically weigh the importance of all other tokens in the context window, and then update the representation of a single token. It can be expressed as \cite{attention}:
 \begin{equation}
     \text{Attention}(Q, K, V) = \text{softmax}\left(\frac{QK^T}{\sqrt{d_k}}\right)V
 \end{equation}
 % TODO: explain what each variable is. concise. definition + intuition. also show how it updates the hidden states
-This operation creates a powerful, nonlinear feedback and coupling mechanism between all elements of the sequence. The MLP further processes these representations through additional nonlinear transformations. Normalization is (GGG). 
+In LLMs causal masking is used to ensure that a token is only influenced by previous (and not future) tokens during attention. Due to the compute cost of attention, which grows with the square of the sequence length, attention is only performed on a sliding context window \footnote{Attention is performed on the minimum value between the sequence length and the context window size} with the latest token at its right endpoint.
+This operation creates a nonlinear feedback and coupling mechanism between all elements of the sequence. The MLP further processes these representations through additional nonlinear transformations. Normalization is (GGG). 
 % The output of the final layer is a sequence of hidden states, which represent the contextualized meaning of each token. % G: clarify that for all layers we can get it and also connect it better to how the logits are obtained
 
-During inference, the LLM generates text autoregressively, which can be viewed as a discrete-time dynamical system:
+During inference, the LLM generates tokens autoregressively, which can be viewed as a discrete-time dynamical system:
 \begin{equation}
-    \mathbf{s}_{t+1} = f(\mathbf{s}_t, \mathbf{s}_{t-1}, ..., \mathbf{s}_0)
+    \mathbf{s}_{t+1} = f(\mathbf{s}_t, \mathbf{s}_{t-1}, ..., \mathbf{s}_0) % G: maybe it should be \mathbf{s}_{t-context_window_size} to be more precise
 \end{equation}
-where $\mathbf{s}_t$ represents the model's internal state (the sequence of hidden states) at step $t$. To generate the next token, the hidden state of the last token is passed through a final linear layer (the "un-embedding") to produce logits over the entire vocabulary, which are then converted to a probability distribution via a softmax function. A decoding strategy is then used to select a token. \textbf{Greedy sampling} deterministically selects the token with the highest probability. In contrast, \textbf{probabilistic sampling} introduces stochasticity, often controlled by a temperature parameter ($T$). Higher temperatures flatten the distribution, making the output more diverse but less coherent.
+where $\mathbf{s}_t$ represents the model's internal state (the sequence of hidden states) at step $t$. To generate the next token, the hidden state of the last token is passed through a final linear layer (the "un-embedding") to produce logits over the entire vocabulary, which are then converted to a probability distribution via a softmax function. A decoding strategy is then used to select a token. \textbf{Greedy sampling} deterministically selects the token with the highest probability. In contrast, \textbf{probabilistic sampling} introduces stochasticity, often controlled by a temperature parameter ($T$). Higher temperatures flatten the distribution, making the output more diverse.
 
 \subsection{Layer normalization}
 % G: mention other normalizations? like batch?
@@ -246,7 +269,7 @@ y &\;=\; \gamma \odot \widehat{h} + \beta \;=\; D\widehat{h} + \beta, \label{eq:
 \end{align}
 where \(\mathbf{1}=(1,\dots,1)^\top , \gamma, \beta \in\mathbb{R}^d\), and \(D=\operatorname{diag}(\gamma)\).
 % G: pretty unreadable. 
-% benefits:
+% G: benefits:
 % Introducing a normalization of the hidden states after every operation as part of the model architecture made th training between 4 and 20 times faster \cite{loshchilov2025ngptnormalizedtransformerrepresentation}
 % Representation learning on the hypersphere leads to more stable training, greater embedding space separability, and better performance on downstream tasks \cite{wang2022understandingcontrastiverepresentationlearning}
 % Normalization techniques are beneficial \cite{salimans2016weightnormalizationsimplereparameterization}
@@ -263,6 +286,7 @@ where \(\mathbf{1}=(1,\dots,1)^\top , \gamma, \beta \in\mathbb{R}^d\), and \(D=\
   \item \(\varepsilon\): numerical stabilizer
 \end{itemize}
 
+% todo: eliminate this paragraphs thing, just make it text with the same style as the rest of the paper
 \paragraph{Geometric remarks}
 \begin{enumerate}
   \item The centering step \(h\mapsto h-\mu(h)\mathbf{1}\) projects onto the hyperplane orthogonal to \(\mathbf1\) (removes the mean direction).
@@ -289,10 +313,11 @@ and the full LayerNorm Jacobian (including \(D\)) is \(J_y(h)=D\,J_{\widehat{h}}
 LayerNorm is therefore a structured \emph{many-to-one} nonlinear map: it (i) removes one linear degree of freedom (the mean), (ii) collapses the radial coordinate in the centered hyperplane (folding onto a compact manifold), and (iii) applies an anisotropic linear rescaling and shift.
 % G: (ii) is too much
 % In dynamical terms this provides a strong folding/bounding operation; any stretching/expansion must come from the other components (linear layers, attention, pointwise nonlinearities) for the overall layer-to-layer map to exhibit expansion+folding behavior.
+% G: I'm not sure if this is sound. why call it a folding when it is rather a projection
 
 
 \subsection{Analogy and Limitations}
-We propose viewing the autoregressive process of an LLM as a high-dimensional, discrete-time dynamical system. The sequence of hidden states serves as the trajectory evolving in the model's internal phase space. The self-attention mechanism acts as a (state-dependent) nonlinear coupling between different tokens. 
+We propose viewing the autoregressive process of an LLM as a high-dimensional, discrete-time dynamical system. The sequence of hidden states serves as the trajectory evolving in the model's embedding space. The self-attention mechanism acts as a (state-dependent) nonlinear coupling between different tokens. 
 % Each token's representation is affected by (previous) other tokens, with softmax, ReLU, layer norm providing the nonlinearity.
 
 \begin{table}[H]
@@ -301,13 +326,13 @@ We propose viewing the autoregressive process of an LLM as a high-dimensional, d
 \toprule
 \textbf{Chaotic System} & \textbf{Large Language Model (LLM)} \\ \midrule
 Phase Space & Embedding / Hidden State Space \\
-State Vector & Hidden State Vector \\
+State Vector & Hidden State Vector \footnote{Formally, the state should describe all the information necessary to predict the next step, which in LLMs includes all the hidden states in the context window. This is handled by expanding the phase space to include those as well growing up to $\mathbb{R}^{D \times \text{context\_size}}$. The equivalent in chaos theory is a delay system where the phase space can be infinite-dimensional. We believe this makes the discussion unnecessarily less clear, so the reader should keep this in mind, but we will not speak in this terms.} \\ % todo: this footnote does not appear in the text.
 Phase Space Trajectory & Sequence of Token Text or Hidden States \\
 Continuous Time Evolution & Discrete Token Generation Step \\
 Differential Equation & Autoregressive Function \\
 Numerical Solution & Forward Pass Inference \\
 Nonlinear Coupling & Self-Attention Mechanism \\
-Initial Condition & Initial Prompt Embedding \\
+Initial Condition & Initial Prompt Text or Embedding \\
 Measurement Uncertainty & Floating Point Precision, Quantization \\ \bottomrule
 \end{tabular}
 \caption{Analogies between concepts in chaos theory and LLMs.}
@@ -316,7 +341,8 @@ Measurement Uncertainty & Floating Point Precision, Quantization \\ \bottomrule
 % G: could add stretching and folding. table too big rn
 
 
-However, the analogy is not perfect and has critical limitations. LLM dynamics are discrete, not continuous, with a fixed "time step" of one token. The act of sampling a token from the probability distribution and appending it to the input can be seen as a "collapse" or a sharp discontinuity in the trajectory's evolution. 
+However, the analogy is not perfect and has critical limitations. LLM dynamics are discrete, not continuous, with a fixed "time step" of one token. The act of sampling a token from the probability distribution to generate the next token can be seen as a "collapse" or a sharp discontinuity in the trajectory's evolution \footnote{The hidden states at the first layer are also discrete and correspond exactly to a column of the embedding matrix. In deeper layers, the possible hidden states are more numerous (and effectively continuous), as they are generated through nonlinear transformations (transformer layers) of the previous hidden representations.}.
+
 % G: can clarify that it matters in that this new token is the starting point for the processing in the 1st layer, but all the previous hidden states remain and will influence at each layer.
 LLMs are usually used with probabilistic sampling, which adds a random component and makes it non-deterministic. Furthermore, the dimensionality of the state space is extraordinarily high (thousands of dimensions), which poses significant challenges for traditional chaos analysis techniques.
 
@@ -329,7 +355,7 @@ LLMs are usually used with probabilistic sampling, which adds a random component
 \section{Methods}
 
 \subsection{Initial Condition Generation}
-To test for sensitivity to initial conditions, we generate a set of trajectories from infinitesimally close starting points. We begin with a single prompt, tokenize it, and retrieve its initial embedding tensor $\mathbf{E}_0 \in \mathbb{R}^{L \times D}$, where $L$ is the prompt length and $D$ is the model's hidden dimension. We then create a "blob" (GGG) of $N$ perturbed initial conditions by adding a small, random perturbation tensor $\in \mathbb{R}^{L \times D}$ of fixed magnitude (radius $r$). Then we use LLM to continue (GGG generate) each trajectory.
+To test for sensitivity to initial conditions, we generate a set of trajectories from infinitesimally close starting points. We begin with a single prompt, tokenize it, and retrieve its initial embedding tensor $\mathbf{E}_0 \in \mathbb{R}^{L \times D}$, where $L$ is the prompt length and $D$ is the model's hidden dimension. We then create a "blob" of $N$ perturbed initial conditions by adding a small, random perturbation tensor $\in \mathbb{R}^{L \times D}$ of fixed magnitude (radius $r$). Then we use LLM to continue (GGG generate) each trajectory.
 % G: idk if perturbation is the best word here. disturbance?
 
 \subsection{Trajectory Distance Metrics}
@@ -342,15 +368,15 @@ We use a suite of metrics to quantify the divergence between pairs of trajectori
 \subsubsection{Vector-wise Metrics}
 These metrics are applied pointwise between corresponding vectors of two trajectories, yielding a time series of distance values.
 \begin{itemize}
-    \item \textbf{Cosine Distance:} Measures the angle between two vectors, capturing their orientation similarity. It is defined as $1 - \text{Cosine Similarity}$:
+    \item \textbf{Cosine Distance:} Measures the angle between two vectors, capturing their orientation similarity. It is widely used to compare similarity between vector embeddings \footnote{If all vectors are normalized, cosine distance and Euclidean distance are monotonically related, so they produce the same relative ordering of pairwise similarities even though their numerical values differ. Empirically the results obtained are very similar.}. It is defined as $1 - \text{Cosine Similarity}$:
     \begin{equation}
         d_{cos}(\mathbf{a}, \mathbf{b}) = 1 - \frac{\mathbf{a} \cdot \mathbf{b}}{\|\mathbf{a}\| \|\mathbf{b}\|}
     \end{equation}
-    \item \textbf{Normalized Cross-Correlation:} Measures the similarity between two vectors as a function of the displacement of one relative to the other. For discrete vectors at zero lag, it is related to the cosine similarity.
+    \item \textbf{Normalized Cross-Correlation:} Measures the similarity between two vectors as a function of the displacement of one relative to the other. For discrete vectors at zero lag, it is related to the cosine similarity. (GGG improve use formula)
 \end{itemize}
 
 \subsubsection{Trajectory-wise Metrics}
-These metrics yield a single scalar value for the distance between two entire trajectories. To obtain a divergence curve, we apply these metrics in a sliding window of increasing size.
+These metrics yield a single scalar value for the distance between two entire trajectories. To obtain a divergence curve, we apply these metrics in a sliding window of increasing size. For these, we used euclidean distance within each.
 \begin{itemize}
     \item \textbf{Dynamic Time Warping (DTW):} Finds an optimal non-linear alignment between two sequences. It computes a cost matrix where $C_{i,j}$ is the distance between $\mathbf{x}_i$ and $\mathbf{y}_j$. The DTW distance is the value in the final cell of an accumulated cost matrix $D$, defined by the recurrence:
     \begin{equation}
@@ -360,19 +386,18 @@ These metrics yield a single scalar value for the distance between two entire tr
     \begin{equation}
         d_F(P, Q) = \inf_{\alpha, \beta} \max_{t \in [0,1]} \| P(\alpha(t)) - Q(\beta(t)) \|
     \end{equation}
-    where $\alpha$ and $\beta$ are non-decreasing reparameterizations.
+    where $\alpha$ and $\beta$ are non-decreasing reparameterizations. (GGG am i reparametrizing)
     \item \textbf{Hausdorff Distance:} Measures the greatest of all distances from a point in one set to the closest point in the other set. It is a pure set-based distance.
     \begin{equation}
         d_H(X, Y) = \max \left( \sup_{\mathbf{x} \in X} \inf_{\mathbf{y} \in Y} \|\mathbf{x}-\mathbf{y}\|, \sup_{\mathbf{y} \in Y} \inf_{\mathbf{x} \in X} \|\mathbf{x}-\mathbf{y}\| \right)
     \end{equation}
 \end{itemize}
 
-\subsubsection{Structural Metric}
+\subsubsection{Structural Metric GGG}
+We also defined a new distance metric based on the structural similarity of two trajectories. It showed similar results to the other metrics but it was noisier.
 \begin{itemize}
         
-    \item \textbf{SVD Eigenvector Ranking Deviation:} To compare the structural properties of two trajectories, we first compute the covariance matrix for each sequence of hidden states. We then perform Singular Value Decomposition (SVD) on the centered data matrices, yielding principal directions (eigenvectors $V^{(i)}$) for each trajectory.
-
-    To compare the two sets of eigenvectors, we compute the cosine similarity matrix.
+    \item \textbf{SVD Eigenvector Ranking Deviation:} We perform a PCA on each trajectory obtaining the principal directions (eigenvectors $V^{(i)}$ of the centered data covariance matrices) for each trajectory. To compare the two sets of eigenvectors, we compute the cosine similarity matrix.
     \[
     S_{ab} = \frac{v^{(1)}_a \cdot v^{(2)}_b}{\|v^{(1)}_a\| \|v^{(2)}_b\|}
     \]
@@ -384,18 +409,15 @@ These metrics yield a single scalar value for the distance between two entire tr
     \]
 
     We can show the ranking of eigenvectors to show how similar two trajectories are. The closer to the proportionality line, the more similar two trajectories.
-    % TODO: Plot diagonal
+    % plot: diagonal.png
 
-    We then compute the sum of cosine distances for these matched pairs:
+    To get a distance scalar, we sum the cosine distances for these matched pairs \footnote{We also tried calculating the root mean square deviation with respect to the proportionality line but it was a worse metric GGG}:
     \[
     D_{\text{sum\_cos\_dist}} = \sum_{a=1}^k \left[1 - S_{a b^*}\right]
     \]
     where $D_{\text{sum\_cos\_dist}}$ is the scalar metric quantifying the dissimilarity between the two trajectories.
 
-    \textbf{Symmetry:} This metric is \emph{not symmetric}. Matching is performed from the eigenvectors of the first trajectory to those of the second, and the assignment is not necessarily reciprocal. That is, $D_{\text{sum\_cos\_dist}}(X^{(1)}, X^{(2)}) \neq D_{\text{sum\_cos\_dist}}(X^{(2)}, X^{(1)})$ in general.
-
-
-
+    \textbf{Symmetry:} This metric is \emph{not symmetric}. Matching is performed from the eigenvectors of the first trajectory to those of the second, and the assignment is not necessarily reciprocal. That is, $D_{\text{sum\_cos\_dist}}(X^{(1)}, X^{(2)}) \neq D_{\text{sum\_cos\_dist}}(X^{(2)}, X^{(1)})$ in general. We compute both and average the two (GGG).
 
 \end{itemize}
 
@@ -412,19 +434,26 @@ We generate Recurrence Plots (RPs) using the self-similarity matrix of a single 
 We estimate the correlation dimension ($D_2$) of the trajectories using the Grassberger-Procaccia algorithm. This can be calculated from the self-similarity matrix by applying different thresholds (which correspond to the distance $\epsilon$). 
 % G: expand. mention that when T != 0, the fits are bad, but T = 0 (at last layer), fit is good. correlation dimension can be used to identify  deterministic (chaotic) systems.
 
+% G: At the first layer, the curve is not as continuous, which can be explained by the fact that the tokens in the first layer are discrete and taken from the embedding matrix.
+
 \subsection{Clustering}
 
 Furthermore, we apply clustering algorithms to the set of hidden state vectors within a trajectory to identify distinct operational states or regions in the model's high-dimensional phase space.
+% G: probably eliminate
 
 % G: either do an Experiments section or here I need to conretely explain what I did: model choice, params, dim, fix length generation, context window, etc...
-% brief comment about T
+\subsection{Experiments}
 
-\section(Results)
+For this study we 
+In order to ensure determinism, we set the temperature to 0. context window 3096. initial separation distance = magnitude of perturbation tensor (radius $r$) = 0.00035. MODEL_NAME = "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"
+% todo: make this nicer as a list
+
+\section{Results}
 
 \subsection{Trajectory Divergence and Lyapunov} % GGG
 
 There were some challenges inherent to the system under study. In any bounded (GGG) system, there is a maximum possible value for the distance, and the distance between two diverging trajectories will eventually reach the maximum and saturate. In our case, especially when using sentence embeddings, the number of datapoints until the saturation region was often small (GGG around 6), making any type of curve fitting difficult.
-% G: am i using the word bounded properly
+% G: am i using the word bounded properly?
 
 \subsection{RP}
 
@@ -463,6 +492,19 @@ In order to gain a more intuitive understanding of each metric (GGG and maybe em
 % G: mention window size
 
 \subsection{Handling outliers}
+
+% \subsection{Ideas that Failed}
+% In this section, we quickly mention a few ideas that did not work to prevent others from making the same mistake.
+
+We also investigated the effect of temperature
+
+Using a model with so few parameters and having to limit the context window size significantly, it was difficult to make long
+
+Due to memory constraints we had in the GPUs available, there was a tradeoff between the length of the generated text, and the model size and context window. This meant that we either had to do short responses (~3096 tokens long GGG), or if we wanted longer ones, we needed to use a smaller model or a smaller context window, which then caused the output quality to degrade, often resulting in the model getting stuck in a repetitive loop. The fact that the temperature was set to zero did not help.
+What we did is use the smallest model and context window size possible while retaining a good quality output text by reading through them \footnote{also recurrence plots at a glance show if a model gets stuck in a repetitive loop}. 
+
+We did not think this repetitive loops were worth exploring, since these are a feature which appears in very basic and small LLMs with a short context window and zero temperature, and state of the art models will overcome this.
+
 
 
 \end{document}
