@@ -254,6 +254,7 @@ Stretching and Folding mechanism: Stretching separates close trajectories, causi
 Large Language Models are a class of deep neural networks, typically using the Transformer architecture. They are trained on massive text data to predict the probability distribution for the next token in a sequence. They are used autoregressively to generate a text output sequentially by sampling from that distribution.
 
 The process begins with tokenization, where input text is broken down into a sequence of integers (tokens). Each token is then mapped to a high-dimensional vector, its embedding. These embeddings are processed through a stack of Transformer layers. Each layer is primarily composed of two sub-modules: a multi-head self-attention mechanism and a position-wise feed-forward network called Multi-Layer Perceptron (MLP). The self-attention mechanism is the key source of nonlinearity and contextual understanding, allowing the model to dynamically weigh the importance of all other tokens in the context window, and then update the representation of a single token. It can be expressed as \cite{attention}:
+% G: somewhere I could be more precise on what first layer and last layer refers to and entails, so that later in results it is more clear. maybe in method explain that i extract the hidden states after each transformers 
 \begin{equation}
     \text{Attention}(Q, K, V) = \text{softmax}\left(\frac{QK^T}{\sqrt{d_k}}\right)V
 \end{equation}
@@ -462,8 +463,12 @@ For this study we
 In order to ensure determinism, we set the temperature to 0. context window 3096. initial separation distance = magnitude of perturbation tensor (radius $r$) = 0.00035. MODEL_NAME = "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"
 vocabulary_size=151936
 hidden/embedding dimension size: 1536,
+"num_attention_heads": 12,
+"num_hidden_layers": 28,
 % todo: make this nicer as a list. 
 % G: explain what the architecture particulars of deepseekr1 entail for chaos and recurrence. reasoning
+
+We run the model on a Tesla T4 GPU, and we obtain the generated tokens, text and hidden staes at all the layers, i.e., the representations after each transformer block \footnote{The shape of the complete hidden state tensor for a given response is (number of layers, numberof tokens, hidden dimension)}.
 
 \section{Results}
 
@@ -476,13 +481,21 @@ We see that the trajectories remain extremely close for some steps until they su
 
 \subsection{RP}
 
-Strong similarities can be seen between the RP from the Lorenz \cite{DeterministicNonperiodicFlow} system as seen in Fig. \ref{XXX} and from the LLMs output.
+Strong similarities can be seen between the RP from the Lorenz \cite{DeterministicNonperiodicFlow} system as seen in Fig. \ref{XXX} and from the LLMs output. % GGG
 
+
+% plot (and label them A, B, C, D):
+% interstellar_propulsion_review_recurrence_first_thr_0.3 interstellar_propulsion_review_recurrence_last_thr_0.3 quantum_consciousness_hallucination_recurrence_first_thr_0.3 quantum_consciousness_hallucination_recurrence_last_thr_0.3
+
+As pointwise dimension is calculated from RP, it makes sense that they agree on this.
+Chaotic features in recurrence plots are more present in the last layers of the model. 
+% G: not always at the last layer, but also middle layers are quite chaotic
 
 Chaotic features are more strongly present at the last layers of the LLM as showed in the RP and pointwise dimension. This is due to the progressive addition of more nonlinearity and coupling at each layer. 
-% As pointwise dimension is calculated from RP, it makes sense that they agree on this.
 
-% not always at the last layer, but also middle layers are quite chaotic
+% plot (and label them A, B, C, D):
+% launch_pentek_0_0.04/traj_2_recurrence_thr_0.3 launch_pentek_0_0.04/traj_3_recurrence_thr_0.3 launch_pentek_0_0.02/traj_1_recurrence_thr_0.3 launch_pentek_0_0.02/traj_6_recurrence_thr_0.3
+% caption: Examples of recurrence plots obtained for different prompts
 
 \subsection{Dimensionality}
 
@@ -491,7 +504,10 @@ Chaotic features are more strongly present at the last layers of the LLM as show
 % random at first layer is because it doesn't have all the info of the context so it appears random.
 % only at last layers can you see the true chaoicity
 
-In the cases investigated the correlation dimension obtained using the L2 distance metric was aproximately twice the one obtained using cosine similarity.
+% In the cases investigated the correlation dimension obtained using the L2 distance metric was aproximately twice the one obtained using cosine similarity.
+
+The measured dimension value obtained varied significantly depending on the distance metric used, % GGG
+while in every case, the Corrleation Dimension vs Threshold curve was similar, but with a different slope. This leads
 
 % G: it would be great to show if last layers have a lower dimension, which could imply more "compression" of the data
 % G: try to relate the dimension here with information compression, which is something super important that LLMs do.  
@@ -552,6 +568,7 @@ We also investigated the effect of temperature
 
 We also used the wasserstein metric for the data analysis but it was noisy and not very informative.
 
+We also used cross-recurrence plots to compare two trajectories, but found it not so clear. To compare different trajectories we prefered the methods explained in the paper.
 
 Inspired by \cite{DONNER_2011} and \cite{Donner_2010} \cite{ZOU20191} we did the recurrence analysis using complex networks, which comes naturally by considering the recurrence matrix as the adjacency matrix of the network. While interesting, we found the results easier to analyze using RQA than this method. % G: improve
 
