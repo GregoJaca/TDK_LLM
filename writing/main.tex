@@ -6,7 +6,7 @@
 \usepackage[margin=2.5cm]{geometry} % Set margins to 2.5 cm
 \usepackage{setspace} % For line spacing
 \setstretch{1.5} % Set line spacing to 1.5
-\usepackage{subfig}
+% Removed conflicting package 'subfig' — use 'subcaption' for subfigure support
 \usepackage{icomma}
 \usepackage{xcolor}
 \usepackage{bm}
@@ -100,19 +100,18 @@ BME Elméleti Fizika Tanszék
 \vfill
 \end{titlepage}
 
-\newpage\null\thispagestyle{empty}\newpage
+% \newpage\null\thispagestyle{empty}\newpage
 
 %%% --------- GUIDELINES ---------- %%%
 % This doc is in progress. I write but leave many comments to remind myself where to go back and improve. Wherever you see a "(GGG)" it means that I'm not happy with the wording and it needs to be made more precise and clear.
 % When I use "G:" i am straightforwardly expressing an opinion 
 % It's easier for me if you use your initials before your comments, so i can quickly understand who they come from
 
+% Where I am at
+
 
 % GENERAL TODO:
-%     add labels to each section, subsection, plot
-
-
-
+% add labels to each section, subsection, plot
 
 
 \begin{abstract}
@@ -129,7 +128,7 @@ BME Elméleti Fizika Tanszék
 \label{sec:introduction}
 
 % G: This paragraph wants to say: Mathematicians study silly nonlinear diff eqs for fun. LLMs are even more interesting.
-Deep Neural Networks (DNNs), such as LLMs, are highly nonlinear systems whose parameters are not explicitly determined, but rather they are determined by training on huge sets of data.
+Deep Neural Networks (DNNs), such as LLMs, are highly nonlinear systems whose parameters are not explicitly determined, but rather they are learned by training on huge sets of data.
 % but rather they are trained on large sets of data. 
 This allows these models to learn huge amounts of knowledge with little human intervention, which allows for scaling at the cost of interpretability.
 DNNs provide a fascinating case study for nonlinear dynamics.
@@ -154,6 +153,7 @@ Working with LLMs presents some challenges, such as the discrete nature of token
 % G: add more challenges
 
 \section{Related Work}
+\label{sec:related_work}
 
 % This section briefly summarizes the main results from other papers which inspired my analysis and also explain some of the results obtained. It also should reinforce the idea that it's justifiable to treat LLMs and chaotic nonlinear systems. 
 
@@ -161,22 +161,22 @@ The application of dynamical systems theory to neural networks has revealed comp
 
 \paragraph{Chaotic Dynamics in LLMs:}
 
-\ref{li2025cognitive_activation} proposes that LLMs' reasoning capabilities as chaotic processes of dynamic information extraction in parameter space, introducing Quasi-Lyapunov Exponents to quantify chaotic characteristics across model layers, and showing sensitivity to initial conditions.
+\cite{li2025cognitive_activation} proposes that LLMs' reasoning capabilities as chaotic processes of dynamic information extraction in parameter space, introducing Quasi-Lyapunov Exponents to quantify chaotic characteristics across model layers, and showing sensitivity to initial conditions.
 
 \paragraph{Attention Mechanisms and Nonlinear Dynamics:}
-\ref{geshkovski2025mathematicalperspectivetransformers} model self-attention as a nonlinear coupling between tokens.
-\ref{poc-lopez2024dynamical_mean_field_self_attention} demonstrate that even simplified self-attention transformer networks with 1-bit tokens and weights exhibit nontrivial dynamical phenomena, including nonequilibrium phase transitions and chaotic bifurcations. 
+\cite{geshkovski2025mathematicalperspectivetransformers} model self-attention as a nonlinear coupling between tokens.
+\cite{poclópez2024dynamicalmeanfieldtheoryselfattention} demonstrate that even simplified self-attention transformer networks with 1-bit tokens and weights exhibit nontrivial dynamical phenomena, including nonequilibrium phase transitions and chaotic bifurcations. 
 
 \paragraph{Determinism and Attractors in Language Models:}
 % The tension between reproducibility and novely in LLMs has become increasingly relevant. 
-\ref{he2025nondeterminism} (GGG)
+\cite{he2025nondeterminism} (GGG)
 Recent engineering efforts have focused on achieving deterministic inference by controlling GPU batching variance and floating-point errors, motivated by the need for reproducibility and clear signals in reinforcement learning training. 
  %Knowing the LLMs sensitivity to disturbances is important for this.
  %This highlights the practical sensitivity of LLMs to small numerical perturbations. 
 
-\ref{wang2025unveiling_attractor_cycles} show that LLMs used for paraphrasing converge to periodic attractor cycles, reducing linguistic diversity.
+\cite{wang2025unveiling_attractor_cycles} show that LLMs used for paraphrasing converge to periodic attractor cycles, reducing linguistic diversity.
 
-\ref{cyclegan} % Comment: PLOS Complex Systems article - 
+\cite{cyclegan} % Comment: PLOS Complex Systems article - 
 demonstrate that CycleGAN image generators' space is more limited than the training data's with Positive Lyapunov exponents and attractor dimensions similar to the training data intrinsic dimension. Chaotic dynamics contribute to the diversity of the generated images.
 %This suggests that generative models may naturally converge to stable configurations that reduce output diversity. 
 % G: this is a bit contradictory bc I say that model generation: more limited than training data but chaotic makes more diverse.
@@ -184,10 +184,10 @@ demonstrate that CycleGAN image generators' space is more limited than the train
 \paragraph{Interpretability Through Dynamical Analysis:}
 \label{par:interpretability_dynamics}
 %The dynamical systems perspective has proven valuable for understanding recurrent architectures. 
-\ref{sussillo2013} showed that fixed points and linearized dynamics in trained RNNs provide interpretable insights into network function. \ref{zhang2024intelligence_edge_of_chaos} found that intelligence emerges at an optimal complexity level. Systems that are either highly chaotic or perfectly periodic exhibit poor downstream performance, suggesting a "sweet spot" conducive to intelligent behavior at the edge between order and chaos. \ref{zhou2025geometryreasoningflowinglogics} show how LLM's chain-of-thought reasoning can be interpreted as smooth flows in embedding space, where logical sttements control the flow's velocities.
+\cite{sussillo2013} showed that fixed points and linearized dynamics in trained RNNs provide interpretable insights into network function. \cite{zhang2024intelligence_edge_of_chaos} found that intelligence emerges at an optimal complexity level. Systems that are either highly chaotic or perfectly periodic exhibit poor downstream performance, suggesting a "sweet spot" conducive to intelligent behavior at the edge between order and chaos. \cite{zhou2025geometryreasoningflowinglogics} show how LLM's chain-of-thought reasoning can be interpreted as smooth flows in embedding space, where logical sttements control the flow's velocities.
 
 % normalization layers
-\ref{tomihari2025recurrent_self_attention_dynamics} show that normalization layers normallize Jacobian's complex eigenvalues bringing the dynamics close to a critical state with maximum Lyapunov exponents close to zero, suggesting operation at the edge of chaos: a critical regime where signals neither explode nor vanish, enabling long-range information propagation.
+\cite{tomihari2025recurrent_self_attention_dynamics} show that normalization layers normallize Jacobian's complex eigenvalues bringing the dynamics close to a critical state with maximum Lyapunov exponents close to zero, suggesting operation at the edge of chaos: a critical regime where signals neither explode nor vanish, enabling long-range information propagation.
 % G: this can explain if the trajectories have sub-exponential divergence
 %show that normalization layers effectively suppress the Jacobian's spectral norm and control oscillatory behaviors. Their empirical findings reveal that high-performance self-attention models exhibit maximum Lyapunov exponents close to zero, suggesting operation at the edge of chaos—a critical regime where signals neither explode nor vanish, enabling long-range information propagation.
 
@@ -197,10 +197,12 @@ demonstrate that CycleGAN image generators' space is more limited than the train
 
 
 \section{Preliminaries}
+\label{sec:preliminaries}
 
 % This section describes the background knowledge required to understand Nonlinear Dynamics and Chaos, LLMs, and their similarities and differences. This provides us with the starting point for this paper.
 
 \subsection{Nonlinear Dynamics and Chaos}
+\label{subsec:nonlinear_dynamics}
 
 - Nonlinear Dynamics and Chaos
 -- Definition. determinism. Trajectories in Phase Space. numerical solution.
@@ -251,14 +253,16 @@ Stretching and Folding mechanism: Stretching separates close trajectories, causi
 
 
 \subsection{Large Language Models (LLMs)}
+\label{subsec:llms}
 Large Language Models are a class of deep neural networks, typically using the Transformer architecture. They are trained on massive text data to predict the probability distribution for the next token in a sequence. They are used autoregressively to generate a text output sequentially by sampling from that distribution.
 
-The process begins with tokenization, where input text is broken down into a sequence of integers (tokens). Each token is then mapped to a high-dimensional vector, its embedding. These embeddings are processed through a stack of Transformer layers. Each layer is primarily composed of two sub-modules: a multi-head self-attention mechanism and a position-wise feed-forward network called Multi-Layer Perceptron (MLP). The self-attention mechanism is the key source of nonlinearity and contextual understanding, allowing the model to dynamically weigh the importance of all other tokens in the context window, and then update the representation of a single token. It can be expressed as \cite{attention}:
+The process begins with tokenization, where input text is broken down into a sequence of integers (tokens) \footnote{The tokens represent fragments of text e.g: "hello", "newline", "**", "1", "token", "ization", " ". The tokenization is learned by the model during training.} Each token is then mapped to a high-dimensional vector, its embedding. These embeddings are processed through a stack of Transformer layers. Each layer is primarily composed of two sub-modules: a multi-head self-attention mechanism and a position-wise feed-forward network called Multi-Layer Perceptron (MLP). The self-attention mechanism is the key source of nonlinearity and contextual understanding, allowing the model to dynamically weigh the importance of all other tokens in the context window, and then update the representation of a single token. It can be expressed as \cite{attention}:
+Each token is then mapped to a high-dimensional vector, its embedding. These embeddings are processed through a stack of Transformer layers. Each layer is primarily composed of two sub-modules: a multi-head self-attention mechanism and a position-wise feed-forward network called Multi-Layer Perceptron (MLP). The self-attention mechanism is the key source of nonlinearity and contextual understanding, allowing the model to dynamically weigh the importance of all other tokens in the context window, and then update the representation of a single token. It can be expressed as \cite{attention}:
 % G: somewhere I could be more precise on what first layer and last layer refers to and entails, so that later in results it is more clear. maybe in method explain that i extract the hidden states after each transformers 
 \begin{equation}
     \text{Attention}(Q, K, V) = \text{softmax}\left(\frac{QK^T}{\sqrt{d_k}}\right)V
 \end{equation}
-where $Q$ (Query), $K$ (Key), and $V$ (Value) are matrices derived from the input embeddings. The Query represents the current token's focus, the Key represents the information other tokens have, and the Value contains the content of those tokens. The attention mechanism computes a weighted sum of the Values, where the weights are determined by the similarity between the Query and Keys. This updated representation becomes the new hidden state for the token.
+where $Q$ (Query), $K$ (Key), and $V$ (Value) are matrices derived from the input embeddings. The Query represents the current token's focus, the Key represents the information other tokens have, and the Value contains the content of those tokens. The attention mechanism computes a weighted sum of the Values, where the weights are determined by the similarity between the Query and Keys \footnote{As an intuition, attention is like a learned differentiable lookup table. Given a query, it returns a weigthed sum of values based on the key-query similarity.}. This updated representation becomes the new hidden state for the token.
 In LLMs causal masking is used to ensure that a token is only influenced by previous (and not future) tokens during attention. Due to the compute cost of attention, which grows with the square of the sequence length, attention is only performed on a sliding context window \footnote{Attention is performed on the minimum value between the sequence length and the context window size} with the latest token at its right endpoint.
 This operation creates a nonlinear feedback and coupling mechanism between all elements of the sequence. The MLP further processes these representations through additional nonlinear transformations. Normalization is (GGG). 
 % The output of the final layer is a sequence of hidden states, which represent the contextualized meaning of each token. % G: clarify that for all layers we can get it and also connect it better to how the logits are obtained
@@ -270,6 +274,7 @@ During inference, the LLM generates tokens autoregressively, which can be viewed
 where $\mathbf{s}_t$ represents the model's internal state (the sequence of hidden states) at step $t$. To generate the next token, the hidden state of the last token is passed through a final linear layer (the "un-embedding") to produce logits over the entire vocabulary, which are then converted to a probability distribution via a softmax function. A decoding strategy is then used to select a token. \textbf{Greedy sampling} deterministically selects the token with the highest probability. In contrast, \textbf{probabilistic sampling} introduces stochasticity, often controlled by a temperature parameter ($T$). Higher temperatures flatten the distribution, making the output more diverse.
 
 \subsection{Layer normalization}
+\label{subsec:layer_norm}
 % G: mention other normalizations? like batch?
 Layer normalization (LayerNorm) acts on a single hidden state vector \(h\in\mathbb{R}^d\) (e.g. a token embedding) by (i) mean-centering, (ii) variance normalization, and (iii) a learned affine anisotropic rescaling.
 \begin{align}
@@ -310,9 +315,8 @@ and the full LayerNorm Jacobian (including \(D\)) is \(J_y(h)=D\,J_{\widehat{h}}
 % G: By killing the 𝑢 u-direction, LayerNorm throws away “how much” the features deviate from the mean and keeps only “in what relative proportions” they deviate.
 % G: could emphasize that the radial direction u is specific for every h, but the mean centering is global.
 
-\paragraph{Interpretation for dynamics}
-\label{par:interpretation_dynamics}
-\label{par:interpretation_dynamics}
+\paragraph{Interpretation for dynamics} % GGG \paragraph
+% \label{par:interpretation_dynamics}
 LayerNorm is therefore a structured \emph{many-to-one} nonlinear map: it (i) removes one linear degree of freedom (the mean), (ii) collapses the radial coordinate in the centered hyperplane (folding onto a compact manifold), and (iii) applies an anisotropic linear rescaling and shift.
 % G: (ii) is too much
 % In dynamical terms this provides a strong folding/bounding operation; any stretching/expansion must come from the other components (linear layers, attention, pointwise nonlinearities) for the overall layer-to-layer map to exhibit expansion+folding behavior.
@@ -320,6 +324,7 @@ LayerNorm is therefore a structured \emph{many-to-one} nonlinear map: it (i) rem
 
 
 \subsection{Analogy and Limitations}
+\label{subsec:analogy_limitations}
 We propose viewing the autoregressive process of an LLM as a high-dimensional, discrete-time dynamical system. The sequence of hidden states serves as the trajectory evolving in the model's embedding space. The self-attention mechanism acts as a (state-dependent) nonlinear coupling between different tokens. 
 % Each token's representation is affected by (previous) other tokens, with softmax, ReLU, layer norm providing the nonlinearity.
 
@@ -356,18 +361,22 @@ LLMs are usually used with probabilistic sampling, which adds a random component
 % G: is normalization folding or stretching? normalize would siggest constraining so folding, but attention is cross communication so also folding. talk this out and dicuss. which processes in LLM constrain and maintain boudedness? is this folding? which stretch= is stretching individual?
 
 \section{Methods}
+\label{sec:methods}
 
 \subsection{Initial Condition Generation}
+\label{subsec:init_cond_gen}
 To test for sensitivity to initial conditions, we generate a set of trajectories from infinitesimally close starting points. We begin with a single prompt, tokenize it, and retrieve its initial embedding tensor $\mathbf{E}_0 \in \mathbb{R}^{L \times D}$, where $L$ is the prompt length and $D$ is the model's hidden dimension. We then create a "blob" of $N$ perturbed initial conditions by adding a small, random perturbation tensor $\in \mathbb{R}^{L \times D}$ of fixed magnitude (radius $r$). Then we use LLM to continue each trajectory.
 % G: idk if perturbation is the best word here. disturbance?
 
 \subsection{Trajectory Distance Metrics}
+\label{subsec:trajectory_distance_metrics}
 We use a suite of metrics to quantify the divergence between pairs of trajectories, $\mathbf{X} = (\mathbf{x}_1, ..., \mathbf{x}_n)$ and $\mathbf{Y} = (\mathbf{y}_1, ..., \mathbf{y}_m)$. Distance between vector representations of text encode meaning about its semantic similarity \cite{text2vec} \cite{reimers2019sentencebertsentenceembeddingsusing} .
 % G: cite word2vec and some paper with clustering from LLM or show my clustering. also some from text2vec embedders
 % G: also mention that some metrics are based on other metrics: like rank eigen uses cos similarity to compare pairs of vectors. check which use L2
 % We justify the use of cosine similarity as it is a meaningful metric both in the hidden state and embedded text space.
 
 \subsubsection{Vector-wise Metrics}
+\label{sssec:methods_vector_metrics}
 These metrics are applied pointwise between corresponding vectors of two trajectories, yielding a time series of distance values.
 \begin{itemize}
     \item \textbf{Cosine Distance:} Measures the angle between two vectors, capturing their orientation similarity. It is widely used to compare similarity between vector embeddings \footnote{If all vectors are normalized, cosine distance and Euclidean distance are monotonically related, so they produce the same relative ordering of pairwise similarities even though their numerical values differ. Empirically the results obtained are very similar.}. It is defined as $1 - \text{Cosine Similarity}$:
@@ -378,6 +387,7 @@ These metrics are applied pointwise between corresponding vectors of two traject
 \end{itemize}
 
 \subsubsection{Trajectory-wise Metrics}
+\label{sssec:methods_trajectory_metrics}
 These metrics yield a single scalar value for the distance between two entire trajectories. To obtain a divergence curve, we apply these metrics in a sliding window of increasing size. For these, we used Euclidean distance within each.
 % G: maybe explain how using sliding window is like saying that the state of the system is not described by a single hidden state (or token), but by the context too (similar too delay systems)
 \begin{itemize}
@@ -386,19 +396,22 @@ These metrics yield a single scalar value for the distance between two entire tr
         D_{i,j} = C_{i,j} + \min(D_{i-1, j}, D_{i, j-1}, D_{i-1, j-1})
     \end{equation}
     \item \textbf{Fréchet Distance \cite{Denaxas2023} \cite{EiterMannila1994}:} Intuitively, the minimum length of a leash needed to connect a person and a dog walking along their respective paths. It is sensitive to the ordering of points. For two curves $P$ and $Q$, it is:
-    \begin{equation}
-        d_F(P, Q) = \inf_{\alpha, \beta} \max_{t \in [0,1]} \| P(\alpha(t)) - Q(\beta(t)) \|
-    \end{equation}
-    where $\alpha$ and $\beta$ are non-decreasing reparameterizations. (GGG am i reparametrizing)
+        \begin{equation}
+            d_F(P, Q) = \min_{\text{couplings}} \max_{(i, j) \in \text{path}} \| P_i - Q_j \|
+        \end{equation}
+        In this work, we use the discrete Fréchet distance, using monotonic alignments of the sampled points, respecting their order but without continuous reparameterization.
+        % G: it is not very clear. 
+        %G: using monotonic alignments -> which finds the minimal leash length over all monotonic alignments of the sampled points (discrete Fréchet).
     \item \textbf{Hausdorff Distance \cite{SciPyDirectedHausdorff}:} Measures the greatest of all distances from a point in one set to the closest point in the other set. It is a pure set-based distance.
     \begin{equation}
         d_H(X, Y) = \max \left( \sup_{\mathbf{x} \in X} \inf_{\mathbf{y} \in Y} \|\mathbf{x}-\mathbf{y}\|, \sup_{\mathbf{y} \in Y} \inf_{\mathbf{x} \in X} \|\mathbf{x}-\mathbf{y}\| \right)
     \end{equation}
+    % implementation computes the symmetric Hausdorff as max(directed_hausdorff(a,b), directed_hausdorff(b,a)) — that is standard.
+    % For sliding-window analysis, hausdorff.py does not compute a strict per-window Hausdorff in all cases but computes per-point nearest distances and then aggregates those distances by either "max_of_mean" (default) or "mean_of_max" (configurable). This is a deliberate pragmatic choice; it's worth briefly stating in methods because it changes sensitivity (averaging vs extreme) and makes the sliding-window Hausdorff different from the textbook per-window Hausdorff if you choose mean-based aggregation.
     % G: wasserstein not included. but maybe i wont use it
 \end{itemize}
 
 \subsubsection{Structural Metric}
-\label{subsubsec:structural_metric}
 \label{subsubsec:structural_metric} % GGG find better name. maybe put into appendix
 We also defined a new distance metric based on the structural similarity of two trajectories. It showed similar results to the other metrics but it was noisier.
 \begin{itemize}
@@ -415,12 +428,6 @@ We also defined a new distance metric based on the structural similarity of two 
     \]
 
     We can show the ranking of eigenvectors to show how similar two trajectories are. The closer to the proportionality line, the more similar two trajectories.
-    \begin{figure}[H]
-    \centering
-    \includegraphics[width=0.6\linewidth]{plots/dimension/childhood_personality_development/cosine_sim_last_last_LONG.png}
-    \caption{Eigenvector ranking deviation between two trajectories.}
-    \label{fig:eigenvector_ranking}
-\end{figure}
 
     To get a distance scalar, we sum the cosine distances for these matched pairs \footnote{We also tried calculating the root mean square deviation with respect to the proportionality line but it was a worse metric GGG}:
     \[
@@ -432,31 +439,48 @@ We also defined a new distance metric based on the structural similarity of two 
 
 \end{itemize}
 
+    \begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{0.48\linewidth}
+        \centering
+        \includegraphics[width=0.6\linewidth]{plots/rank_eigen/rank_eigen_pca_0_2.png}
+    \end{subfigure}\hfill
+    \begin{subfigure}[b]{0.48\linewidth}
+        \centering
+        \includegraphics[width=0.6\linewidth]{plots/rank_eigen/rank_eigen_pca_0_1.png}
+    \end{subfigure}
+    \caption{Eigenvector ranking metric. The left image shows two more similar trajectories}
+    \label{fig:rank_eigen}
+\end{figure}
+
 \subsection{Recurrence Analysis}
+\label{subsec:recurrence_analysis}
 We generate Recurrence Plots (RPs) using the self-similarity matrix of a single hidden state trajectory with all the distance metrics (GGG "all distance metrics). We analyze the plots qualitatively and quantitatively using Recurrence Quantification Analysis (RQA) metrics, including:
 \begin{itemize}
     \item \textbf{Determinism (DET):} The percentage of recurrence points forming diagonal lines, indicating predictability.
     \item \textbf{Laminarity (LAM):} The percentage of recurrence points forming vertical lines, indicating periods of stable or "laminar" states.
     \item \textbf{Entropy (ENT):} The Shannon entropy of the distribution of diagonal line lengths, reflecting the complexity of the deterministic structure.
 \end{itemize} % G: include only the ones I actually use
-% G: could show example how cos sim matrix is calculated and the shape for clarity
 
 
 
 
 \subsection{Dimensionality}
+\label{subsec:dimensionality_results}
 We estimate the correlation dimension ($D_2$) of the trajectories using the Grassberger-Procaccia algorithm \cite{GRASSBERGER1983189} \footnote{Other methods such as box dimension or Hausdorff dimension are less robust and harder to compute in higher dimensions}. This technique can be used to distinguish between deterministic chaos and random noise, and it is closely related to the fractal and information dimension. This can be calculated from the self-similarity matrix by applying different thresholds (which correspond to the distance $\epsilon$). 
 % G: expand. mention that when T != 0, the fits are bad, but T = 0 (at last layer), fit is good. correlation dimension can be used to identify  deterministic (chaotic) systems.
 
 % G: At the first layer, the curve is not as continuous, which can be explained by the fact that the tokens in the first layer are discrete and taken from the embedding matrix.
 
 \subsection{Clustering}
+\label{subsec:clustering_methods}
 
 Furthermore, we apply clustering algorithms to the set of hidden state vectors within a trajectory to identify distinct operational states or regions in the model's high-dimensional phase space.
 % G: probably eliminate
 
 % G: either do an Experiments section or here I need to conretely explain what I did: model choice, params, dim, fix length generation, context window, etc...
 \subsection{Experiments}
+\label{subsec:experiments}
 
 For this study, we used the following experimental setup:
 \begin{itemize}
@@ -473,77 +497,97 @@ For this study, we used the following experimental setup:
 We run the model on a Tesla T4 GPU, and we obtain the generated tokens, text and hidden staes at all the layers, i.e., the representations after each transformer block \footnote{The shape of the complete hidden state tensor for a given response is (number of layers, numberof tokens, hidden dimension)}.
 
 \section{Results}
+\label{sec:results}
 
 \subsection{Trajectory Divergence and Lyapunov} \label{res:lyapunov} % GGG 
-\label{subsec:lyapunov} 
 
 There were some challenges inherent to the system under study. In any bounded (GGG) system, there is a maximum possible value for the distance, and the distance between two diverging trajectories will eventually reach the maximum and saturate. In our case, especially when using sentence embeddings, the number of datapoints until the saturation region was often small (GGG around 6), making any type of curve fitting difficult.
 % G: am i using the word bounded properly?
 
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{plots/RP/launch_pentek_0_0.04/traj_2_recurrence_thr_0.3.png}
+    \end{subfigure}\hfill
+    \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{plots/RP/launch_pentek_0_0.04/traj_3_recurrence_thr_0.3.png}
+    \end{subfigure}
+    \\[0.5em]
+    \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{plots/RP/launch_pentek_0_0.02/traj_1_recurrence_thr_0.3.png}
+    \end{subfigure}\hfill
+    \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{plots/RP/launch_pentek_0_0.02/traj_6_recurrence_thr_0.3.png}
+    \end{subfigure}
+    \caption{Examples of recurrence plots obtained for different prompts.}
+    \label{fig:rp_interesting}
+\end{figure}
+
 We see that the trajectories remain extremely close for some steps until they suddenly diverge (GGG). So the initial perturbation remains latent in the hidden states, but does not express itself immediatly in the tokens until a certain step, where the sampled token by two trajectories is different, which then leads them to quickly diverge.
 
 \subsection{RP}
+\label{subsec:rp_results}
 
-Strong similarities can be seen between the RP from the Lorenz \cite{DeterministicNonperiodicFlow} system as seen in Fig. \ref{XXX} and from the LLMs output. % GGG
-% Gemini: The reference to Fig. \ref{XXX} is not defined. Please replace XXX with the correct label.
+Strong similarities can be seen between the RP from the Lorenz \cite{DeterministicNonperiodicFlow} system as seen in Fig. \ref{fig:rp_examples} and from the LLMs output. % GGG
+
 
 
 \begin{figure}[H]
     \centering
-    \begin{subfigure}[b]{0.48\linewidth}
+    \begin{subfigure}[b]{0.48\textwidth}
         \centering
         \includegraphics[width=\linewidth]{plots/RP/interstellar_propulsion_review_recurrence_first_thr_0.3.png}
         \caption{Interstellar propulsion, first layer}
     \end{subfigure}\hfill
-    \begin{subfigure}[b]{0.48\linewidth}
+    \begin{subfigure}[b]{0.48\textwidth}
         \centering
         \includegraphics[width=\linewidth]{plots/RP/interstellar_propulsion_review_recurrence_last_thr_0.3.png}
         \caption{Interstellar propulsion, last layer}
     \end{subfigure}
-    \begin{subfigure}[b]{0.48\linewidth}
+    \\[0.5em]
+    \begin{subfigure}[b]{0.48\textwidth}
         \centering
         \includegraphics[width=\linewidth]{plots/RP/quantum_consciousness_hallucination_recurrence_first_thr_0.3.png}
         \caption{Quantum consciousness, first layer}
     \end{subfigure}\hfill
-    \begin{subfigure}[b]{0.48\linewidth}
+    \begin{subfigure}[b]{0.48\textwidth}
         \centering
         \includegraphics[width=\linewidth]{plots/RP/quantum_consciousness_hallucination_recurrence_last_thr_0.3.png}
         \caption{Quantum consciousness, last layer}
     \end{subfigure}
     \caption{Recurrence plots for different prompts and layers.}
-    \label{fig:rp_comparison}
+    \label{fig:rp_comparison_layers}           
 \end{figure}
 
-As pointwise dimension is calculated from RP, it makes sense that they agree on this.
-Chaotic features in recurrence plots are more present in the last layers of the model. 
-% G: not always at the last layer, but also middle layers are quite chaotic
 
-Chaotic features are more strongly present at the last layers of the LLM as showed in the RP and pointwise dimension. This is due to the progressive addition of more nonlinearity and coupling at each layer. 
+% G: not always at the last layer, but also middle layers are quite chaotic
+Chaotic features are more strongly present at the last layers of the model as showed in the RP \ref{fig:rp_comparison_layers} and pointwise dimension \ref{fig:dim_first_last}. This is due to the progressive addition of more nonlinearity and coupling at each layer. As pointwise dimension is calculated from the RP, it is sensible that they show the same result.
 
 \begin{figure}[H]
     \centering
-    \begin{subfigure}[b]{0.48\linewidth}
+    \begin{subfigure}[b]{0.48\textwidth}
         \centering
         \includegraphics[width=\linewidth]{plots/RP/launch_pentek_0_0.04/traj_2_recurrence_thr_0.3.png}
-        \caption{}
     \end{subfigure}\hfill
-    \begin{subfigure}[b]{0.48\linewidth}
+    \begin{subfigure}[b]{0.48\textwidth}
         \centering
         \includegraphics[width=\linewidth]{plots/RP/launch_pentek_0_0.04/traj_3_recurrence_thr_0.3.png}
-        \caption{}
     \end{subfigure}
-    \begin{subfigure}[b]{0.48\linewidth}
+    \\[0.5em]
+    \begin{subfigure}[b]{0.48\textwidth}
         \centering
         \includegraphics[width=\linewidth]{plots/RP/launch_pentek_0_0.02/traj_1_recurrence_thr_0.3.png}
-        \caption{}
     \end{subfigure}\hfill
-    \begin{subfigure}[b]{0.48\linewidth}
+    \begin{subfigure}[b]{0.48\textwidth}
         \centering
         \includegraphics[width=\linewidth]{plots/RP/launch_pentek_0_0.02/traj_6_recurrence_thr_0.3.png}
-        \caption{}
     \end{subfigure}
     \caption{Examples of recurrence plots obtained for different prompts.}
-    \label{fig:rp_examples_2}
+    \label{fig:rp_interesting}
 \end{figure}
 
 \subsection{Dimensionality}
@@ -576,6 +620,7 @@ while in every case, the Corrleation Dimension vs Threshold curve was similar, b
 % G: try to relate the dimension here with information compression, which is something super important that LLMs do.  
 
 \section{Conclusions and Discussion}
+\label{sec:conclusions}
 
 % \subsection{Possible Explanations for LLMs being chaotic}
 
@@ -592,6 +637,7 @@ This study was limited in studying a single LLM model, while we expect interesti
 % this point is quite imporatnt for divergence, but not so necessary (or convenient) for RP
 
 \section{Acknowledgements }
+\label{sec:acknowledgements}
 
 I would like to thank my supervisors Dr. János Török and Kristóf Benedek for their help and support during this work.
 
@@ -601,17 +647,97 @@ I would like to thank my supervisors Dr. János Török and Kristóf Benedek for
 
 \section{Appendix}
 \label{sec:appendix}
-\label{sec:appendix}
 
 \subsection{Intuition behind different metrics}
+\label{subsec:appendix_intuition_metrics}
 
 In order to gain a more intuitive understanding of each metric (GGG and maybe embedding too), we show RP from the same trajectory.
+
+% G: maybe use cross_corr instead of cross_cos as cross_corr is bettter in distance timeseries
+\begin{figure}[H]
+    \centering
+    % First row
+    \begin{subfigure}[b]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{plots/distance_matrix/hidden/hausdorff_traj0.png}
+        \caption{Hausdorff}
+    \end{subfigure}
+    \begin{subfigure}[b]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{plots/distance_matrix/hidden/dtw_fast_traj0.png}
+        \caption{DTW}
+    \end{subfigure}
+    \begin{subfigure}[b]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{plots/distance_matrix/hidden/frechet_traj0.png}
+        \caption{Fréchet}
+    \end{subfigure}
+    % Second row
+    \\[0.5em]
+    \begin{subfigure}[b]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{plots/distance_matrix/hidden/rank_eigen_traj0.png}
+        \caption{Rank eigenvector}
+    \end{subfigure}
+    \begin{subfigure}[b]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{plots/distance_matrix/hidden/cos_traj0.png}
+        \caption{Cosine similarity}
+    \end{subfigure}
+    \begin{subfigure}[b]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{plots/distance_matrix/hidden/cross_cos_traj0.png}
+        \caption{Cross-cosine similarity}
+    \end{subfigure}
+    \caption{Distance matrices for a single trajectory using different metrics and using the hidden states.}
+    \label{fig:distance_metrics_comparison_hidden}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    % First row
+    \begin{subfigure}[b]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{plots/distance_matrix/embed/hausdorff_traj0.png}
+        \caption{Hausdorff}
+    \end{subfigure}
+    \begin{subfigure}[b]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{plots/distance_matrix/embed/dtw_fast_traj0.png}
+        \caption{DTW}
+    \end{subfigure}
+    \begin{subfigure}[b]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{plots/distance_matrix/embed/frechet_traj0.png}
+        \caption{Fréchet}
+    \end{subfigure}
+    % Second row
+    \\[0.5em]
+    \begin{subfigure}[b]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{plots/distance_matrix/embed/rank_eigen_traj0.png}
+        \caption{Rank eigenvector}
+    \end{subfigure}
+    \begin{subfigure}[b]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{plots/distance_matrix/embed/cos_traj0.png}
+        \caption{Cosine similarity}
+    \end{subfigure}
+    \begin{subfigure}[b]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{plots/distance_matrix/embed/cross_cos_traj0.png}
+        \caption{Cross-cosine similarity}
+    \end{subfigure}
+    \caption{Distance matrices for a single trajectory using different metrics and using the text embeddings.}
+    \label{fig:distance_metrics_comparison_embed}
+\end{figure}
 
 
 % G: Here i want to show how embeddings kind of do some averaging and pooling and context, and how some metrics pick up different features, some more global some more detail. 
 % G: mention window size
 
 \subsection{Handling outliers} % G: if this section is brief, I can include it directly in each subsection in results/methods
+\label{subsec:appendix_handling_outliers}
 
 In section \ref{res:lyapunov} there were some initially nearby trajectories which remained close to each other and did not diverge, having the same text output and almost identical hidden states. This represented aproximately GGG 10\% of the pairs of trajectories.
 
@@ -620,19 +746,19 @@ In section \ref{res:lyapunov} there were some initially nearby trajectories whic
 
 
 We also did this analysis on the embedding and unembedding matrix, which for the LLM model we use is the same. This matrix represents the vocabulary of the model, and it is not a trajectory. 
-The reason we did this is because of the large number of datapoints available (around 150 thousand) without requiring any computation, and that it could provide insights into the structure of the vocabulary space. It is interesting to see that the results are different from those obtained from the analysis done on the trajectories, or what is obtained from a random set of vectors. The value obtained for the correlation dimension is smaller than expected.
+The reason we did this is because of the large number of datapoints available (around 150 thousand) without requiring any computation, and that it could provide insights into the structure of the vocabulary space. It is interesting to see that the results are different from those obtained from the analysis done on the trajectories, or what is obtained from a random set of vectors. The value obtained for the correlation dimension is smaller   cted.
 % G: I don't have a good explanation or much to say here
 
 \begin{figure}[H]
     \centering
     \begin{subfigure}[b]{0.48\linewidth}
         \centering
-        \includegraphics[width=\linewidth]{plots/dim_cos_first_interstellar.png}
+        \includegraphics[width=\linewidth]{plots/dimension/vocab/vocab_full.png}
         \caption{Correlation Dimension = 1.2}
     \end{subfigure}\hfill
     \begin{subfigure}[b]{0.48\linewidth}
         \centering
-        \includegraphics[width=\linewidth]{plots/dim_cos_last_interstellar.png}
+        \includegraphics[width=\linewidth]{plots/dimension/vocab/vocab_last.png}
         \caption{Correlation Dimension = 5.4}
     \end{subfigure}
     \caption{Correlation dimension of the LLM's embedding matrix.}
@@ -652,10 +778,12 @@ We also used cross-recurrence plots to compare two trajectories, but found it no
 
 Inspired by \cite{DONNER_2011} and \cite{Donner_2010} \cite{ZOU20191} we did the recurrence analysis using complex networks, which comes naturally by considering the recurrence matrix as the adjacency matrix of the network. While interesting, we found the results easier to analyze using RQA than this method. % G: improve
 
+\subsection{Recurrence Plots for different metrics and embeddings} % GGG better name. also i show distance matrix no rp
+
+In order to provide some intuition on the different metrics and on the effect of using raw hidden states or sentence embeddings, we show 
 
 
 \subsection{Limitations and shortcomings of this study (GGG this won't be in the paper in this form, I just want to keep track of these):}
-\label{subsec:appendix_limitations}
 \label{subsec:appendix_limitations}
 - i can't explain what the value of the dimension obtained *means*. if the dimensionality thing just shows that the system is deterministic, then it is quite trivial
 - i only qualitatively compared the recurrence plots obtained
@@ -673,3 +801,5 @@ We did not think this repetitive loops were worth exploring, since these are a f
 
 
 \end{document}
+
+
