@@ -107,8 +107,16 @@ BME Elméleti Fizika Tanszék
 % When I use "G:" i am straightforwardly expressing an opinion 
 % It's easier for me if you use your initials before your comments, so i can quickly understand who they come from
 
-% Where I am at
+% Things I'm working on:
+% Intro is very bad
+% Results needs more quantitative data: RQA table and maybe some lyapunov fit if possible
+% I have too many sections and things. I will at the end remove the extras. If you think anything in the main text should not be there, leave a comment.
+% I'm still developing this idea that "stretching and folding" which is intuitively what happens in chaotic systems, and which parts of the LLM architecture cause it
+% explain better why and how sliding window are used for the distance metrics. how this is analogous to the sentence embeddings (where a whole sentence is converted into a vector). and how this helps account for the context which makes sense to do because LLMs are more like a delay system, where the state is not defined by only a single hidden state, but also the ones in its context window. I will just mention this, which I think is reasonable.
+% there are some metrics missing in methods. I'm still not 100% which I'll include and which not. the ones currently in methods I will probably include (except "structural metric", which maybe won't)
 
+% Sections which are mostly finished:
+% Related Work - Preliminaries - Methods
 
 % GENERAL TODO:
 % add labels to each section, subsection, plot
@@ -129,7 +137,6 @@ BME Elméleti Fizika Tanszék
 
 % G: This paragraph wants to say: Mathematicians study silly nonlinear diff eqs for fun. LLMs are even more interesting.
 Deep Neural Networks (DNNs), such as LLMs, are highly nonlinear systems whose parameters are not explicitly determined, but rather they are learned by training on huge sets of data.
-% but rather they are trained on large sets of data. 
 This allows these models to learn huge amounts of knowledge with little human intervention, which allows for scaling at the cost of interpretability.
 DNNs provide a fascinating case study for nonlinear dynamics.
 % Studying these systems is extremely interesting
@@ -152,9 +159,9 @@ Interpretability focuses on completely understanding small components (called ci
 Working with LLMs presents some challenges, such as the discrete nature of tokens and their hidden state representations, and the high dimensionality of the embedding space. We 
 % G: add more challenges
 
-\section{Related Work}
+\section{Related Work} 
 \label{sec:related_work}
-
+% This section quite common in ML papers. 
 % This section briefly summarizes the main results from other papers which inspired my analysis and also explain some of the results obtained. It also should reinforce the idea that it's justifiable to treat LLMs and chaotic nonlinear systems. 
 
 The application of dynamical systems theory to neural networks has revealed complex behaviors in these models.  
@@ -165,7 +172,7 @@ The application of dynamical systems theory to neural networks has revealed comp
 
 \paragraph{Attention Mechanisms and Nonlinear Dynamics:}
 \cite{geshkovski2025mathematicalperspectivetransformers} model self-attention as a nonlinear coupling between tokens.
-\cite{poclópez2024dynamicalmeanfieldtheoryselfattention} demonstrate that even simplified self-attention transformer networks with 1-bit tokens and weights exhibit nontrivial dynamical phenomena, including nonequilibrium phase transitions and chaotic bifurcations. 
+\cite{dynamicalmeanfieldtheoryselfattention} demonstrate that even simplified self-attention transformer networks with 1-bit tokens and weights exhibit nontrivial dynamical phenomena, including nonequilibrium phase transitions and chaotic bifurcations. 
 
 \paragraph{Determinism and Attractors in Language Models:}
 % The tension between reproducibility and novely in LLMs has become increasingly relevant. 
@@ -204,13 +211,7 @@ demonstrate that CycleGAN image generators' space is more limited than the train
 \subsection{Nonlinear Dynamics and Chaos}
 \label{subsec:nonlinear_dynamics}
 
-- Nonlinear Dynamics and Chaos
--- Definition. determinism. Trajectories in Phase Space. numerical solution.
--- differential equations and iterated maps
--- importance of nonlinearity
-
-A dynamical system describes the evolution of a point over time in a geometrical space called phase space. The system is called deterministic if its future evolution depends only on its current state. The path traced by the point is called a trajectory. Such systems can be described by differential equations in the case of continuous time, or by iterated maps for discrete time steps. Nonlinearity is a crucial property, as it is a necessary condition for complex behaviors like chaos to emerge.
-
+A dynamical system describes the evolution of a point over time in a geometrical space called phase space. The system is called deterministic if its future evolution depends only on its current state. The path traced by the point is called a trajectory. Such systems can be described by differential equations in the case of continuous time, or by iterated maps for discrete time steps. Nonlinearity is a crucial property, as it is a necessary condition for complex behaviors like chaos to emerge. % GGG improve paragraph
 
 Chaotic systems are a subclass of deterministic nonlinear systems that exhibit complex and practically unpredictable behavior. This apparent randomness arises not from a stochastic nature, but from the system's intrinsic dynamics. The defining characteristics of chaos are non-periodicity and sensitivity to initial conditions (SIC). This property implies that trajectories originating from infinitesimally close initial states, say $\mathbf{x}(0)$ and $\mathbf{x}(0) + \bm{\delta}(0)$, will diverge exponentially over time. The separation distance $\|\bm{\delta}(t)\|$ grows according to:
 \begin{equation}
@@ -273,8 +274,9 @@ During inference, the LLM generates tokens autoregressively, which can be viewed
 \end{equation}
 where $\mathbf{s}_t$ represents the model's internal state (the sequence of hidden states) at step $t$. To generate the next token, the hidden state of the last token is passed through a final linear layer (the "un-embedding") to produce logits over the entire vocabulary, which are then converted to a probability distribution via a softmax function. A decoding strategy is then used to select a token. \textbf{Greedy sampling} deterministically selects the token with the highest probability. In contrast, \textbf{probabilistic sampling} introduces stochasticity, often controlled by a temperature parameter ($T$). Higher temperatures flatten the distribution, making the output more diverse.
 
-\subsection{Layer normalization}
+\subsection{Layer normalization (G: ignore for now, this is bad)}
 \label{subsec:layer_norm}
+% G: this is quite bad currently, I'll make it shorter and more relevant.
 % G: mention other normalizations? like batch?
 Layer normalization (LayerNorm) acts on a single hidden state vector \(h\in\mathbb{R}^d\) (e.g. a token embedding) by (i) mean-centering, (ii) variance normalization, and (iii) a learned affine anisotropic rescaling.
 \begin{align}
@@ -472,15 +474,19 @@ We estimate the correlation dimension ($D_2$) of the trajectories using the Gras
 
 % G: At the first layer, the curve is not as continuous, which can be explained by the fact that the tokens in the first layer are discrete and taken from the embedding matrix.
 
-\subsection{Clustering}
-\label{subsec:clustering_methods}
 
-Furthermore, we apply clustering algorithms to the set of hidden state vectors within a trajectory to identify distinct operational states or regions in the model's high-dimensional phase space.
-% G: probably eliminate
 
-% G: either do an Experiments section or here I need to conretely explain what I did: model choice, params, dim, fix length generation, context window, etc...
+% \subsection{Clustering}
+% \label{subsec:clustering_methods}
+% Furthermore, we apply clustering algorithms to the set of hidden state vectors within a trajectory to identify distinct operational states or regions in the model's high-dimensional phase space.
+% % G: probably eliminate
+
+
+
+
 \subsection{Experiments}
 \label{subsec:experiments}
+% G: conretely explain what I did: model choice, params, dim, fix length generation, context window, etc...
 
 For this study, we used the following experimental setup:
 \begin{itemize}
@@ -494,7 +500,7 @@ For this study, we used the following experimental setup:
     \item \textbf{Hidden Layers:} 28
 \end{itemize}
 
-We run the model on a Tesla T4 GPU, and we obtain the generated tokens, text and hidden staes at all the layers, i.e., the representations after each transformer block \footnote{The shape of the complete hidden state tensor for a given response is (number of layers, numberof tokens, hidden dimension)}.
+We run the model on a Tesla T4 GPU, and we obtain the generated tokens, text and hidden staes at all the layers, i.e., the representations after each transformer block \footnote{The shape of the complete hidden state tensor for a given response is (number of layers, numberof tokens, hidden dimension)}. A particular feature of the model used, DeepSeek R1, is that it uses Chain-of-Thought reasoning at the start of every answer.
 
 \section{Results}
 \label{sec:results}
@@ -508,23 +514,46 @@ There were some challenges inherent to the system under study. In any bounded (G
     \centering
     \begin{subfigure}[b]{0.48\textwidth}
         \centering
-        \includegraphics[width=\linewidth]{plots/RP/launch_pentek_0_0.04/traj_2_recurrence_thr_0.3.png}
+        \includegraphics[width=\linewidth]{plots/divergence/childhood_personality_development_0_0.0004_layer22/cross_corr_pearson_0_1.png}
     \end{subfigure}\hfill
     \begin{subfigure}[b]{0.48\textwidth}
         \centering
-        \includegraphics[width=\linewidth]{plots/RP/launch_pentek_0_0.04/traj_3_recurrence_thr_0.3.png}
+        \includegraphics[width=\linewidth]{plots/divergence/childhood_personality_development_0_0.0004_layer22/dtw_timeseries_0_1.png}
     \end{subfigure}
     \\[0.5em]
     \begin{subfigure}[b]{0.48\textwidth}
         \centering
-        \includegraphics[width=\linewidth]{plots/RP/launch_pentek_0_0.02/traj_1_recurrence_thr_0.3.png}
+        \includegraphics[width=\linewidth]{plots/divergence/childhood_personality_development_0_0.0004_layer22/frechet_timeseries_0_1.png}
     \end{subfigure}\hfill
     \begin{subfigure}[b]{0.48\textwidth}
         \centering
-        \includegraphics[width=\linewidth]{plots/RP/launch_pentek_0_0.02/traj_6_recurrence_thr_0.3.png}
+        \includegraphics[width=\linewidth]{plots/divergence/childhood_personality_development_0_0.0004_layer22/hausdorff_timeseries_0_1.png}
     \end{subfigure}
-    \caption{Examples of recurrence plots obtained for different prompts.}
-    \label{fig:rp_interesting}
+    \caption{Divergence between pairs of trajectories.}
+    \label{fig:distance_hidden}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{plots/divergence/childhood_personality_development_0_0.0004_embed/cross_corr_pearson_0_1.png}
+    \end{subfigure}\hfill
+    \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{plots/divergence/childhood_personality_development_0_0.0004_embed/dtw_timeseries_0_1.png}
+    \end{subfigure}
+    \\[0.5em]
+    \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{plots/divergence/childhood_personality_development_0_0.0004_embed/frechet_timeseries_0_1.png}
+    \end{subfigure}\hfill
+    \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{plots/divergence/childhood_personality_development_0_0.0004_embed/hausdorff_timeseries_0_1.png}
+    \end{subfigure}
+    \caption{Divergence between pairs of trajectories.}
+    \label{fig:distance_embed}
 \end{figure}
 
 We see that the trajectories remain extremely close for some steps until they suddenly diverge (GGG). So the initial perturbation remains latent in the hidden states, but does not express itself immediatly in the tokens until a certain step, where the sampled token by two trajectories is different, which then leads them to quickly diverge.
@@ -563,6 +592,7 @@ Strong similarities can be seen between the RP from the Lorenz \cite{Determinist
     \label{fig:rp_comparison_layers}           
 \end{figure}
 
+The Chain-of-Thought reasoning block, the first tokens generated by the model, can be identified in the RP (left bottom).
 
 % G: not always at the last layer, but also middle layers are quite chaotic
 Chaotic features are more strongly present at the last layers of the model as showed in the RP \ref{fig:rp_comparison_layers} and pointwise dimension \ref{fig:dim_first_last}. This is due to the progressive addition of more nonlinearity and coupling at each layer. As pointwise dimension is calculated from the RP, it is sensible that they show the same result.
@@ -677,7 +707,7 @@ In order to gain a more intuitive understanding of each metric (GGG and maybe em
     \begin{subfigure}[b]{0.32\textwidth}
         \centering
         \includegraphics[width=\linewidth]{plots/distance_matrix/hidden/rank_eigen_traj0.png}
-        \caption{Rank eigenvector}
+        \caption{Structural Metric}
     \end{subfigure}
     \begin{subfigure}[b]{0.32\textwidth}
         \centering
@@ -716,7 +746,7 @@ In order to gain a more intuitive understanding of each metric (GGG and maybe em
     \begin{subfigure}[b]{0.32\textwidth}
         \centering
         \includegraphics[width=\linewidth]{plots/distance_matrix/embed/rank_eigen_traj0.png}
-        \caption{Rank eigenvector}
+        \caption{Structural Metric}
     \end{subfigure}
     \begin{subfigure}[b]{0.32\textwidth}
         \centering
@@ -732,9 +762,54 @@ In order to gain a more intuitive understanding of each metric (GGG and maybe em
     \label{fig:distance_metrics_comparison_embed}
 \end{figure}
 
-
 % G: Here i want to show how embeddings kind of do some averaging and pooling and context, and how some metrics pick up different features, some more global some more detail. 
 % G: mention window size
+
+
+\subsection{Use of Sliding Window and Sentence Embedders  }
+\label{subsec:sliding_window}
+
+\begin{figure}[H]
+    \centering
+    % First row: Hidden state space
+    \begin{subfigure}[b]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{plots/divergence/sliding_window_compare/childhood_personality_development_0_0.0004_last_layer/hausdorff_timeseries_0_2_window_size_1.png}
+        \caption{Hidden state, window size 1}
+    \end{subfigure}
+    \begin{subfigure}[b]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{plots/divergence/sliding_window_compare/childhood_personality_development_0_0.0004_last_layer/hausdorff_timeseries_0_2_window_size_8.png}
+        \caption{Hidden state, window size 8}
+    \end{subfigure}
+    \begin{subfigure}[b]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{plots/divergence/sliding_window_compare/childhood_personality_development_0_0.0004_last_layer/hausdorff_timeseries_0_2_window_size_16.png}
+        \caption{Hidden state, window size 16}
+    \end{subfigure}
+    % Second row: Sentence embedding space
+    \\[0.5em]
+    \begin{subfigure}[b]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{plots/divergence/sliding_window_compare/childhood_personality_development_0_0.0004_embed/hausdorff_timeseries_0_2_window_size_1.png}
+        \caption{Embedding, window size 1}
+    \end{subfigure}
+    \begin{subfigure}[b]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{plots/divergence/sliding_window_compare/childhood_personality_development_0_0.0004_embed/hausdorff_timeseries_0_2_window_size_8.png}
+        \caption{Embedding, window size 8}
+    \end{subfigure}
+    \begin{subfigure}[b]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{plots/divergence/sliding_window_compare/childhood_personality_development_0_0.0004_embed/hausdorff_timeseries_0_2_window_size_16.png}
+        \caption{Embedding, window size 16}
+    \end{subfigure}
+    \caption{Divergence between two trajectories using Hausdorff distance, for different sliding window sizes. Top row: hidden state space. Bottom row: sentence embedding space.}
+    \label{fig:sliding_window_compare}
+\end{figure}
+
+We see that in the hidden state space, without a sliding window, the distance measurement is very noisy, which is not as pronounced when using the sentence embedders. This shows that the hidden states represent mainly the meaning ofthe tken they are asociated with, and not so much of the context (even though they have access to informaion from other tokens via attention). 
+
 
 \subsection{Handling outliers} % G: if this section is brief, I can include it directly in each subsection in results/methods
 \label{subsec:appendix_handling_outliers}
