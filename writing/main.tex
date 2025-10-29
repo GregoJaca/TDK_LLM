@@ -144,24 +144,24 @@ DNNs provide a fascinating case study for nonlinear dynamics.
 % Studying these systems is extremely interesting
 % A common theme with LLMs is that there is very little that we explicitly instruct them to do, rather we create the architecture and they learn everything during trainig
 
-There is growing interest in the sensitivity of LLMs (and other generative deep neural networks) to initial conditions and small perturbations. For some applications, like Reinforcement Learning (RL), determinism and reproducibility are desirable in order to keep the RL on-policy, while for other uses like synthetic data generation, paraphrasing, and novel image generation, diversity and divergence is desired.
+There is growing interest in the sensitivity of LLMs (and other generative deep neural networks) to initial conditions and small perturbations. For some applications, like Reinforcement Learning (RL), determinism and reproducibility are desirable in order to keep the RL on-policy, while for other uses like synthetic data generation, paraphrasing, and novel image generation, diversity is desired.
 % Understanding fixed/stable points in LLMs can clarify their generative capability constraints.
 % G: needs a more natural phrasing, not forcing it into the SIC chaos direction until the end
-% G: also divergence is kind of off-topic
 % Does the model operate in a regime that is chaotic enough to allow for creativity, but stable enough to maintain coherence? 
 
 % G: I want to say: LLMs are trained on all human data. what they learn is representative of human civilization (if we consider the written data is). more insights into LLMs is insights into us. maybe read motivation for some interpretability articles
 % G: but this is not so much within the scope of this study
-Given that LLMs are trained of a large corpus of human data, what they know says a lot about humanity (at least what is captured in text). Improving our understanding of the inner representations of LLMs yields insights about us.
+Given that LLMs are trained of a large corpus of human data, what they know says a lot about humanity, at least what is captured in text. Improving our understanding of the inner representations of LLMs yields insights about us.
 
 % G: also these tools can be applied to other DNNs that handle audio image video
 % this dynamical systems perspective is a general framework applicable to any generative model that operates sequentially, not just text-based LLMs.
 
 Much research interest has been placed on interpretability, understanding how LLMs learn and store facts
 LLMs are not created, they are grown and trained
-Interpretability focuses on completely understanding small components (called circuits) and their patters and behaviors in neural networks, and we believe the tools from chaos theory can help shed light into these processes \cite{olah2020zoom} \cite{ameisen2025circuit} \cite{lindsey2025biology}.
+Interpretability focuses on completely understanding small components (called circuits) and their patters and behaviors in neural networks, and we believe the tools from chaos theory can help shed light into these processes \cite{olah2020zoom} \cite{ameisen2025circuit} \cite{lindsey2025biology}. The tools from chaos theory can be applied to small and large models alike. % Emergent properties at large scales could be identified using chaos metrics.
 
-Working with LLMs presents some challenges, such as the discrete nature of tokens and their hidden state representations, and the high dimensionality of the embedding space. We 
+Working with LLMs presents some challenges, such as the discrete nature of tokens and their hidden state representations, and the high dimensionality of the embedding space. 
+We worked around many of these challenges and we hope this experience can be transferred to the study of other high dimensional chaotic systems.
 % G: add more challenges
 % Another challenge is the non-stationarity. The 'rules' of the system (the attention patterns) are state-dependent, changing at every single step. This is unlike classic chaotic systems where the governing equations are fixed. This makes analysis much harder but also much more interesting.
 
@@ -199,7 +199,7 @@ demonstrate that CycleGAN image generators' space is more limited than the train
 \paragraph{Interpretability Through Dynamical Analysis:}
 \label{par:interpretability_dynamics}
 %The dynamical systems perspective has proven valuable for understanding recurrent architectures. 
-\cite{sussillo2013} showed that fixed points and linearized dynamics in trained RNNs provide interpretable insights into network function. \cite{zhang2024intelligence_edge_of_chaos} found that intelligence emerges at an optimal complexity level. Systems that are either highly chaotic or perfectly periodic exhibit poor downstream performance, suggesting a "sweet spot" conducive to intelligent behavior at the edge between order and chaos. \cite{zhou2025geometryreasoningflowinglogics} show how LLM's chain-of-thought reasoning can be interpreted as smooth flows in embedding space, where logical statements control the flow's velocities.
+\cite{sussillo2013} showed that fixed points and linearized dynamics in trained RNNs provide interpretable insights into network function. \cite{zhang2024intelligence_edge_of_chaos} found that intelligence emerges at an optimal complexity level. Systems that are either highly chaotic or perfectly periodic exhibit poor downstream performance, suggesting a "sweet spot" conducive to intelligent behavior at the edge of chaos. \cite{zhou2025geometryreasoningflowinglogics} show how LLM's chain-of-thought reasoning can be interpreted as smooth flows in embedding space, where logical statements control the flow's velocities.
 % G: grego this section and see where in the text you should cite this papers etc...
 
 \section{Preliminaries}
@@ -370,7 +370,6 @@ These metrics yield a single scalar value for the distance between two entire tr
     % For sliding-window analysis, hausdorff.py does not compute a strict per-window Hausdorff in all cases but computes per-point nearest distances and then aggregates those distances by either "max_of_mean" (default) or "mean_of_max" (configurable). This is a deliberate pragmatic choice;  it changes sensitivity (averaging vs extreme) and makes the sliding-window Hausdorff different from the textbook per-window Hausdorff if you choose mean-based aggregation.
     \item \textbf{Principal Component Dissimilarity (PCD):} We also defined a new distance metric based on the structural similarity of two trajectories. This metric compares the geometric structure of two trajectories by analyzing the alignment of their principal components (PCs). For each PC in the first trajectory, it finds the most similar PC in the second. The dissimilarity is then calculated as the total cosine distance between these matched pairs of principal components. This is explained in detail in \ref{subsec:pca_distance}.
 
-
     % G: wasserstein not included. but maybe i wont use it
 \end{itemize}
 
@@ -415,13 +414,13 @@ For this study, we used the following experimental setup:
     \item \textbf{Temperature:} 0 (to ensure determinism)
     \item \textbf{Context Window:} 3096 tokens
     \item \textbf{Initial Perturbation Radius:} 0.0003 - 0.0004 % GGG explain how we got this: tuning until the responses were similar but not identical and we got nice divergence curves
-    \item \textbf{Vocabulary Size:} 151,936
-    \item \textbf{Hidden/Embedding Dimension:} 1,536
+    \item \textbf{Vocabulary Size:} 151936
+    \item \textbf{Hidden/Embedding Dimension:} 1536
     \item \textbf{Attention Heads:} 12
     \item \textbf{Hidden Layers:} 28
 \end{itemize}
 
-We run the model on a Tesla T4 GPU, and we obtain the generated tokens, text and hidden states at all the layers, i.e., the representations after each transformer block \footnote{The shape of the complete hidden state tensor for a given response is (number of layers, number of tokens, hidden dimension)}. A particular feature of the model used, DeepSeek R1, is that it uses Chain-of-Thought reasoning at the start of every answer \cite{deepseekR1}.
+We use the model for inference (text generation) on a Tesla T4 GPU, and we obtain the generated tokens, text and hidden states at all the layers, i.e., the representations after each transformer block \footnote{The shape of the complete hidden state tensor for a given response is (number of layers, number of tokens, hidden dimension)}. A particular feature of the model used, DeepSeek R1, is that it uses Chain-of-Thought reasoning at the start of every answer \cite{deepseekR1}.
 
 \subsubsection{Initial Condition Generation}
 \label{subsec:init_cond_gen}
@@ -579,10 +578,48 @@ Chaotic features are more strongly present at the last layers of the model as sh
 % only at last layers can you see the true chaoicity
 %  A non-integer value for Dimenion is a hallmark of a fractal strange attractor. 
 
+
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{0.48\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{plots/dimension/childhood_personality_development/cosine_sim_first_first_dist.png}
+        \caption{First layer}
+    \end{subfigure}\hfill
+    \begin{subfigure}[b]{0.48\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{plots/dimension/childhood_personality_development/cosine_sim_last_last_dist.png}
+        \caption{Last layer}
+    \end{subfigure}
+    \\[0.5em]
+    \centering
+    \begin{subfigure}[b]{0.48\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{plots/dimension/quantum_consciousness_hallucination/cosine_sim_first_first_dist.png}
+        \caption{First layer}
+    \end{subfigure}\hfill
+    \begin{subfigure}[b]{0.48\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{plots/dimension/quantum_consciousness_hallucination/cosine_sim_last_last_dist.png}
+        \caption{Last layer}
+    \end{subfigure}
+    \caption{Distribution of cosine distance for the first and last layers of the LLM. The top and bottom rows are from different prompts}
+    \label{fig:distribution_cos_dist}
+\end{figure}
+
 % In the cases investigated the correlation dimension obtained using the L2 distance metric was aproximately twice the one obtained using cosine similarity.
 
 The measured dimension value obtained varied significantly depending on the distance metric used, % GGG
 while in every case, the Correlation Dimension vs Threshold curve was similar, but with a different slope. This leads
+
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\linewidth]{plots/dimension/random2.png}
+    \caption{Correlation Dimension obtained using 100k random vectors of dimension 1536 (same as hidden dimension)}
+    \label{fig:random_vectors_dimension}
+\end{figure}
 
 % G: it would be great to show if last layers have a lower dimension, which could imply more "compression" of the data
 % G: try to relate the dimension here with information compression, which is something super important that LLMs do.  
