@@ -16,7 +16,7 @@
     filecolor=green,      
     urlcolor=blue,
 }
-
+\usepackage{soul}
 \usepackage{booktabs}
 \usepackage{array}
 \usepackage{float}
@@ -27,6 +27,9 @@
 \usepackage{amsmath} % for the cases environment
 \usepackage{amsfonts} % additional math symbols (if needed)
 \usepackage{graphicx}
+
+\usepackage[style=numeric,sorting=none,maxbibnames=3,minbibnames=1]{biblatex}
+\addbibresource{lit.bib}
 
 \DeclarePairedDelimiter\abs{|}{|}
 \DeclareMathOperator{\tg}{tg}
@@ -60,6 +63,10 @@
 \setlength{\tabcolsep}{12pt}
 \renewcommand{\arraystretch}{1.1}
 
+\definecolor{myblue}{RGB}{2, 68, 247}
+
+\newcommand{\comm}[1]{\textcolor{myblue}{#1}}
+
 \sloppy
 
 
@@ -88,8 +95,9 @@ Supervisors: \\
 BME Elméleti Fizika Tanszék
 
 \Large\textbf{Kristóf Benedek}\\
-\large ? \\
-?
+\large Physics PhD Candidate \\
+BME Elméleti Fizika Tanszék
+
 \end{flushleft}
 \end{minipage}
 \\[6cm]
@@ -135,10 +143,10 @@ BME Elméleti Fizika Tanszék
 
 \section{Introduction and Motivation}
 \label{sec:introduction}
-
+\comm{My general impression is that the different paragraphs are discussing quite different things, and they are connecting very loosely. It is a tough job, but try to write to the point, without involving too much philosophy/philosophical questions, while keeping the rest interesting from a scientific PoV. We are TTK after all and not the faculty of philosophy and tall tales:D. Imo introduction should be around 1 page alone. This is a very crucial part where you have to get hold of the attention of the reader, otherwise they won't care}
 % G: This paragraph wants to say: Mathematicians study silly nonlinear diff eqs for fun. LLMs are even more interesting.
 % we could frame the LLM as a non-autonomous dynamical system, where the input sequence (prompt) acts as a time-dependent driving force. This distinguishes it from classical autonomous systems like the Lorenz attractor and might have implications for the stability and types of attractors we observe. ??
-Deep Neural Networks (DNNs), such as LLMs, are highly nonlinear systems whose parameters are not explicitly determined, but rather they are learned by training on huge sets of data.
+Deep Neural Networks (DNNs), such as LLMs, are highly nonlinear systems whose parameters are not explicitly determined, but rather are learned by training on huge sets of data.
 This allows these models to learn huge amounts of knowledge with little human intervention, which allows for scaling at the cost of interpretability.
 DNNs provide a fascinating case study for nonlinear dynamics.
 % Studying these systems is extremely interesting
@@ -151,17 +159,17 @@ There is growing interest in the sensitivity of LLMs (and other generative deep 
 
 % G: I want to say: LLMs are trained on all human data. what they learn is representative of human civilization (if we consider the written data is). more insights into LLMs is insights into us. maybe read motivation for some interpretability articles
 % G: but this is not so much within the scope of this study
-Given that LLMs are trained of a large corpus of human data, what they know says a lot about humanity, at least what is captured in text. Improving our understanding of the inner representations of LLMs yields insights about us.
+Given that LLMs are trained of a large corpus of human data, what they know says a lot about humanity, at least what is captured in text. Improving our understanding of the inner representations of LLMs yields insights about us. \comm{I feel this is just philosophy and filler. Does not add too much value to the motivation. I would elaborate more, why this is an interesting problem. I would make clear the issue of high dimensionality, Put in evidence, that if reasoning LLMs would be following the way humans construct answers, then we would expect no chaos, but when we do check, then there are actually cases when chaos can be shown (you could put a link to your recurrence plot here) etc etc.}
 
 % G: also these tools can be applied to other DNNs that handle audio image video
 % this dynamical systems perspective is a general framework applicable to any generative model that operates sequentially, not just text-based LLMs.
 
 Much research interest has been placed on interpretability, understanding how LLMs learn and store facts
 LLMs are not created, they are grown and trained
-Interpretability focuses on completely understanding small components (called circuits) and their patters and behaviors in neural networks, and we believe the tools from chaos theory can help shed light into these processes \cite{olah2020zoom} \cite{ameisen2025circuit} \cite{lindsey2025biology}. The tools from chaos theory can be applied to small and large models alike. % Emergent properties at large scales could be identified using chaos metrics.
+Interpretability focuses on completely understanding small components (called circuits) and their patterns and behaviors in neural networks, and we believe the tools from chaos theory can help shed light on these processes \cite{olah2020zoom} \cite{ameisen2025circuit} \cite{lindsey2025biology}. \comm{Is this two separate sentences, the first ending before "Interpretability"? The phrasing is weird imo. Also stating LLMs are not created... this is too philosophical. They are created by training, so it is very debatable. I would rephrase as: Much research interest has been placed on interpretability, ie. understanding small components (called circuits) and their patterns and behaviors in neural networks, how LLMs learn and store facts. We believe the tools from chaos theory can help shed light on these processes \cite{olah2020zoom} \cite{ameisen2025circuit} \cite{lindsey2025biology}.}. The tools from chaos theory can be applied to small and large models alike. \comm{Here again you repeat the chaos tools from the previous sentence. Doesn't sound good} % Emergent properties at large scales could be identified using chaos metrics.
 
-Working with LLMs presents some challenges, such as the discrete nature of tokens and their hidden state representations, and the high dimensionality of the embedding space. 
-We worked around many of these challenges and we hope this experience can be transferred to the study of other high dimensional chaotic systems.
+Working with LLMs presents \st{some} \comm{several} challenges, such as the discrete nature of tokens, their hidden state representations, and the high dimensionality of the embedding space. \comm{Latter being a particularly hard problem since we are talking of dimensionality of order $10^3$. Having a large dimension as this implies that classical methods fail out of the box.}
+We have worked around these challenges, and we hope this experience can be transferred to the study of other high dimensional chaotic systems. \comm{We have been trying to define chaos, trajectory, and necessary notions in the case of LLMs and embedding space, and then to analyze chaotic behavior in the reasoning step of these systems.}
 % G: add more challenges
 % Another challenge is the non-stationarity. The 'rules' of the system (the attention patterns) are state-dependent, changing at every single step. This is unlike classic chaotic systems where the governing equations are fixed. This makes analysis much harder but also much more interesting.
 
@@ -170,28 +178,25 @@ We worked around many of these challenges and we hope this experience can be tra
 % This section quite common in ML papers. 
 % This section briefly summarizes the main results from other papers which inspired my analysis and also explain some of the results obtained. It also should reinforce the idea that it's justifiable to treat LLMs and chaotic nonlinear systems. 
 
-The application of dynamical systems theory to neural networks has revealed complex behaviors in these models. 
+The application of dynamical systems theory to neural networks has revealed complex behaviors in these models. \comm{Complex behaviors? Maybe be a bit more specific about this? Where, in activation functions, embedding space? etc etc. The reader might have 0 idea about this, or their field of expertise does not link to this.}
 % We see this work as an expansion of this, focusing on LLMs and bringing the tools from chaos theory.
 
 \paragraph{Chaotic Dynamics in LLMs:}
 
-\cite{li2025cognitive_activation} proposes that LLMs' reasoning capabilities as chaotic processes of dynamic information extraction in parameter space, introducing Quasi-Lyapunov Exponents to quantify chaotic characteristics across model layers, and showing sensitivity to initial conditions.
+\cite{li2025cognitive_activation} proposes that LLMs' reasoning capabilities are, in fact, chaotic processes of dynamic information extraction in parameter space.  Introduces the Quasi-Lyapunov Exponents to quantify chaotic characteristics across model layers and shows sensitivity to initial conditions.
 \cite{geshkovski2025mathematicalperspectivetransformers} model self-attention as a nonlinear coupling between tokens.
-\cite{dynamicalmeanfieldtheoryselfattention} demonstrate that even simplified self-attention transformer networks with 1-bit tokens and weights exhibit nontrivial dynamical phenomena, including non-equilibrium phase transitions and chaotic bifurcations. 
-\cite{tomihari2025recurrent_self_attention_dynamics} show that normalization layers normalize Jacobian's complex eigenvalues bringing the dynamics close to a critical state with maximum Lyapunov exponents close to zero, suggesting operation at the edge of chaos: a critical regime where signals neither explode nor vanish, enabling long-range information propagation. % GGG check into which paragraph to put
+\cite{dynamicalmeanfieldtheoryselfattention} demonstrates that even simplified self-attention transformer networks with 1-bit tokens and weights exhibit nontrivial dynamical phenomena, including non-equilibrium phase transitions and chaotic bifurcations. 
+\cite{tomihari2025recurrent_self_attention_dynamics} shows that normalization layers also normalize the Jacobian's complex eigenvalues, bringing the dynamics close to a critical state with maximum Lyapunov exponents close to zero, suggesting operation at the edge of chaos: a critical regime where signals neither explode nor vanish, enabling long-range information propagation. % GGG check into which paragraph to put
 % G: this can explain if the trajectories have sub-exponential divergence
 %show that normalization layers effectively suppress the Jacobian's spectral norm and control oscillatory behaviors. Their empirical findings reveal that high-performance self-attention models exhibit maximum Lyapunov exponents close to zero, suggesting operation at the edge of chaos—a critical regime where signals neither explode nor vanish, enabling long-range information propagation.
 % this provides a mechanistic explanation for why the system might hover at the edge of chaos. The normalization layers act as a dissipative force, counteracting the explosive stretching from other parts of the network, keeping the system bounded and stable. This connects directly to the idea of 'folding'.
 
 \paragraph{Determinism and Attractors in Language Models:}
 % The tension between reproducibility and novely in LLMs has become increasingly relevant. 
-\cite{he2025nondeterminism}
-Recent engineering efforts have focused on achieving deterministic inference by controlling GPU batching variance and floating-point errors, motivated by the need for reproducibility and clear signals in reinforcement learning training. Understanding LLM's sensitivity to perturbations is useful for this branch of study.
- %Knowing the LLMs sensitivity to disturbances is important for this.
- %This highlights the practical sensitivity of LLMs to small numerical perturbations. 
-\cite{wang2025unveiling_attractor_cycles} show that LLMs used for paraphrasing converge to periodic attractor cycles, reducing linguistic diversity.
+Recent engineering efforts \cite{he2025nondeterminism} have focused on achieving deterministic inference by controlling GPU batching variance and floating-point errors, motivated by the need for reproducibility and clear signals in reinforcement learning training. Understanding LLM's sensitivity to batch combinations, perturbations and input data is useful for this branch of study.
+\cite{wang2025unveiling_attractor_cycles} shows that LLMs used for paraphrasing converge to periodic attractor cycles, reducing linguistic diversity.
 \cite{cyclegan} % Comment: PLOS Complex Systems article - 
-demonstrate that CycleGAN image generators' space is more limited than the training data's, having positive Lyapunov exponents and attractor dimensions similar to the training data intrinsic dimension. Chaotic dynamics contribute to the diversity of the generated images.
+demonstrates that CycleGAN image generators' space is more limited than the training data's, having positive Lyapunov exponents and attractor dimensions similar to the training data intrinsic dimension. Chaotic dynamics contribute to the diversity of the generated images.
 %This suggests that generative models may naturally converge to stable configurations that reduce output diversity. 
 % G: this is a bit contradictory bc I say that model generation: more limited than training data but chaotic makes more diverse.
 % This isn't necessarily a contradiction. The system can be chaotic (positive Lyapunov exponent, sensitive dependence) which allows for diversity, but still be confined to an attractor whose dimension is smaller than the ambient space. This is the definition of a *strange attractor*. The chaos creates novelty *within* the bounds of the learned manifold.
@@ -199,7 +204,7 @@ demonstrate that CycleGAN image generators' space is more limited than the train
 \paragraph{Interpretability Through Dynamical Analysis:}
 \label{par:interpretability_dynamics}
 %The dynamical systems perspective has proven valuable for understanding recurrent architectures. 
-\cite{sussillo2013} showed that fixed points and linearized dynamics in trained RNNs provide interpretable insights into network function. \cite{zhang2024intelligence_edge_of_chaos} found that intelligence emerges at an optimal complexity level. Systems that are either highly chaotic or perfectly periodic exhibit poor downstream performance, suggesting a "sweet spot" conducive to intelligent behavior at the edge of chaos. \cite{zhou2025geometryreasoningflowinglogics} show how LLM's chain-of-thought reasoning can be interpreted as smooth flows in embedding space, where logical statements control the flow's velocities.
+\cite{sussillo2013} showed that fixed points and linearized dynamics in trained RNNs provide interpretable insights into network function. \cite{zhang2024intelligence_edge_of_chaos} found that intelligence emerges at an optimal complexity level \comm{I would elaborate on the optimal complexity level. How is this defined for eg.}. Systems that are either highly chaotic or perfectly periodic exhibit poor downstream performance, suggesting a "sweet spot" conducive to intelligent behavior at the edge of chaos. \cite{zhou2025geometryreasoningflowinglogics} shows how LLM's chain-of-thought reasoning can be interpreted as smooth flows in embedding space, where logical statements control the flow's velocities.
 % G: grego this section and see where in the text you should cite this papers etc...
 
 \section{Preliminaries}
@@ -211,18 +216,18 @@ demonstrate that CycleGAN image generators' space is more limited than the train
 \label{subsec:nonlinear_dynamics}
 
 % GGG todo improve this start
-A dynamical system describes the evolution of a point over time in a geometrical space called phase space. The system is called deterministic if its future evolution depends only on its current state. The path traced by the point is called a trajectory. % end
+A dynamical system describes \comm{the time dependence} of a point in an ambient space, more specifically, how its state changes over time. The system is called deterministic if its future evolution depends only on its current state. The path traced by the point is called a trajectory. % end
 Such systems can be described by differential equations in the case of continuous time, or by iterated maps for discrete time steps. Nonlinearity is a crucial property, as it is a necessary condition for complex behaviors like chaos to emerge. % GGG improve paragraph
 
-Chaotic systems are a subclass of deterministic nonlinear systems that exhibit complex and practically unpredictable behavior. This apparent randomness arises not from a stochastic nature, but from the system's intrinsic dynamics. The defining characteristics of chaos are non-periodicity and sensitivity to initial conditions (SIC). This property implies that trajectories originating from infinitesimally close initial states, say $\mathbf{x}(0)$ and $\mathbf{x}(0) + \bm{\delta}(0)$, will diverge exponentially over time. The separation distance $\|\bm{\delta}(t)\|$ grows according to:
+Chaotic systems are a subclass of deterministic nonlinear systems that exhibit complex and practically unpredictable behavior. This apparent randomness arises not from a stochastic nature but from the system's intrinsic dynamics. The defining characteristics of chaos are non-periodicity and sensitivity to initial conditions (SIC). This property implies that trajectories originating from infinitesimally close initial states, say $\mathbf{x}(0)$ and $\mathbf{x}(0) + \bm{\delta}(0)$, will diverge exponentially over time. The separation distance $\|\bm{\delta}(t)\|$ grows according to:
 \begin{equation}
     \|\bm{\delta}(t)\| \approx \|\bm{\delta}(0)\| e^{\lambda t}
 \end{equation}
-where $\lambda$ is the maximal Lyapunov exponent. A positive maximal Lyapunov exponent is a strong indicator of chaos. It signifies that any measurement error or uncertainty in the initial state, no matter how small, will be amplified exponentially, making long-term prediction impossible.
+where $\lambda$ is the \textbf{maximal Lyapunov exponent}. A positive maximal Lyapunov exponent is a strong indicator of chaos. It signifies that any measurement error or uncertainty in the initial state, no matter how small, will be amplified exponentially, making long-term prediction impossible.
 
-Despite their practical unpredictability, the trajectories of dissipative chaotic systems are not random; often they are confined to a bounded, lower dimensional subset of phase space, a \textbf{strange attractor}, towards which all close trajectories get asymptotically attracted but without having a periodic motion \footnote{In general if a map contracts volumes in phase space it is called dissipative. A physical system with friction is an example. In contrast, conservative systems cannot have strange attractors because attractors attract all trajectories in a small open set containing it, which contracts the phase space volume.}.
+Despite their practical unpredictability, often the trajectories of dissipative chaotic systems are not random; frequently they are confined to a bounded, lower dimensional subset of phase space, a \textbf{strange attractor}, towards which all close trajectories get asymptotically attracted but without having a periodic motion \footnote{In general, if a map contracts volumes in phase space it is called dissipative. A physical system with friction is an example. In contrast, conservative systems cannot have strange attractors because attractors attract all trajectories in a small open set containing it, which contracts the phase space volume.}.
 %\footnote{The 'strangeness' partly comes from the fact that trajectories diverge exponentially but remain confined in a zero-volume subset of the phase space. The explanation for this is that they diverge in the direction parallel to the attractor and get attracted in the direction orthogonal to it. GGG}.
-These attractors often possess a complex, self-similar fractal structure of non-integer dimension. A common measure is the \textbf{correlation dimension ($D_2$)}. It is based on the correlation integral, $C(\epsilon)$, which measures the probability that two points on the attractor are closer than a distance $\epsilon$. For small $\epsilon$, the correlation integral scales as a power law:
+These attractors can possess a complex, self-similar fractal structure of non-integer dimension. A common measure \comm{common measure for what? In the previous sentence, you talk about the dimension of the attractor. Is this a measure of dimension?} is the \textbf{correlation dimension ($D_2$)}. It is based on the correlation integral, $C(\epsilon)$, which measures the probability that two points on the attractor are closer than a distance $\epsilon$. For small $\epsilon$, the correlation integral scales as a power law:
 \begin{equation}
     C(\epsilon) = \lim_{N \to \infty} \frac{2}{N(N-1)} \sum_{i<j} \Theta(\epsilon - \|\mathbf{x}_i - \mathbf{x}_j\|) \sim \epsilon^{D_2}
 \end{equation}
@@ -234,7 +239,7 @@ Another powerful tool for analyzing dynamical systems is \textbf{Recurrence Anal
     R_{i,j}(\epsilon) = \Theta(\epsilon - \text{Distance}(\mathbf{x}_i, \mathbf{x}_j)), \quad i,j = 1, \dots, N 
 \end{equation}
 % GGG: check equation 
-The visual patterns in a RP provide deep insight: periodic systems produce long, parallel diagonal lines, random systems produce a uniform, noisy plot, and chaotic systems produce a complex geometric structure with short, interrupted diagonal lines. These structures can be quantified using Recurrence Quantification Analysis (RQA).
+The visual patterns in a RP provide deep insight: periodic systems produce long, parallel diagonal lines, the distance between them corresponding to the periods of oscillations, random systems show a uniform, noisy plot, and chaotic systems display a complex geometric structure with short, interrupted diagonal lines. These structures can be quantified using Recurrence Quantification Analysis (RQA).
 
 \begin{figure}[H]
     \centering
@@ -342,7 +347,7 @@ These metrics are applied pointwise between corresponding vectors of two traject
     \begin{equation}
         d_{cos}(\mathbf{a}, \mathbf{b}) = 1 - \frac{\mathbf{a} \cdot \mathbf{b}}{\|\mathbf{a}\| \|\mathbf{b}\|}
     \end{equation}
-    \item \textbf{Normalized Cross-Correlation:} Measures the similarity between two vectors as a function of the displacement of one relative to the other. For discrete vectors at zero lag, it is related to the cosine similarity. (GGG improve use formula)
+    % \item \textbf{Normalized Cross-Correlation:} Measures the similarity between two vectors as a function of the displacement of one relative to the other. For discrete vectors at zero lag, it is related to the cosine similarity. (GGG improve use formula)
 \end{itemize}
 
 \subsubsection{Trajectory-wise Metrics}
@@ -370,10 +375,25 @@ These metrics yield a single scalar value for the distance between two entire tr
     % For sliding-window analysis, hausdorff.py does not compute a strict per-window Hausdorff in all cases but computes per-point nearest distances and then aggregates those distances by either "max_of_mean" (default) or "mean_of_max" (configurable). This is a deliberate pragmatic choice;  it changes sensitivity (averaging vs extreme) and makes the sliding-window Hausdorff different from the textbook per-window Hausdorff if you choose mean-based aggregation.
     \item \textbf{Principal Component Dissimilarity (PCD):} We also defined a new distance metric based on the structural similarity of two trajectories. This metric compares the geometric structure of two trajectories by analyzing the alignment of their principal components (PCs). For each PC in the first trajectory, it finds the most similar PC in the second. The dissimilarity is then calculated as the total cosine distance between these matched pairs of principal components. This is explained in detail in \ref{subsec:pca_distance}.
 
+    \item \textbf{Cross-Correlation Dissimilarity:} This metric quantifies the structural dissimilarity between two trajectories by comparing their internal self-similarity structures. First, a cosine self-similarity matrix ($S_A$ and $S_B$) is computed for each trajectory. The Pearson correlation ($\rho$) is then calculated between the flattened vectors of these two matrices. The dissimilarity is defined as one minus the correlation, computed as:
+    \begin{equation}
+        d = 1 - \rho = 1 - \frac{\operatorname{cov}(S_A^\text{flat}, S_B^\text{flat})}{\sigma_{S_A^\text{flat}} \sigma_{S_B^\text{flat}}}
+    \end{equation}
+    where $S^\text{flat}$ represents the flattened matrix, $\operatorname{cov}$ is the covariance, and $\sigma$ is the standard deviation.
+
     % G: wasserstein not included. but maybe i wont use it
 \end{itemize}
 
+\subsubsection{Sliding Window Analysis}
+\label{sssec:methods_sliding_window}
+To generate a time-series distance from the trajectory-wise metrics, which naturally yield a single scalar, we use a sliding window that moves along both trajectories simultaneously, computing a single distance value for each window. This process results in a time series of distances. 
 
+% The comparison between the two windowed segments is performed using one of two general strategies.
+% For most metrics (including DTW, Fréchet, Cross-Correlation Dissimilarity, and Principal Component Dissimilarity) the two trajectory segments are treated as complete entities, and the metric function is applied to the segments as a whole to produce a single scalar distance for that window.
+% The Hausdorff distance uses a different approach, as it is a metric between sets of points. Within each window, it first computes the distance from every point in one segment to its single closest point in the other. This is performed for both segments. These lists of point-wise minimum distances are then aggregated into a single scalar for the window. The aggregation finds the maximum value from each list (the two directed Hausdorff distances) and then takes the mean of these two maximums.
+
+% \item \textbf{Focal-Point Comparison:} A special case exists for applying windows to element-wise metrics like Cosine Similarity. While not strictly necessary, a windowed version is implemented in the `cos_sim` metric. This method takes the single vector at the center of one windowed segment and compares it against all vectors in the other segment, yielding a list of cosine similarities. The mean of this list is calculated. This process is done symmetrically for both directions, and the two resulting mean-similarity values are themselves aggregated (e.g., via another mean) to produce the final scalar similarity for the window.
+% The standard Cosine Distance (`cos`) metric, which is fundamentally a one-to-one vector comparison, can also be used with a sliding window, but in a unique way. If a window size is specified, the metric first transforms the trajectories. For each window, it computes the \textit{mean vector} of all vectors within that window. This creates new, shorter trajectories where each point represents the average of a window from the original trajectory. The final time series is then computed by performing the standard one-to-one cosine distance calculation on these new, pre-aggregated trajectories.
 
 \subsection{Recurrence Analysis}
 \label{subsec:recurrence_analysis}
@@ -614,13 +634,6 @@ The measured dimension value obtained varied significantly depending on the dist
 while in every case, the Correlation Dimension vs Threshold curve was similar, but with a different slope. This leads
 
 
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.8\linewidth]{plots/dimension/random2.png}
-    \caption{Correlation Dimension obtained using 100k random vectors of dimension 1536 (same as hidden dimension)}
-    \label{fig:random_vectors_dimension}
-\end{figure}
-
 % G: it would be great to show if last layers have a lower dimension, which could imply more "compression" of the data
 % G: try to relate the dimension here with information compression, which is something super important that LLMs do.  
 
@@ -647,11 +660,11 @@ This study was limited in studying a single LLM model, while we expect interesti
 \section{Acknowledgments }
 \label{sec:acknowledgements}
 
-I would like to thank my supervisors Dr. János Török and Kristóf Benedek for their help and support during this work.
+I would like to thank my supervisors Dr. János Török and Kristóf Benedek for their help and support during this work. This work was supported by the National Research, Development and Innovation Fund and by the Ministry of Culture and Innovation of Hungary through the TKP2021-NVA-02 OR TKP2021-EGA-02 funding scheme.
 
 \newpage
-\bibliographystyle{unsrt}
-\bibliography{lit}
+\printbibliography
+
 
 \section{Appendix}
 \label{sec:appendix}
@@ -948,3 +961,9 @@ We did not think this repetitive loops were worth exploring, since these are a f
 \end{document}
 
 
+
+
+% extra ideas:
+% why do we have a period of time with no divergence and then suddenly a big jump in the divergence between trajectories. I think it's mainly a measurement thing: the distance metrics (and the "state vectors" are hypersensitive to the individual token, so when the first different token arises, huge jumo in divergence.
+% J idea: you nead a "critical mass" of context before you can get this 
+% the reasoning partbefore the answer is less suceptible to divergence. the llm kind of repeats what the prompt contains and is more predictable. G: maybe the fact that RL was used to train this reasoning part made it more constrained and less diverse.
