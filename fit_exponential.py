@@ -35,17 +35,16 @@ def fit_exponential_segment(filename, start_idx, end_idx, yname="Distance", plot
 pairs_to_exclude = [(1,2), (1,3), (1,4)]
 
 def batch_fit_and_save():
-    END_LOW = 45
-    END_HIGH = 80
+    END_LOW = 50
+    END_HIGH = 110
     N = 100
     lambdas = []
     low_r2_pairs = []
-    os.makedirs('exp_fit', exist_ok=True)
+    os.makedirs('exp_fit_embed', exist_ok=True)
     for x in range(N):
         for y in range(x+1,N):
             if (x,y) not in pairs_to_exclude:
-                
-                fname = r"/home/grego/LLM/launch_sep/interstellar_propulsion_review_0_0.00035/results/hidden_states_cond_{i}_layer_-1/20251102-021840-b4fef8/plots/cos_timeseries_{x}_{y}.npy"
+                fname = r"/home/grego/LLM/launch_sep/interstellar_propulsion_review_0_0.00035/results/sentence-transformers_all-mpnet-base-v2_traj{i}/20251102-134758-14f74f/plots/cos_timeseries_{x}_{y}.npy"
                 fname = fname.replace('{x}', str(x)).replace('{y}', str(y))
 
                 data = np.load(fname)
@@ -69,13 +68,13 @@ def batch_fit_and_save():
 
                 if lam is not None and best_r2 > 0.85:
                     lambdas.append({'x': x, 'y': y, 'lambda': lam, 'r2': best_r2})
-                    save_path = f'exp_fit/fit_{x}_{y}.png'
+                    save_path = f'exp_fit_embed/fit_{x}_{y}.png'
                     fit_exponential_segment(fname, 0, best_end, plot_all=True, save_path=save_path)
                 else:
                     low_r2_pairs.append({'x': x, 'y': y, 'r2': best_r2})
-    np.save('exp_fit/lambda_list.npy', lambdas)
-    with open('exp_fit/low_r2_pairs.json', 'w') as f:
-        json.dump(low_r2_pairs, f)
+        np.save('exp_fit_embed/lambda_list.npy', lambdas)
+        with open('exp_fit_embed/low_r2_pairs.json', 'w') as f:
+            json.dump(low_r2_pairs, f)
 
 
 batch_fit_and_save()
