@@ -66,7 +66,7 @@ CONFIG = {
 
         # Best without sliding window
         "hausdorff": {
-            "enabled": False,
+            "enabled": True,
             # "symmetric": True, # AA
             "aggregation": "mean_of_max", # "max_of_mean", "mean_of_max" # JJ
             "window_size": 1, # embed
@@ -107,8 +107,8 @@ CONFIG = {
     # Unified sliding-window parameters used by metrics that support sliding analysis
     "sliding_window": {
         "use_window": True,
-        "window_size": 32,
-        "displacement": 32
+        "window_size": 16,
+        "displacement": 16
 
     },
 
