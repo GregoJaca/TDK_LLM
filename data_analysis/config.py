@@ -32,6 +32,7 @@ CONFIG = {
     # Metrics
     "metrics": {
     "save_plots": True,
+    "save_timeseries_array": True,
         "rank_eigen": {
             "enabled": False,
             "deviation_metric": 'sum_cos_dist', # 'sum_cos_dist', # "rms", # JJ
@@ -42,7 +43,7 @@ CONFIG = {
         },
         # "default_pairing": "ref0",   # "all" or "ref0" # AA
         "cos": {
-            "enabled": False,
+            "enabled": True,
             "aggregate": ["mean", "median", "std"],
             "shifts": [0],   # absolute steps to sweep; included in sweep script
             "shift_aggregation": "mean", # "min", "mean"
@@ -55,9 +56,9 @@ CONFIG = {
         
         "cross_corr": { # only works with window_size > 1 and is a bit noisy + window_size adds some diagonal distortion to time series distance. rp are cool across different window_size too.
             "enabled": False,
-            "correlation_type": "spearman", # "pearson" or "spearman" # JJ almost the same
-            "window_size": 4, # embed (but for rp 4 is better)
-            "window_size": 1, # hidden
+            "correlation_type": "pearson", # "pearson" or "spearman" # JJ almost the same
+            "window_size": 1, # embed (but for rp 4 is better)
+            # "window_size": 1, # hidden
             "threshold": 0.25, # 
         },
         
@@ -65,7 +66,7 @@ CONFIG = {
 
         # Best without sliding window
         "hausdorff": {
-            "enabled": True,
+            "enabled": False,
             # "symmetric": True, # AA
             "aggregation": "mean_of_max", # "max_of_mean", "mean_of_max" # JJ
             "window_size": 1, # embed
@@ -106,8 +107,9 @@ CONFIG = {
     # Unified sliding-window parameters used by metrics that support sliding analysis
     "sliding_window": {
         "use_window": True,
-        "window_size": 1,
-        "displacement": 1
+        "window_size": 32,
+        "displacement": 32
+
     },
 
     # Pair computations
@@ -121,7 +123,7 @@ CONFIG = {
         # use this explicit list of index pairs for computation and plotting.
         # "pairs_to_plot": [[0, 1]],
         # "pairs_to_plot": [[0, 1], [0,2], [1,3]], #[ [i, j] for i in range(5) for j in range(i,10) ],
-        "pairs_to_plot": [ [i, j] for i in range(100) for j in range(i+1,100) ],
+        "pairs_to_plot": [ [i, j] for i in range(5) for j in range(i+1,5) ],
     },
 
     # Lyapunov (fast pairwise slope)
@@ -150,9 +152,9 @@ CONFIG = {
             "saturation_trim_frac": 0.1
         },
         "plot": {
-            "save": True,
+            "save": False,
             "log_plot": False,
-            "show_fit": True
+            "show_fit": False
         }
     },
 
@@ -207,12 +209,12 @@ CONFIG['EMBEDDING_CONFIG'] = {
     "embedding_methods": [
         # examples: "sentence-transformers/all-mpnet-base-v2",
         # For per-trajectory mode provide file-stem templates like
-        # "hidden_states_cond_{i}_layer_-1",
-        "sentence-transformers_all-mpnet-base-v2_traj{i}",
+        "hidden_states_cond_{i}_layer_-1",
+        # "sentence-transformers_all-mpnet-base-v2_traj{i}",
     ],
     # When in per_trajectory mode, input_template is used to build filenames relative to run folder.
     # Example: "{embed}.pt" or "hidden_states_cond_{i}_layer_-1.pt"
-    # "input_template": "hidden_states_cond_{i}_layer_-1.pt"
-    "input_template": "sentence-transformers_all-mpnet-base-v2_traj{i}.pt"
+    "input_template": "hidden_states_cond_{i}_layer_-1.pt"
+    # "input_template": "sentence-transformers_all-mpnet-base-v2_traj{i}.pt"
     
 }

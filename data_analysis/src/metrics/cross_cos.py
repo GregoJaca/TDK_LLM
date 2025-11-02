@@ -92,21 +92,30 @@ def compare_trajectories(a: np.ndarray, b: np.ndarray, *, return_timeseries: boo
     # compute column sums (optionally windowed)
     col_sums = _compute_column_sums(cross_dist, use_window, window_size, window_stride)
 
-    # Optionally save timeseries if configured globally
-    if CONFIG.get("plots", {}).get("save_timeseries", False):
-        timeseries_fname = os.path.join(out_root, f"cross_cos_col_sums_{pair_id}.png")
-        try:
-            plots.plot_time_series_for_pair(col_sums, timeseries_fname, title=f"Cross-Cos Column Averages ({pair_id})", ylabel="Cross Cosine Distance")
-        except Exception:
-            import matplotlib.pyplot as plt
-            plt.figure()
-            plt.plot(col_sums)
-            plt.title(f'Cross Cos Column Averages ({pair_id})')
-            plt.xlabel('Index b')
-            plt.ylabel('Cross Cosine Distance')
-            plt.tight_layout()
-            plt.savefig(timeseries_fname)
-            plt.close()
+    if out_root and timeseries is not None:
+        # Save plot
+        if CONFIG.get("plots", {}).get("save_timeseries", False):
+            timeseries_fname = os.path.join(out_root, f"cross_cos_col_sums_{pair_id}.png")
+            try:
+                plots.plot_time_series_for_pair(col_sums, timeseries_fname, title=f"Cross-Cos Column Averages ({pair_id})", ylabel="Cross Cosine Distance")
+            except Exception:
+                import matplotlib.pyplot as plt
+                plt.figure()
+                plt.plot(col_sums)
+                plt.title(f'Cross Cos Column Averages ({pair_id})')
+                plt.xlabel('Index b')
+                plt.ylabel('Cross Cosine Distance')
+                plt.tight_layout()
+                plt.savefig(timeseries_fname)
+                plt.close()
+        # Save timeseries array if enabled
+        if CONFIG["metrics"].get("save_timeseries_array", False):
+            try:
+                import numpy as np
+                fname = os.path.join(out_root, f"cross_cos_timeseries_{pair_id}.npy")
+                np.save(fname, col_sums)
+            except Exception:
+                pass
 
     aggregates = {
         "mean": float(np.nanmean(col_sums)),

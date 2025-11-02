@@ -71,19 +71,31 @@ def compare_trajectories(
         agg = {"mean": float(np.nanmean(dists)), "median": float(np.nanmedian(dists)), "std": float(np.nanstd(dists))}
 
         timeseries = dists if return_timeseries else None
-        # optional plotting
         out_root_local = out_root or kwargs.get("out_root")
-        if timeseries is not None and out_root_local and CONFIG.get("metrics", {}).get("save_plots", True) and CONFIG.get("plots", {}).get("save_timeseries", False):
-            try:
-                from src.viz.plots import plot_time_series_for_pair
-                os.makedirs(out_root_local, exist_ok=True)
-                if pair_id:
-                    fname = os.path.join(out_root_local, f"cos_sim_timeseries_{pair_id}.png")
-                else:
-                    fname = os.path.join(out_root_local, "cos_sim_timeseries.png")
-                plot_time_series_for_pair(timeseries, fname, title=f"CosSim distances ({pair_id})" if pair_id else "CosSim distances", ylabel="CosSim Distance")
-            except Exception:
-                pass
+        if timeseries is not None and out_root_local:
+            # Save plot
+            if CONFIG.get("metrics", {}).get("save_plots", True) and CONFIG.get("plots", {}).get("save_timeseries", False):
+                try:
+                    from src.viz.plots import plot_time_series_for_pair
+                    os.makedirs(out_root_local, exist_ok=True)
+                    if pair_id:
+                        fname = os.path.join(out_root_local, f"cos_sim_timeseries_{pair_id}.png")
+                    else:
+                        fname = os.path.join(out_root_local, "cos_sim_timeseries.png")
+                    plot_time_series_for_pair(timeseries, fname, title=f"CosSim distances ({pair_id})" if pair_id else "CosSim distances", ylabel="CosSim Distance")
+                except Exception:
+                    pass
+            # Save timeseries array if enabled
+            if CONFIG.get("metrics", {}).get("save_timeseries_array", False):
+                try:
+                    import numpy as np
+                    if pair_id:
+                        fname = os.path.join(out_root_local, f"cos_sim_timeseries_{pair_id}.npy")
+                    else:
+                        fname = os.path.join(out_root_local, "cos_sim_timeseries.npy")
+                    np.save(fname, timeseries)
+                except Exception:
+                    pass
         return timeseries, agg
 
     if min_len < window_size:

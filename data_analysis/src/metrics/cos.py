@@ -114,17 +114,25 @@ def compare_trajectories(
         "std": np.nanstd(final_distances)
     }
 
-    timeseries = final_distances if return_timeseries else None
+    # Always calculate timeseries if save_timeseries_array is enabled in config
+    save_timeseries_array = CONFIG["metrics"].get("save_timeseries_array", False)
+    timeseries = final_distances if (return_timeseries or save_timeseries_array) else None
 
-    # Optionally save a timeseries plot when an output root is provided
     out_root = kwargs.get("out_root", None)
     pair_id = kwargs.get("pair_id", None)
-    if out_root is not None and timeseries is not None and CONFIG["metrics"].get("save_plots", True):
-        try:
-            os.makedirs(out_root, exist_ok=True)
-            plot_fname = os.path.join(out_root, f"cos_timeseries_{pair_id}.png" if pair_id else "cos_timeseries.png")
-            plot_time_series_for_pair(timeseries, plot_fname, title=f"Cosine distances ({pair_id})" if pair_id else "Cosine distances", ylabel="Cosine Distance")
-        except Exception:
-            # non-fatal if plotting fails
-            pass
+    if timeseries is not None and out_root is not None:
+        # Save timeseries plot
+        if CONFIG["metrics"].get("save_plots", True):
+            try:
+                os.makedirs(out_root, exist_ok=True)
+                plot_fname = os.path.join(out_root, f"cos_timeseries_{pair_id}.png" if pair_id else "cos_timeseries.png")
+                plot_time_series_for_pair(timeseries, plot_fname, title=f"Cosine distances ({pair_id})" if pair_id else "Cosine distances", ylabel="Cosine Distance")
+            except Exception:
+                pass
+        # Save timeseries array if enabled
+        if CONFIG["metrics"].get("save_timeseries_array", False):
+            try:
+                np.save(os.path.join(out_root, f"cos_timeseries_{pair_id}.npy" if pair_id else "cos_timeseries.npy"), timeseries)
+            except Exception:
+                pass
     return timeseries, aggregates

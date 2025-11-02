@@ -13,3 +13,6 @@ autoencoder_trying.py
 *description_and_dump_results.txt
 *.npz
 # *runs_aug/
+
+*exp_fit*
+*launch_sep*

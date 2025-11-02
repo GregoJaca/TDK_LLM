@@ -106,13 +106,24 @@ def compare_trajectories(
         aggregates = {"mean": float(np.mean(values)), "median": float(np.median(values)), "std": float(np.std(values))}
         timeseries = np.array(values) if return_timeseries else None
 
-        if timeseries is not None and CONFIG["metrics"].get("save_plots", True) and kwargs.get("out_root"):
-            try:
-                from src.viz.plots import plot_time_series_for_pair
-                os.makedirs(kwargs.get("out_root"), exist_ok=True)
-                plot_time_series_for_pair(timeseries, os.path.join(kwargs.get("out_root"), f"frechet_timeseries_{kwargs.get('pair_id','')}.png"), title=f"Fréchet distances ({kwargs.get('pair_id','')})", ylabel="Fréchet Distance")
-            except Exception:
-                pass
+        out_root = kwargs.get("out_root")
+        pair_id = kwargs.get("pair_id", "")
+        if timeseries is not None and out_root:
+            # Save timeseries plot
+            if CONFIG["metrics"].get("save_plots", True):
+                try:
+                    from src.viz.plots import plot_time_series_for_pair
+                    os.makedirs(out_root, exist_ok=True)
+                    plot_time_series_for_pair(timeseries, os.path.join(out_root, f"frechet_timeseries_{pair_id}.png"), title=f"Frchet distances ({pair_id})", ylabel="Frchet Distance")
+                except Exception:
+                    pass
+            # Save timeseries array if enabled
+            if CONFIG["metrics"].get("save_timeseries_array", False):
+                try:
+                    import numpy as np
+                    np.save(os.path.join(out_root, f"frechet_timeseries_{pair_id}.npy"), timeseries)
+                except Exception:
+                    pass
 
         return timeseries, aggregates
 

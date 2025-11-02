@@ -68,31 +68,41 @@ def compare_trajectories(a, b, *, return_timeseries=True, pair_id=None, out_root
 
         time_series.append(corr)
     
-    time_series = np.array(time_series)
+    save_timeseries_array = CONFIG["metrics"].get("save_timeseries_array", False)
+    time_series = np.array(time_series) if (return_timeseries or save_timeseries_array) else None
     aggregates = {
-        "mean": np.mean(time_series),
-        "median": np.median(time_series),
-        "std": np.std(time_series)
+        "mean": np.mean(time_series) if time_series is not None else float('nan'),
+        "median": np.median(time_series) if time_series is not None else float('nan'),
+        "std": np.std(time_series) if time_series is not None else float('nan')
     }
 
-    if return_timeseries and out_root and CONFIG["metrics"].get("save_plots", True):
-        out_path = os.path.join(out_root, f"cross_corr_{correlation_type}_{pair_id}.png")
-        try:
-            # Plot distance-like measure: 1 - correlation
-            plot_series = 1.0 - time_series
-            plot_time_series_for_pair(
-                plot_series,
-                out_path,
-                title=f"1 - Cross-Correlation ({correlation_type.capitalize()}) for Pair {pair_id}",
-                ylabel=f"1 - Cross-Corr ({correlation_type})",
-            )
-        except Exception:
-            # fallback to original plot if something goes wrong
-            plot_time_series_for_pair(
-                time_series,
-                out_path,
-                title=f"Cross-Correlation ({correlation_type.capitalize()}) for Pair {pair_id}",
-                ylabel=f"Cross-Corr ({correlation_type})",
-            )
+    if time_series is not None and out_root:
+        # Save plot
+        if CONFIG["metrics"].get("save_plots", True):
+            out_path = os.path.join(out_root, f"cross_corr_{correlation_type}_{pair_id}.png")
+            try:
+                # Plot distance-like measure: 1 - correlation
+                plot_series = 1.0 - time_series
+                plot_time_series_for_pair(
+                    plot_series,
+                    out_path,
+                    title=f"1 - Cross-Correlation ({correlation_type.capitalize()}) for Pair {pair_id}",
+                    ylabel=f"1 - Cross-Corr ({correlation_type})",
+                )
+            except Exception:
+                # fallback to original plot if something goes wrong
+                plot_time_series_for_pair(
+                    time_series,
+                    out_path,
+                    title=f"Cross-Correlation ({correlation_type.capitalize()}) for Pair {pair_id}",
+                    ylabel=f"Cross-Corr ({correlation_type})",
+                )
+        # Save timeseries array if enabled
+        if CONFIG["metrics"].get("save_timeseries_array", False):
+            try:
+                fname = os.path.join(out_root, f"cross_corr_timeseries_{correlation_type}_{pair_id}.npy")
+                np.save(fname, time_series)
+            except Exception:
+                pass
 
     return time_series, aggregates

@@ -176,30 +176,38 @@ def compare_trajectories(
     if full_metric_value is not None:
         agg["sum_cos_dist"] = full_metric_value
 
-    # Save plots if requested and out_root given
-    if out_root and CONFIG["metrics"].get("save_plots", True):
+    # Save plots and timeseries array if requested and out_root given
+    if out_root:
         plots_dir = out_root
         os.makedirs(plots_dir, exist_ok=True)
 
         # full-rank scatter
-        try:
-            if pair_id:
-                full_plot_path = os.path.join(plots_dir, f"rank_eigen_pca_{pair_id}.png")
-            else:
-                full_plot_path = os.path.join(plots_dir, "rank_eigen_pca.png")
-            viz_plots.plot_rank_eigen_full(closest_ranks, full_plot_path, traj_indices=pair_id)
-        except Exception:
-            # avoid breaking metric computation if plotting fails
-            pass
-
-        # sliding plot
-        if positions.size > 0 and CONFIG.get("plots", {}).get("save_timeseries", False):
+        if CONFIG["metrics"].get("save_plots", True):
             try:
                 if pair_id:
-                    sliding_plot_path = os.path.join(plots_dir, f"rank_eigen_pca_{pair_id}_sliding.png")
+                    full_plot_path = os.path.join(plots_dir, f"rank_eigen_pca_{pair_id}.png")
                 else:
-                    sliding_plot_path = os.path.join(plots_dir, "rank_eigen_pca_sliding.png")
-                viz_plots.plot_rank_eigen_sliding(positions, deviations, sliding_plot_path, metric_cfg=cfg)
+                    full_plot_path = os.path.join(plots_dir, "rank_eigen_pca.png")
+                viz_plots.plot_rank_eigen_full(closest_ranks, full_plot_path, traj_indices=pair_id)
+            except Exception:
+                pass
+
+            # sliding plot
+            if positions.size > 0 and CONFIG.get("plots", {}).get("save_timeseries", False):
+                try:
+                    if pair_id:
+                        sliding_plot_path = os.path.join(plots_dir, f"rank_eigen_pca_{pair_id}_sliding.png")
+                    else:
+                        sliding_plot_path = os.path.join(plots_dir, "rank_eigen_pca_sliding.png")
+                    viz_plots.plot_rank_eigen_sliding(positions, deviations, sliding_plot_path, metric_cfg=cfg)
+                except Exception:
+                    pass
+        # Save timeseries array if enabled
+        if timeseries is not None and CONFIG["metrics"].get("save_timeseries_array", False):
+            try:
+                import numpy as np
+                fname = os.path.join(plots_dir, f"rank_eigen_timeseries_{pair_id}.npy" if pair_id else "rank_eigen_timeseries.npy")
+                np.save(fname, timeseries)
             except Exception:
                 pass
 

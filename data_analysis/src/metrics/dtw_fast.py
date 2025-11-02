@@ -69,14 +69,24 @@ def compare_trajectories(
         aggregates = {"mean": float(np.mean(distances)), "median": float(np.median(distances)), "std": float(np.std(distances))}
         timeseries = np.array(distances) if return_timeseries else None
 
-        # Save timeseries plot if configured
-        if return_timeseries and CONFIG["metrics"].get("save_plots", True) and kwargs.get("out_root"):
-            try:
-                from src.viz.plots import plot_time_series_for_pair
-                os.makedirs(kwargs.get("out_root"), exist_ok=True)
-                plot_time_series_for_pair(timeseries, os.path.join(kwargs.get("out_root"), f"dtw_timeseries_{kwargs.get('pair_id', '')}.png"), title=f"DTW distances ({kwargs.get('pair_id','')})", ylabel="DTW Distance")
-            except Exception:
-                pass
+        out_root = kwargs.get("out_root")
+        pair_id = kwargs.get("pair_id", "")
+        if timeseries is not None and out_root:
+            # Save timeseries plot
+            if CONFIG["metrics"].get("save_plots", True):
+                try:
+                    from src.viz.plots import plot_time_series_for_pair
+                    os.makedirs(out_root, exist_ok=True)
+                    plot_time_series_for_pair(timeseries, os.path.join(out_root, f"dtw_timeseries_{pair_id}.png"), title=f"DTW distances ({pair_id})", ylabel="DTW Distance")
+                except Exception:
+                    pass
+            # Save timeseries array if enabled
+            if CONFIG["metrics"].get("save_timeseries_array", False):
+                try:
+                    import numpy as np
+                    np.save(os.path.join(out_root, f"dtw_timeseries_{pair_id}.npy"), timeseries)
+                except Exception:
+                    pass
 
         return timeseries, aggregates
 

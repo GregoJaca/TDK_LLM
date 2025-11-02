@@ -63,9 +63,19 @@ def compare_trajectories(
 
     out_root = kwargs.get("out_root", None)
     pair_id = kwargs.get("pair_id", None)
-    if out_root and return_timeseries and CONFIG["metrics"].get("save_plots", True):
-        os.makedirs(out_root, exist_ok=True)
-        plot_fname = os.path.join(out_root, f"wasserstein_timeseries_{pair_id}.png")
-        plot_time_series_for_pair(timeseries, plot_fname, title=f"Wasserstein Distance ({pair_id})", ylabel="Wasserstein Distance")
+    if out_root and timeseries is not None:
+        # Save timeseries plot
+        if CONFIG["metrics"].get("save_plots", True):
+            os.makedirs(out_root, exist_ok=True)
+            plot_fname = os.path.join(out_root, f"wasserstein_timeseries_{pair_id}.png")
+            plot_time_series_for_pair(timeseries, plot_fname, title=f"Wasserstein Distance ({pair_id})", ylabel="Wasserstein Distance")
+        # Save timeseries array if enabled
+        if CONFIG["metrics"].get("save_timeseries_array", False):
+            try:
+                import numpy as np
+                fname = os.path.join(out_root, f"wasserstein_timeseries_{pair_id}.npy")
+                np.save(fname, timeseries)
+            except Exception:
+                pass
 
     return timeseries if return_timeseries else None, aggregates

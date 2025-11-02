@@ -64,16 +64,28 @@ def compare_trajectories(
                 values.append(val)
                 centers.append(center)
 
-            timeseries = np.array(values) if return_timeseries else None
+            save_timeseries_array = CONFIG["metrics"].get("save_timeseries_array", False)
+            timeseries = np.array(values) if (return_timeseries or save_timeseries_array) else None
             aggregates = {"mean": float(np.mean(values)), "median": float(np.median(values)), "std": float(np.std(values))}
 
             # optionally save timeseries plot
-            if timeseries is not None and CONFIG["metrics"].get("save_plots", True) and kwargs.get("out_root"):
-                try:
-                    from src.viz.plots import plot_time_series_for_pair
-                    os.makedirs(kwargs.get("out_root"), exist_ok=True)
-                    plot_time_series_for_pair(timeseries, os.path.join(kwargs.get("out_root"), f"hausdorff_timeseries_{kwargs.get('pair_id','')}.png"), title=f"Hausdorff distances ({kwargs.get('pair_id','')})", ylabel="Hausdorff Distance")
-                except Exception:
-                    pass
+
+            out_root = kwargs.get("out_root")
+            pair_id = kwargs.get("pair_id", "")
+            if timeseries is not None:
+                # Save timeseries plot
+                if CONFIG["metrics"].get("save_plots", True) and out_root:
+                    try:
+                        from src.viz.plots import plot_time_series_for_pair
+                        os.makedirs(out_root, exist_ok=True)
+                        plot_time_series_for_pair(timeseries, os.path.join(out_root, f"hausdorff_timeseries_{pair_id}.png"), title=f"Hausdorff distances ({pair_id})", ylabel="Hausdorff Distance")
+                    except Exception:
+                        pass
+                # Save timeseries array if enabled
+                if CONFIG["metrics"].get("save_timeseries_array", False) and out_root:
+                    try:
+                        np.save(os.path.join(out_root, f"hausdorff_timeseries_{pair_id}.npy"), timeseries)
+                    except Exception:
+                        pass
 
     return timeseries, aggregates
