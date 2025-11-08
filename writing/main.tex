@@ -127,9 +127,6 @@ BME Elméleti Fizika Tanszék
 % Related Work - Preliminaries - Methods
 
 
-% MUST DO GGG GGG GGG
-% crtl+F SIC
-
 % GENERAL TODO:
 % add labels to each section, subsection, plot
 % introduce abbreviations only once. more consistency in notation
@@ -168,8 +165,8 @@ Much research interest has been placed on interpretability, understanding how LL
 Interpretability research has taken a bottom up approach, looking for mechanistic explanations of model behavior, from identifying circuits (small, interpretable subnetworks, toy models, which can be fully understood) to analyzing attention patterns \cite{olah2020zoom, ameisen2025circuit, lindsey2025biology}. Chaos-theoretic tools complement this line of work by quantifying emergent global properties such as stability, divergence, and attractor structure, rather than focusing solely on small scale mechanisms. Interpretability aims to understand how these networks do what they do, and chaos analysis may help reveal how they evolve dynamically across internal representations.
 
 Working with LLMs presents several challenges, such as the discrete nature of tokens, their hidden state representations, and the high dimensionality of the embedding space. Latter being a particularly hard problem since we are talking of dimensionality of order $10^3$. Having a large dimension as this implies that classical methods fail out of the box.
-% G: add more challenges
-Moreover, extending these tools to high-dimensional neural representations requires reformulating what constitutes a trajectory, a state, and a meaningful distance in the embedding space. 
+The state of the system includes not only the last token, but also the context window, and measuring distance between states is non-trivial.
+Extending these tools to high-dimensional neural representations requires reformulating what constitutes a trajectory, a state, and a meaningful distance in the embedding space. 
 %In particular, if LLMs perform reasoning in a structured, low-dimensional manifold of this space, one might expect ordered, non-chaotic evolution; yet if reasoning involves self-reinforcing feedback and contextual amplification, chaotic signatures may emerge. 
 We have worked around many of these challenges, and we hope this experience can be transferred to the study of other high dimensional systems.
 
@@ -266,7 +263,7 @@ The visual patterns in a RP provide an insight into the type of dynamics of the 
 
 % G: I would like to generally describe the necessary conditions for chaos. (I dont mean SIC and exponential divergence, but rather the underlying characteristics of the system which will make it be chaotic). Then I'd like to explain which components of LLM architecture correspond to these. example: nonlinear coupling and attention
 
-Chaos generally arises when a system satisfies the following structural mechanisms:
+Chaos generally arises when a system satisfies the following structural mechanisms \cite{Hnon1976ATM, ROSSLER1976, strogatz_textbook}:
 \begin{itemize}
     \item \textbf{Nonlinearity:} enables feedback amplification and coupling between degrees of freedom.
     \item \textbf{Stretching:} separates nearby trajectories, quantified by positive Lyapunov exponents.
@@ -278,9 +275,7 @@ Chaos generally arises when a system satisfies the following structural mechanis
 % The interplay of stretching and folding leads to a balance between divergence and confinement, the geometric origin of strange attractors. Classical examples embodying these principles include the Hénon map \cite{Hnon1976ATM}, the Rössler system \cite{ROSSLER1976}, and the Lorenz equations \cite{strogatz_textbook}. Together, they form the canonical models for studying chaos, predictability, and low-dimensional turbulence.
 
 % maybe "In LLMs, we hypothesize that the self-attention mechanism provides the 'stretching' by amplifying small differences in token representations, while normalization layers and the bounded nature of activation functions provide the 'folding', ensuring the system's states remain within a finite volume."
-\cite{Hnon1976ATM}
-\cite{ROSSLER1976}
-\cite{strogatz_textbook}
+
 
 
 \subsection{Large Language Models}
@@ -333,7 +328,7 @@ We propose viewing the autoregressive operation of a Large Language Model as a \
 \toprule
 \textbf{Chaotic System} & \textbf{LLMs} \\ \midrule
 Phase Space & Embedding / Hidden State Space \\
-State Vector & Hidden State Vector \tablefootnote{Formally, the state should describe all the information necessary to predict the next step, which in LLMs includes all the hidden states in the context window. This is handled by expanding the phase space to include those as well growing up to $\mathbb{R}^{D \times \text{context\_size}}$. The equivalent in chaos theory is a delay system where the phase space can be infinite-dimensional. We believe this makes the discussion unnecessarily less clear, so the reader should keep this in mind, but we will not speak in these terms. We will return to this point when discussing methods to calculate distances between trajectories using sliding windows.} \\
+State Vector & Hidden State Vector \\
 Phase-Space Trajectory & Sequence of Token Text or Hidden States \\
 Continuous Time Evolution & Discrete Token Generation Step \\
 Differential Equation & Autoregressive Function \\
@@ -455,7 +450,7 @@ The standard Cosine Distance metric can optionally be used with a sliding window
 
 There were some challenges inherent to the system under study. In any bounded system (as vectors are normalized), there is a maximum possible value for the distance, and the distance between two diverging trajectories will eventually reach the maximum and saturate. Therefore, in order to measure the lyapunov exponents we excluded this saturated region.
 
-Using a sliding window of size 16 \footnote{using sliding window size of 8 or 32 yielded similar results}, we computed the Cosine Distance between 100 perturbed trajectories from the same prompt (see Section \ref{subsec:init_cond_gen}) using the hidden states from the last layer. We fit an exponential on each starting from the first token and finding the best token to end the fit by optimizing the coefficient of determination $r^2$. Finally, because some trajectories never diverge, we excluded these by only considering those with positive lyapunov exponents where the $r^2$ was greater than 0.85. Because the distance metrics' base noise is comparable to the perturbation magnitude, we could not accurately measure negative lyapunov exponents, and we limited ourselves to reporting positive ones from the spectrum. 
+Using a sliding window of size 16 \footnote{using sliding window size of 8 or 32 yielded similar results}, we computed the Cosine Distance between 100 perturbed trajectories from the same prompt (see Section \ref{subsec:init_cond_gen}) using the hidden states from the last layer. We also did it using a sliding window of 8. We fit an exponential on each starting from the first token and finding the best token to end the fit by optimizing the coefficient of determination $r^2$. Finally, because some trajectories never diverge, we excluded these by only considering those with positive lyapunov exponents where the $r^2$ was greater than 0.85. Because the distance metrics' base noise is comparable to the perturbation magnitude, we could not accurately measure negative lyapunov exponents, and we limited ourselves to reporting positive ones from the spectrum. 
 
 \subsection{Recurrence Analysis}
 \label{subsec:recurrence_analysis_methods}
@@ -471,7 +466,9 @@ We analyze the plots qualitatively and quantitatively using Recurrence Quantific
     \item \textbf{Determinism (DET):} The fraction of recurrence points forming diagonal lines, indicating predictability.
     \item \textbf{Laminarity (LAM):} The percentage of recurrence points forming vertical lines, indicating periods of stable or "laminar" states.
     \item \textbf{Entropy (ENT):} The Shannon entropy of the distribution of diagonal line lengths, reflecting the complexity of the deterministic structure.
-\end{itemize} % G: include only the ones I actually use
+    \item \textbf{Recurrence Rate (RR):} The percentage of recurrent points.
+
+\end{itemize} % 
 
 % G: if i could say something about choice of threshold that would be great. for the RP images not so necessary but in RQA part yes
 
@@ -517,9 +514,15 @@ To test for SIC, we generated a set of trajectories from close starting points. 
 
 We measured the Lyapunov exponents as desceribed in Section \ref{subsec:methods_lyapu}. The excluded trajectories constituted 40\% of the total, which corresponds either to negative lyapunov exponents or low quality fits. From the successful fits (see in Fig. \ref{fig:example_lyapu_fit}) we obtained the lyapunov exponent for 2969 pairs. The average $r^2$ of the fits was 0.905.
 
-\begin{table}[H]
+
+% % It suggests the existence of stable regions or fixed points in the state space. Even in a chaotic system, not all initial conditions lead to divergence. Some might lie on stable manifolds. The fact that ~10% of trajectories are stable is a quantifiable measure of the system's stability. 
+% % G: and also it could be the fault of using random direction perturbation and two of them being close randomly. mentioned in subsec:appendix_limitations
+
+\begin{figure}[H]
 \centering
-\caption{Lyapunov Exponents}
+\begin{minipage}{0.45\textwidth}
+\centering
+\captionof{table}{Lyapunov Exponents}
 \begin{tabular}{lc}
 \hline
 Mean & 0.32 \\
@@ -530,18 +533,45 @@ Max & 0.72 \\
 \hline
 \end{tabular}
 \label{table:lyap}
-\end{table}
-% It suggests the existence of stable regions or fixed points in the state space. Even in a chaotic system, not all initial conditions lead to divergence. Some might lie on stable manifolds. The fact that ~10% of trajectories are stable is a quantifiable measure of the system's stability. 
-% G: and also it could be the fault of using random direction perturbation and two of them being close randomly. mentioned in subsec:appendix_limitations
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.7\linewidth]{plots/lyapu/fit_5_7.png}
-    \caption{Exemplary exponential fit}
-    \label{fig:example_lyapu_fit}
+\end{minipage}
+\hfill
+\begin{minipage}{0.5\textwidth}
+\centering
+\includegraphics[width=\linewidth]{plots/lyapu/fit_5_7.png}
+\caption{Exemplary exponential fit using hidden states and Cosine Distance}
+\label{fig:example_lyapu_fit}
+\end{minipage}
 \end{figure}
 
+
 % todo: \label{table:lyap} and \label{fig:example_lyapu_fit} put them side by side
+
+We repeated this same process on the sentence embedding data. 33\% of pairs were excluded and the average $r^2$ of the fits was 0.97. The values for the lyapunov spectrum obtained are different from the ones obtained in the hidden state space, which is completely reasonable, as one refers to the token space, where the "time interval" is 1 token, and the other refers to the sentence space and the "time interval" is 1 sentence. Both show and exponential divergence and a positive maximum lyapunov exponent, indicating SIC.
+
+\begin{figure}[H]
+\centering
+\begin{minipage}{0.45\textwidth}
+\centering
+\captionof{table}{Lyapunov Exponents}
+\begin{tabular}{lc}
+\hline
+Mean & 0.16 \\
+Median & 0.12 \\
+Std & 0.079 \\
+Min & 0.038 \\
+Max & 0.29 \\
+\hline
+\end{tabular}
+\label{table:lyap_embed}
+\end{minipage}
+\hfill
+\begin{minipage}{0.5\textwidth}
+\centering
+\includegraphics[width=\linewidth]{plots/lyapu/fit_46_48.png}
+\caption{Exemplary exponential fit using sentence embedders and Cosine Distance}
+\label{fig:example_lyapu_fit_embed}
+\end{minipage}
+\end{figure}
 
 
 We also calculated the divergence using other distance metrics. We see that the trajectories remain extremely close for several steps until they suddenly diverge. In the text, the first words are the same until, at the diverging step, the words turn different and the sentences too, while the general topic remains the same. So the initial perturbation persists in the hidden states, but does not affect token selection until a certain step, where the sampled token by two trajectories is different, which then leads them to quickly diverge.
@@ -601,11 +631,11 @@ The explanation for this is that at each step, the most probable next token is s
     \label{fig:distance_embed}
 \end{figure}
 
-Figures \ref{fig:distance_hidden} and \ref{fig:distance_embed} show that considering trajectories of hidden states or sentence embeddings, the divergence curves are similar. % GGG say somethinig else
+Figures \ref{fig:distance_hidden} and \ref{fig:distance_embed} show that considering trajectories of hidden states or sentence embeddings, the divergence curves are similar. Some metrics show a discrete, almost step-function-like divergence, like Fréchet in the hidden state space. % 
 
 % It is clear that we do not see an exponential divergence between the trajectories with most metrics, but rather a sudden jump.
-% Some metrics are better at quantifying the divergence, like cross correlation, DTW and Hausdorff, while others, like Fréchet are worse. % GGG improve
-% In our case, especially when using sentence embeddings, the number of data points until the saturation region was often small (GGG around 6), making any type of curve fitting difficult.
+% Some metrics are better at quantifying the divergence, like cross correlation, DTW and Hausdorff, while others, like Fréchet are worse. %  improve
+% In our case, especially when using sentence embeddings, the number of data points until the saturation region was often small (G around 6), making any type of curve fitting difficult.
 
 
 \subsection{RP}
@@ -641,6 +671,25 @@ Plotting the RPs for trajectories coming from different prompts shows a wide var
 \end{figure}
 
 
+\begin{table}[H]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lccccccccc}
+\toprule
+Name & Recurrence Rate & Determinism & Longest Diagonal Line & Entropy of Diagonal Lines & Laminarity & Longest Vertical Line & Entropy of Vertical Lines \\
+\midrule
+Prompt 1, first layer & 0.0104 & 0.4097 & 93.0000 & 1.3277 & 0.0160 & 2.0000 & 0.0000 \\
+Prompt 1, last layer & 0.0137 & 0.4247 & 72.0000 & 1.1857 & 0.1336 & 5.0000 & 0.5429 \\
+Prompt 2, first layer & 0.0127 & 0.2941 & 23.0000 & 1.3155 & 0.0000 & 0.0000 & 0.0000 \\
+Prompt 2, last layer & 0.0139 & 0.4174 & 24.0000 & 1.2225 & 0.1929 & 11.0000 & 0.4682 \\
+\bottomrule
+\end{tabular}%
+}
+\caption{Recurrence quantification analysis results.}
+\label{tab:rqa}
+\end{table}
+
+
 % G: not always at the last layer, but also middle layers are quite chaotic
 Chaotic features are more strongly present at the last layers of the model as showed in the RP \ref{fig:rp_comparison_layers} and pointwise dimension \ref{fig:dim_first_last}. This is due to the progressive addition of more nonlinearity and coupling at each layer. 
 
@@ -649,27 +698,45 @@ Chaotic features are more strongly present at the last layers of the model as sh
     \begin{subfigure}[b]{0.48\textwidth}
         \centering
         \includegraphics[width=\linewidth]{plots/RP/launch_pentek_0_0.04/traj_2_recurrence_thr_0.3.png}
-        \caption{a}
+        \caption{Prompt a}
     \end{subfigure}\hfill
     \begin{subfigure}[b]{0.48\textwidth}
         \centering
         \includegraphics[width=\linewidth]{plots/RP/launch_pentek_0_0.04/traj_3_recurrence_thr_0.3.png}
-        \caption{b}
+        \caption{Prompt b}
     \end{subfigure}
     \\[0.5em]
     \begin{subfigure}[b]{0.48\textwidth}
         \centering
         \includegraphics[width=\linewidth]{plots/RP/launch_pentek_0_0.02/traj_1_recurrence_thr_0.3.png}
-        \caption{c}
+        \caption{Prompt c}
     \end{subfigure}\hfill
     \begin{subfigure}[b]{0.48\textwidth}
         \centering
         \includegraphics[width=\linewidth]{plots/RP/launch_pentek_0_0.02/traj_6_recurrence_thr_0.3.png}
-        \caption{d}
+        \caption{Prompt d}
     \end{subfigure}
     \caption{Examples of recurrence plots obtained for different prompts.}
     \label{fig:rp_interesting}
 \end{figure}
+
+\begin{table}[H]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lccccccccc}
+\toprule
+Name & Recurrence Rate & Determinism & Longest Diagonal Line & Entropy of Diagonal Lines & Laminarity & Longest Vertical Line & Entropy of Vertical Lines \\
+\midrule
+Prompt a & 0.0498 & 0.4341 & 13.0000 & 1.2627 & 0.4472 & 17.0000 & 1.2769 \\
+Prompt b & 0.0447 & 0.5407 & 88.0000 & 1.8077 & 0.1203 & 13.0000 & 0.5389 \\
+Prompt c & 0.0315 & 0.4875 & 170.0000 & 1.2416 & 0.3485 & 12.0000 & 0.9297 \\
+Prompt d & 0.0260 & 0.4986 & 407.0000 & 1.5316 & 0.2421 & 16.0000 & 0.3053 \\
+\bottomrule
+\end{tabular}%
+}
+\caption{Recurrence quantification analysis results.}
+\label{tab:rqa2}
+\end{table}
 
 The Chain-of-Thought reasoning block, the first tokens generated by the model, can be identified in the RP (dark left bottom block). It suggests the model enters a specific, stable 'reasoning state' before beginning its main output. This is a great example of using RPs to identify functional stages in the generation process. 
 The blocks in the RP, such as in Figure \ref{fig:rp_interesting} (b) correspond to some structured parts of the text, such as making lists.
@@ -783,7 +850,7 @@ This motivated the use of techniques such as sliding windows, sentence embedders
 
 The results obtained from the divergence using hidden state and sentence embedders were extremely similar. This, and the fact that the distance metrics when applied to the hidden states yield meaningful results (when compared to semantic similarity), is not trivial, as LLMs are not trained to generate interpretable hidden states whose distance encodes meaning. Sentence embedders are models explicitly trained for this, and it is remarkable that both achive such similar results.
 
-From a dynamical perspective, our results support the interpretation of LLMs as high-dimensional, discrete-time nonlinear systems operating near the \textbf{edge of chaos}. The combination of the self-attention mechanism (which induces stretching through context-dependent amplification of differences) and normalization layers (which impose folding through bounded projection) produces a balance between divergence and confinement analogous to chaotic attractors. The recurrence plots exhibit structured yet non-periodic geometries, while dimensionality estimation suggests that these trajectories evolve on a low-dimensional fractal manifold rather than filling the entire embedding space. Together, these findings point toward a regime of rich but bounded dynamics—a hallmark of systems capable of both stability and flexibility.
+From a dynamical perspective, our results support the interpretation of LLMs as high-dimensional, discrete-time nonlinear systems operating near the \textbf{edge of chaos}. The combination of the self-attention mechanism (which induces stretching through context-dependent amplification of differences) and normalization layers (which impose folding through bounded projection) produces a balance between divergence and confinement analogous to chaotic attractors. The positive lyapunov exponent shows sensitivity to initial conditions. The recurrence plots exhibit structured yet non-periodic geometries, while dimensionality estimation suggests that these trajectories evolve on a low-dimensional fractal manifold rather than filling the entire embedding space. Together, these findings point toward a regime of rich but bounded dynamics—a hallmark of systems capable of both stability and flexibility.
 
 % This behavior may underlie the dual ability of LLMs to maintain coherence while generating diverse, creative continuations. Systems at the edge of chaos are known to maximize computational expressivity and information propagation, suggesting that such dynamics could play a role in the emergent reasoning and context sensitivity observed in large-scale Transformers.
 
@@ -793,12 +860,11 @@ Working in extremely high-dimensional spaces presented both conceptual and techn
 Our investigations were limited to studying a single LLM model. Nontheless, we expect similar results in the case of other models and architectures as well, but with some differences, since certain architectural features of the model, such as the Chain-of-Thought reasoning logic, could be recognized in the recurrence plots. Further studies should explore different model sizes, architectures, and context sizes.
 Future work could also systematically explore how chaotic characteristics scale with model size, architecture, and training regime. Comparing encoder-only, decoder-only, and encoder–decoder architectures could illuminate how bidirectional vs. causal attention affects dynamical stability. Moreover, investigating the influence of hyperparameters such as context length, normalization type, and activation function could clarify which architectural components are the main cause of chaotic dynamics.
 
-Another question that arose during our studies involves measuring Lyapunov-like exponents directly from embedding trajectories, potentially revealing quantitative thresholds for transitions between stable and chaotic regimes. Extending these analyses to stochastic decoding at nonzero temperatures would allow for exploration of the interplay between deterministic chaoticity and sampling-induced randomness.
+% Another question that arose during our studies involves measuring Lyapunov-like exponents directly from embedding trajectories, potentially revealing quantitative thresholds for transitions between stable and chaotic regimes. Extending these analyses to stochastic decoding at nonzero temperatures would allow for exploration of the interplay between deterministic chaoticity and sampling-induced randomness.
 
 % Finally, reinterpreting the trajectory could yield further insight in the inner workings of reasoning LLMs. Namely, one could define a trajectory by checking which nodes in the subsequent layers are activated. This is also known as tracing the system for a given input.
 
 
-% GGG maybe mention that this has been observed by others too
 
 % mention the challenges and successes with high dim data. also distance metrics. and the ones I invented
 % "Our results paint a consistent picture of LLM dynamics. We observe sensitive dependence on initial conditions, characteristic of chaos. Recurrence plots reveal complex, deterministic structures that evolve through the network's layers, culminating in chaotic-like behavior in the final layers. Furthermore, dimensionality analysis suggests these complex dynamics unfold on a low-dimensional fractal attractor. This suggests that LLMs operate at the 'edge of chaos', leveraging these rich dynamics to balance creativity and coherence. We propose that the interplay between the 'stretching' of the attention mechanism and the 'folding' of normalization layers is the fundamental architectural driver of this behavior."
@@ -962,50 +1028,48 @@ We were originally expecting the hidden states to represent the whole state of t
 % G: With window size 1, the hidden state distance is noisy. As you increase the window size, a clear divergence curve emerges. This visually demonstrates that the 'true' state of the system is a sequence of vectors, not a single vector. connect size of window with semantic
 
 
-% GGG sliding window can make step function look linear diagonal with cos and dtw. maybe delete section
-% G: also maybe try cos with min aggregation (do not average the vectors fist, but first calc each pair and then min)
-Some artifacts can be introduced by the sliding windows. For some metrics the distance gets averaged over the window and this just turn a step function-like curve to a piecewise linear looking one.
-Other metrics, such as Hausdorff, which calculate the maximum of the minimum distance, do not present this problem, since they do not average out the distance.
-\begin{figure}[H]
-    \centering
-    % First row: Hidden state space
-    \begin{subfigure}[b]{0.32\textwidth}
-        \centering
-        \includegraphics[width=\linewidth]{plots/divergence/interstellar_propulsion_review_0_0.00035_sentence_transformers_dtw/dtw_timeseries_0_1_window_size_1.png}
-        \caption{window size 1}
-    \end{subfigure}
-    \begin{subfigure}[b]{0.32\textwidth}
-        \centering
-        \includegraphics[width=\linewidth]{plots/divergence/interstellar_propulsion_review_0_0.00035_sentence_transformers_dtw/dtw_timeseries_0_1_window_size_8.png}
-        \caption{window size 8}
-    \end{subfigure}
-    \begin{subfigure}[b]{0.32\textwidth}
-        \centering
-        \includegraphics[width=\linewidth]{plots/divergence/interstellar_propulsion_review_0_0.00035_sentence_transformers_dtw/dtw_timeseries_0_1_window_size_16.png}
-        \caption{window size 16}
-    \end{subfigure}
-    % Second row: Sentence embedding space
-    \\[0.5em]
-    \begin{subfigure}[b]{0.32\textwidth}
-        \centering
-        \includegraphics[width=\linewidth]{plots/divergence/interstellar_propulsion_review_0_0.00035_sentence_transformers_cos/cos_timeseries_0_1_window_size_1.png}
-        \caption{window size 1}
-    \end{subfigure}
-    \begin{subfigure}[b]{0.32\textwidth}
-        \centering
-        \includegraphics[width=\linewidth]{plots/divergence/interstellar_propulsion_review_0_0.00035_sentence_transformers_cos/cos_timeseries_0_1_window_size_8.png}
-        \caption{window size 8}
-    \end{subfigure}
-    \begin{subfigure}[b]{0.32\textwidth}
-        \centering
-        \includegraphics[width=\linewidth]{plots/divergence/interstellar_propulsion_review_0_0.00035_sentence_transformers_cos/cos_timeseries_0_1_window_size_16.png}
-        \caption{window size 16}
-    \end{subfigure}
-    \caption{Divergence between two trajectories using sentenec embedders for different sliding window sizes. Top row: DTW. Bottom row: Cosine Distance.}
-    \label{fig:sliding_window_artifact}
-\end{figure}
-
-
+% %  sliding window can make step function look linear diagonal with cos and dtw. maybe delete section
+% % G: also maybe try cos with min aggregation (do not average the vectors fist, but first calc each pair and then min)
+% Some artifacts can be introduced by the sliding windows. For some metrics the distance gets averaged over the window and this just turn a step function-like curve to a piecewise linear looking one.
+% Other metrics, such as Hausdorff, which calculate the maximum of the minimum distance, do not present this problem, since they do not average out the distance.
+% \begin{figure}[H]
+%     \centering
+%     % First row: Hidden state space
+%     \begin{subfigure}[b]{0.32\textwidth}
+%         \centering
+%         \includegraphics[width=\linewidth]{plots/divergence/interstellar_propulsion_review_0_0.00035_sentence_transformers_dtw/dtw_timeseries_0_1_window_size_1.png}
+%         \caption{window size 1}
+%     \end{subfigure}
+%     \begin{subfigure}[b]{0.32\textwidth}
+%         \centering
+%         \includegraphics[width=\linewidth]{plots/divergence/interstellar_propulsion_review_0_0.00035_sentence_transformers_dtw/dtw_timeseries_0_1_window_size_8.png}
+%         \caption{window size 8}
+%     \end{subfigure}
+%     \begin{subfigure}[b]{0.32\textwidth}
+%         \centering
+%         \includegraphics[width=\linewidth]{plots/divergence/interstellar_propulsion_review_0_0.00035_sentence_transformers_dtw/dtw_timeseries_0_1_window_size_16.png}
+%         \caption{window size 16}
+%     \end{subfigure}
+%     % Second row: Sentence embedding space
+%     \\[0.5em]
+%     \begin{subfigure}[b]{0.32\textwidth}
+%         \centering
+%         \includegraphics[width=\linewidth]{plots/divergence/interstellar_propulsion_review_0_0.00035_sentence_transformers_cos/cos_timeseries_0_1_window_size_1.png}
+%         \caption{window size 1}
+%     \end{subfigure}
+%     \begin{subfigure}[b]{0.32\textwidth}
+%         \centering
+%         \includegraphics[width=\linewidth]{plots/divergence/interstellar_propulsion_review_0_0.00035_sentence_transformers_cos/cos_timeseries_0_1_window_size_8.png}
+%         \caption{window size 8}
+%     \end{subfigure}
+%     \begin{subfigure}[b]{0.32\textwidth}
+%         \centering
+%         \includegraphics[width=\linewidth]{plots/divergence/interstellar_propulsion_review_0_0.00035_sentence_transformers_cos/cos_timeseries_0_1_window_size_16.png}
+%         \caption{window size 16}
+%     \end{subfigure}
+%     \caption{Divergence between two trajectories using sentenec embedders for different sliding window sizes. Top row: DTW. Bottom row: Cosine Distance.}
+%     \label{fig:sliding_window_artifact}
+% \end{figure}
 
 
 \subsection{Dimensionality of the LLM vocabulary}
@@ -1076,7 +1140,7 @@ and the full LayerNorm Jacobian (including \(D\)) is \(J_y(h)=D\,J_{\widehat{h}}
 % G: By killing the �� u-direction, LayerNorm throws away “how much” the features deviate from the mean and keeps only “in what relative proportions” they deviate.
 % G: could emphasize that the radial direction u is specific for every h, but the mean centering is global.
 
-\paragraph{Interpretation for dynamics} % GGG \paragraph
+\paragraph{Interpretation for dynamics} %  \paragraph
 % \label{par:interpretation_dynamics}
 LayerNorm is therefore a structured many-to-one nonlinear map: it (i) removes one linear degree of freedom (the mean), (ii) collapses the radial coordinate in the centered hyperplane (folding onto a compact manifold), and (iii) applies an anisotropic linear rescaling and shift.
 % G: (ii) is too much
@@ -1087,7 +1151,7 @@ LayerNorm is therefore a structured many-to-one nonlinear map: it (i) removes on
 \subsection{Principal Component Dissimilarity (PCD)}
 \label{subsec:pca_distance} 
 
-% We also defined a new distance metric based on the structural similarity of two trajectories. It showed similar results to the other metrics but it was noisier. GGG repeated
+% We also defined a new distance metric based on the structural similarity of two trajectories. It showed similar results to the other metrics but it was noisier. 
 
 We perform a PCA on each trajectory obtaining the principal directions (eigenvectors $V^{(i)}$ of the centered data covariance matrices) for each trajectory. To compare the two sets of eigenvectors, we compute the cosine similarity matrix $S$.
 For each eigenvector of the first trajectory $v^{(1)}_a$, we find the index $b^*$ of the most similar eigenvector in the second trajectory:
@@ -1096,7 +1160,7 @@ b^* = \arg\max_b S_{ab}
 \]
 We can show the ranking of eigenvectors to show how similar two trajectories are. The closer to the proportionality line, the more similar two trajectories.
 
-To get a distance scalar, we sum the cosine distances for these matched pairs \footnote{We also tried calculating the root mean square deviation with respect to the proportionality line but it was a worse metric GGG}:
+To get a distance scalar, we sum the cosine distances for these matched pairs \footnote{We also tried calculating the root mean square deviation with respect to the proportionality line but it was more noisy.}:
 \[
 D_{\text{sum\_cos\_dist}} = \sum_{a=1}^k \left[1 - S_{a b^*}\right]
 \]
@@ -1114,40 +1178,33 @@ This metric is not symmetric. Matching is performed from the eigenvectors of the
         \centering
         \includegraphics[width=0.6\linewidth]{plots/rank_eigen/rank_eigen_pca_0_1.png}
     \end{subfigure}
-    \caption{Principal Component eigenvector ranking between trajectories. The left image shows two more similar trajectories} % GGG
+    \caption{Principal Component eigenvector ranking between trajectories. The left image shows two more similar trajectories} 
     \label{fig:rank_eigen}
 \end{figure}
 
 
 \subsection{Ideas that Failed}
 \label{subsec:appendix_failed_ideas} % G: under development. maybe wont be in paper
-In this section, we quickly mention a few ideas that did not work to prevent others from making the same mistake.
+In this section, we briefly mention a few ideas that did not work in case it is of use to others. We used the Wasserstein metric for the data analysis but it was noisy and not very informative. We also used cross-recurrence plots to compare two trajectories, but found it not so clear. To compare different trajectories we preferred the methods explained in the paper. Inspired by \cite{DONNER_2011} and \cite{Donner_2010} \cite{ZOU20191} we did the recurrence analysis using complex networks, which comes naturally by considering the recurrence matrix as the adjacency matrix of the network. While interesting, we found the results easier to analyze using RQA than this method. % G: improve
 
-We also investigated the effect of temperature
 
-We also used the Wasserstein metric for the data analysis but it was noisy and not very informative.
+% \subsection{Limitations and shortcomings of this study (GGG this won't be in the paper in this form, I just want to keep track of these):}
+% \label{subsec:appendix_limitations}
 
-We also used cross-recurrence plots to compare two trajectories, but found it not so clear. To compare different trajectories we preferred the methods explained in the paper.
-
-Inspired by \cite{DONNER_2011} and \cite{Donner_2010} \cite{ZOU20191} we did the recurrence analysis using complex networks, which comes naturally by considering the recurrence matrix as the adjacency matrix of the network. While interesting, we found the results easier to analyze using RQA than this method. % G: improve
-
-\subsection{Limitations and shortcomings of this study (GGG this won't be in the paper in this form, I just want to keep track of these):}
-\label{subsec:appendix_limitations}
-
-- i can't explain what the value of the dimension obtained *means*. if the dimensionality thing just shows that the system is deterministic, then it is quite trivial
-- i only qualitatively compared the recurrence plots obtained
-- i failed at aggregating results from pairs of trajectories (so far)
-- the recurrence plots for different prompts are quite different and not all look chaotic
-% G: bug or finding? It suggests the dynamics are prompt-dependent. Some prompts might induce more stable, predictable behavior, while others induce more chaotic, creative behavior. 
-- i only did english prompts
-- RQA done on different layers does not show enormous differences (although i claim that the last layers are more chaotic than the first layer). specifically
-- when i generate the initial conditions I was a bit stupid and just added a fixed-magnitude random-direction perturbation. So I did not really measure the initial distance between trajectories, and i did not really measure it. I should have done a hyper equilateral triangle, but i did a hyper sphere.
-- i did not really show a strange attractor, i just hint at it. i could not quantitatively compare the results for different prompts (or even for the same prompt but disturbed) in the RP and dimension stuff. One might ask: if you say that you get a sort of strange attractor, is it the same for different prompts? is there any similarity between them?. My answer would be: i dont know
-- relatively short trajectories:
-Using a model with so few parameters and having to limit the context window size significantly, it was difficult to make long
-Due to memory constraints we had in the GPUs available, there was a tradeoff between the length of the generated text, and the model size and context window. This meant that we either had to do short responses (~3096 tokens long GGG), or if we wanted longer ones, we needed to use a smaller model or a smaller context window, which then caused the output quality to degrade, often resulting in the model getting stuck in a repetitive loop. The fact that the temperature was set to zero did not help.
-What we did is use the smallest model and context window size possible while retaining a good quality output text by reading through them \footnote{also recurrence plots at a glance show if a model gets stuck in a repetitive loop}. 
-We did not think this repetitive loops were worth exploring, since these are a feature which appears in very basic and small LLMs with a short context window and zero temperature, and state of the art models will overcome this.
+% - i can't explain what the value of the dimension obtained *means*. if the dimensionality thing just shows that the system is deterministic, then it is quite trivial
+% - i only qualitatively compared the recurrence plots obtained
+% - i failed at aggregating results from pairs of trajectories (so far)
+% - the recurrence plots for different prompts are quite different and not all look chaotic
+% % G: bug or finding? It suggests the dynamics are prompt-dependent. Some prompts might induce more stable, predictable behavior, while others induce more chaotic, creative behavior. 
+% - i only did english prompts
+% - RQA done on different layers does not show enormous differences (although i claim that the last layers are more chaotic than the first layer). specifically
+% - when i generate the initial conditions I was a bit stupid and just added a fixed-magnitude random-direction perturbation. So I did not really measure the initial distance between trajectories, and i did not really measure it. I should have done a hyper equilateral triangle, but i did a hyper sphere.
+% - i did not really show a strange attractor, i just hint at it. i could not quantitatively compare the results for different prompts (or even for the same prompt but disturbed) in the RP and dimension stuff. One might ask: if you say that you get a sort of strange attractor, is it the same for different prompts? is there any similarity between them?. My answer would be: i dont know
+% - relatively short trajectories:
+% Using a model with so few parameters and having to limit the context window size significantly, it was difficult to make long 
+% Due to memory constraints we had in the GPUs available, there was a tradeoff between the length of the generated text, and the model size and context window. This meant that we either had to do short responses (~3096 tokens long GGG), or if we wanted longer ones, we needed to use a smaller model or a smaller context window, which then caused the output quality to degrade, often resulting in the model getting stuck in a repetitive loop. The fact that the temperature was set to zero did not help.
+% What we did is use the smallest model and context window size possible while retaining a good quality output text by reading through them \footnote{also recurrence plots at a glance show if a model gets stuck in a repetitive loop}. 
+% We did not think this repetitive loops were worth exploring, since these are a feature which appears in very basic and small LLMs with a short context window and zero temperature, and state of the art models will overcome this.
 
 
 \end{document}
