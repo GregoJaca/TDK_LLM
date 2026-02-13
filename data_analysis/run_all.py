@@ -219,6 +219,7 @@ def main(input_path, results_root, sweep_param_value=None):
         for v in CONFIG.get('metrics', {}).values()
     )
     if any_enabled:
+        CONFIG["results_root"] = results_root
         metrics_summary = run_metrics(X_reduced, run_id=run_id)
         logger.info("Metrics complete")
     else:
@@ -242,9 +243,25 @@ def main(input_path, results_root, sweep_param_value=None):
                     plot_path = os.path.join(plot_dir, f"pairwise_distance_hist_{metric_name}_{agg_type}_window_size_{sweep_param_value}.png")
                 else:
                     # For regular runs, use the top-level plots_dir created earlier.
-                    plot_path = os.path.join(plots_dir, f"pairwise_distance_hist_{metric_name}_{agg_type}.png")
+                    fname = f"pairwise_distance_hist_{metric_name}_{agg_type}"
+                    # Check if sliding window is used and include window_size
+                    sw_cfg = CONFIG.get('sliding_window', {})
+                    if sw_cfg.get('use_window', False):
+                        ws = sw_cfg.get('window_size')
+                        if ws is not None:
+                            fname += f"_window_size_{ws}"
+                    fname += ".png"
+                    plot_path = os.path.join(plots_dir, fname)
                 logger.info(f"Saving plot to {plot_path}")
-                plot_pairwise_distance_distribution(metrics_summary, plot_path, metric_name=metric_name, aggregate_type=agg_type, sweep_param_value=sweep_param_value)
+                # Pass window_size as sweep_param_value if using window, to ensure title/filename inside plot func is consistent if it uses it
+                # Although plot_pairwise_distance_distribution uses sweep_param_value for title/filename only if provided.
+                # We already constructing the filename here, but the plot function might save it differently? 
+                # plot_pairwise_distance_distribution takes `outpath` and uses it.
+                # It also uses `sweep_param_value` to append to title (optional/removed) and logic.
+                sw_val = sweep_param_value
+                if sw_val is None and CONFIG.get('sliding_window', {}).get('use_window', False):
+                     sw_val = CONFIG.get('sliding_window', {}).get('window_size')
+                plot_pairwise_distance_distribution(metrics_summary, plot_path, metric_name=metric_name, aggregate_type=agg_type, sweep_param_value=sw_val)
     else:
         logger.info("Skipping histogram plots: CONFIG['plots']['save_histograms'] is False")
 

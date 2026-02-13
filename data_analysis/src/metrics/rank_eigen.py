@@ -195,17 +195,19 @@ def compare_trajectories(
             # sliding plot
             if positions.size > 0 and CONFIG.get("plots", {}).get("save_timeseries", False):
                 try:
-                    if pair_id:
-                        sliding_plot_path = os.path.join(plots_dir, f"rank_eigen_pca_{pair_id}_sliding.png")
-                    else:
-                        sliding_plot_path = os.path.join(plots_dir, "rank_eigen_pca_sliding.png")
+                    fname = f"rank_eigen_pca_{pair_id}_sliding" if pair_id else "rank_eigen_pca_sliding"
+                    if kwargs.get("window_size") is not None:
+                        fname += f"_window_size_{kwargs.get('window_size')}"
+                    elif cfg.get("sliding_window_size"): # fallback info
+                         fname += f"_window_size_{cfg.get('sliding_window_size')}"
+                    fname += ".png"
+                    sliding_plot_path = os.path.join(plots_dir, fname)
                     viz_plots.plot_rank_eigen_sliding(positions, deviations, sliding_plot_path, metric_cfg=cfg)
                 except Exception:
                     pass
         # Save timeseries array if enabled
         if timeseries is not None and CONFIG["metrics"].get("save_timeseries_array", False):
             try:
-                import numpy as np
                 fname = os.path.join(plots_dir, f"rank_eigen_timeseries_{pair_id}.npy" if pair_id else "rank_eigen_timeseries.npy")
                 np.save(fname, timeseries)
             except Exception:

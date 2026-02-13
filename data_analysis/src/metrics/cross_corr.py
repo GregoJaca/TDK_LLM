@@ -79,7 +79,11 @@ def compare_trajectories(a, b, *, return_timeseries=True, pair_id=None, out_root
     if time_series is not None and out_root:
         # Save plot
         if CONFIG["metrics"].get("save_plots", True):
-            out_path = os.path.join(out_root, f"cross_corr_{correlation_type}_{pair_id}.png")
+            fname = f"cross_corr_{correlation_type}_{pair_id}"
+            if CONFIG["sliding_window"]["use_window"]:
+                fname += f"_window_size_{window_size}"
+            fname += ".png"
+            out_path = os.path.join(out_root, fname)
             try:
                 # Plot distance-like measure: 1 - correlation
                 plot_series = 1.0 - time_series
@@ -88,6 +92,7 @@ def compare_trajectories(a, b, *, return_timeseries=True, pair_id=None, out_root
                     out_path,
                     title=f"1 - Cross-Correlation ({correlation_type.capitalize()}) for Pair {pair_id}",
                     ylabel=f"1 - Cross-Corr ({correlation_type})",
+                    sweep_param_value=window_size
                 )
             except Exception:
                 # fallback to original plot if something goes wrong
@@ -96,6 +101,7 @@ def compare_trajectories(a, b, *, return_timeseries=True, pair_id=None, out_root
                     out_path,
                     title=f"Cross-Correlation ({correlation_type.capitalize()}) for Pair {pair_id}",
                     ylabel=f"Cross-Corr ({correlation_type})",
+                    sweep_param_value=window_size
                 )
         # Save timeseries array if enabled
         if CONFIG["metrics"].get("save_timeseries_array", False):

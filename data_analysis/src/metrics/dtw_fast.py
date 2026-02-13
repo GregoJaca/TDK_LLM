@@ -77,13 +77,16 @@ def compare_trajectories(
                 try:
                     from src.viz.plots import plot_time_series_for_pair
                     os.makedirs(out_root, exist_ok=True)
-                    plot_time_series_for_pair(timeseries, os.path.join(out_root, f"dtw_timeseries_{pair_id}.png"), title=f"DTW distances ({pair_id})", ylabel="DTW Distance")
+                    fname = f"dtw_timeseries_{pair_id}"
+                    if window_size is not None:
+                        fname += f"_window_size_{window_size}"
+                    fname += ".png"
+                    plot_time_series_for_pair(timeseries, os.path.join(out_root, fname), title=f"DTW distances ({pair_id})", ylabel="DTW Distance", sweep_param_value=window_size)
                 except Exception:
                     pass
             # Save timeseries array if enabled
             if CONFIG["metrics"].get("save_timeseries_array", False):
                 try:
-                    import numpy as np
                     np.save(os.path.join(out_root, f"dtw_timeseries_{pair_id}.npy"), timeseries)
                 except Exception:
                     pass
@@ -102,7 +105,11 @@ def compare_trajectories(
             try:
                 from src.viz.plots import plot_time_series_for_pair
                 os.makedirs(kwargs.get("out_root"), exist_ok=True)
-                plot_time_series_for_pair(timeseries, os.path.join(kwargs.get("out_root"), f"dtw_alignment_timeseries_{kwargs.get('pair_id', '')}.png"), title=f"DTW alignment distances ({kwargs.get('pair_id','')})", ylabel="DTW Distance")
+                fname = f"dtw_alignment_timeseries_{kwargs.get('pair_id', '')}"
+                if window_size is not None:
+                    fname += f"_window_size_{window_size}"
+                fname += ".png"
+                plot_time_series_for_pair(timeseries, os.path.join(kwargs.get("out_root"), fname), title=f"DTW alignment distances ({kwargs.get('pair_id','')})", ylabel="DTW Distance", sweep_param_value=window_size)
             except Exception:
                 pass
 

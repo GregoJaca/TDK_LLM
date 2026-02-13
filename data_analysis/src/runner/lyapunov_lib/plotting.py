@@ -13,11 +13,13 @@ def plot_curves(times, curves, outpath, labels=None, log_plot=False, title=None)
         else:
             plt.plot(times, c, label=lab, alpha=0.7)
     if labels is not None:
-        plt.legend(fontsize=8)
-    if title:
-        plt.title(title)
+        plt.legend(fontsize=16)
+    # if title:
+    #     plt.title(title)
+    plt.tick_params(axis='both', which='major', labelsize=16)
     plt.tight_layout()
-    plt.savefig(outpath)
+    plt.savefig(outpath, dpi=300)
+    plt.savefig(outpath.replace('.png', '.pdf'), dpi=300)
     plt.close()
 
 
@@ -32,9 +34,11 @@ def plot_mean_and_fit(times, mean_curve, fit_curve, outpath, log_plot=False, tit
         plt.plot(times, mean_curve, label="mean")
         if fit_curve is not None:
             plt.plot(times, fit_curve, label="fit")
-    plt.legend()
-    if title:
-        plt.title(title)
+    plt.legend(fontsize=16)
+    # if title:
+    #     plt.title(title)
+    plt.tick_params(axis='both', which='major', labelsize=16)
     plt.tight_layout()
-    plt.savefig(outpath)
+    plt.savefig(outpath, dpi=300)
+    plt.savefig(outpath.replace('.png', '.pdf'), dpi=300)
     plt.close()

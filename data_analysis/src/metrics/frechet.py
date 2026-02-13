@@ -114,13 +114,15 @@ def compare_trajectories(
                 try:
                     from src.viz.plots import plot_time_series_for_pair
                     os.makedirs(out_root, exist_ok=True)
-                    plot_time_series_for_pair(timeseries, os.path.join(out_root, f"frechet_timeseries_{pair_id}.png"), title=f"Frchet distances ({pair_id})", ylabel="Frchet Distance")
+                    fname = f"frechet_timeseries_{pair_id}"
+                    if window_size is not None:
+                        fname += f"_window_size_{window_size}"
+                    fname += ".png"
+                    plot_time_series_for_pair(timeseries, os.path.join(out_root, fname), title=f"Fréchet distances ({pair_id})", ylabel="Fréchet Distance", sweep_param_value=window_size)
                 except Exception:
                     pass
             # Save timeseries array if enabled
-            if CONFIG["metrics"].get("save_timeseries_array", False):
                 try:
-                    import numpy as np
                     np.save(os.path.join(out_root, f"frechet_timeseries_{pair_id}.npy"), timeseries)
                 except Exception:
                     pass
@@ -137,11 +139,16 @@ def compare_trajectories(
             try:
                 from src.viz.plots import plot_time_series_for_pair
                 os.makedirs(kwargs.get("out_root"), exist_ok=True)
+                fname = f"frechet_alignment_timeseries_{kwargs.get('pair_id','')}"
+                if window_size is not None:
+                    fname += f"_window_size_{window_size}"
+                fname += ".png"
                 plot_time_series_for_pair(
                     timeseries,
-                    os.path.join(kwargs.get("out_root"), f"frechet_alignment_timeseries_{kwargs.get('pair_id','')}.png"),
+                    os.path.join(kwargs.get("out_root"), fname),
                     title=f"Fréchet alignment distances ({kwargs.get('pair_id','')})",
                     ylabel="Fréchet Distance",
+                    sweep_param_value=window_size
                 )
             except Exception:
                 pass

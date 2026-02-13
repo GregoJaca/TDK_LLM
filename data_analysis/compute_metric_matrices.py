@@ -199,18 +199,30 @@ def _plot_matrix(M: np.ndarray, out_path: str, title: Optional[str] = None, swee
     try:
         import matplotlib.pyplot as plt
 
-        plt.figure(figsize=(6, 6))
+        plt.figure(figsize=(10, 10))
         # Use inverted gray colormap for binary matrices (0=white, 1=black)
-        is_binary = np.all(np.isin(M, [0.0, 1.0]))
+        # is_binary = np.all(np.isin(M, [0.0, 1.0]))
         cmap = 'gray_r' if is_binary else 'viridis'
         plt.imshow(M, aspect="equal", origin="lower", cmap=cmap)
-        plt.colorbar()
-        if title:
-            if sweep_param_value is not None:
-                title += f" - window_size={sweep_param_value}"
-            plt.title(title)
+        
+        cbar = plt.colorbar()
+        cbar.ax.tick_params(labelsize=18)
+        
+        plt.tick_params(axis='both', which='major', labelsize=18)
+        plt.xlabel("Window Index", fontsize=24)
+        plt.ylabel("Window Index", fontsize=24)
+
+        # Removed title as requested
+        # if title:
+        #     plt.title(title)
+        
         plt.tight_layout()
-        plt.savefig(out_path)
+        plt.savefig(out_path, dpi=300)
+        
+        # Also save as PDF
+        pdf_path = os.path.splitext(out_path)[0] + ".pdf"
+        plt.savefig(pdf_path, dpi=300)
+        
         plt.close()
     except Exception:
         # plotting should not be fatal

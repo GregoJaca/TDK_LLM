@@ -67,12 +67,15 @@ def compare_trajectories(
         # Save timeseries plot
         if CONFIG["metrics"].get("save_plots", True):
             os.makedirs(out_root, exist_ok=True)
-            plot_fname = os.path.join(out_root, f"wasserstein_timeseries_{pair_id}.png")
-            plot_time_series_for_pair(timeseries, plot_fname, title=f"Wasserstein Distance ({pair_id})", ylabel="Wasserstein Distance")
+            fname = f"wasserstein_timeseries_{pair_id}"
+            if use_window and window_size is not None:
+                fname += f"_window_size_{window_size}"
+            fname += ".png"
+            plot_fname = os.path.join(out_root, fname)
+            plot_time_series_for_pair(timeseries, plot_fname, title=f"Wasserstein Distance ({pair_id})", ylabel="Wasserstein Distance", sweep_param_value=window_size)
         # Save timeseries array if enabled
         if CONFIG["metrics"].get("save_timeseries_array", False):
             try:
-                import numpy as np
                 fname = os.path.join(out_root, f"wasserstein_timeseries_{pair_id}.npy")
                 np.save(fname, timeseries)
             except Exception:

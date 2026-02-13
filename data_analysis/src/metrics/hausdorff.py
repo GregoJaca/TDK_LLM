@@ -78,7 +78,11 @@ def compare_trajectories(
                     try:
                         from src.viz.plots import plot_time_series_for_pair
                         os.makedirs(out_root, exist_ok=True)
-                        plot_time_series_for_pair(timeseries, os.path.join(out_root, f"hausdorff_timeseries_{pair_id}.png"), title=f"Hausdorff distances ({pair_id})", ylabel="Hausdorff Distance")
+                        fname = f"hausdorff_timeseries_{pair_id}"
+                        if window_size is not None:
+                            fname += f"_window_size_{window_size}"
+                        fname += ".png"
+                        plot_time_series_for_pair(timeseries, os.path.join(out_root, fname), title=f"Hausdorff distances ({pair_id})", ylabel="Hausdorff Distance", sweep_param_value=window_size)
                     except Exception:
                         pass
                 # Save timeseries array if enabled

@@ -76,12 +76,14 @@ def plot_pairwise_distance_distribution(aggregates, outpath, metric_name="cos", 
     title = f"Distribution of {aggregate_type.capitalize()} {metric_name.capitalize()} Distances (n={arr.size})"
     if sweep_param_value is not None:
         title += f" - window_size={sweep_param_value}"
-    plt.title(title)
-    plt.xlabel(f"{aggregate_type.capitalize()} {metric_name.capitalize()} Distance")
-    plt.ylabel(f"Density ({metric_name.capitalize()} Distance)")
+    # plt.title(title)
+    plt.xlabel(f"{aggregate_type.capitalize()} {metric_name.capitalize()} Distance", fontsize=24)
+    plt.ylabel(f"Density ({metric_name.capitalize()} Distance)", fontsize=24)
     plt.grid(axis='y', alpha=0.3)
+    plt.tick_params(axis='both', which='major', labelsize=18)
     plt.tight_layout()
-    plt.savefig(outpath, dpi=150)
+    plt.savefig(outpath, dpi=300)
+    plt.savefig(outpath.replace('.png', '.pdf'), dpi=300)
     plt.close()
 
 def plot_mean_log_distance_vs_time(mean_log_array, outpath, window=None, slope=None, r2=None, sweep_param_value=None):
@@ -127,8 +129,8 @@ def plot_pca_explained_variance(pca_model, outpath, sweep_param_value=None):
     title = 'PCA Explained Variance and Cumulative Sum'
     if sweep_param_value is not None:
         title += f" - window_size={sweep_param_value}"
-    plt.title(title)
-    plt.legend(loc='best')
+    # plt.title(title)
+    plt.legend(loc='best', fontsize=18)
     plt.grid(True)
 
     # Add a line for 95% cumulative explained variance
@@ -136,9 +138,13 @@ def plot_pca_explained_variance(pca_model, outpath, sweep_param_value=None):
     idx_95_percent = np.argmax(cumulative_explained_variance >= target_variance) + 1
     plt.axvline(x=idx_95_percent, color='r', linestyle='--', label=f'{target_variance*100:.0f}% Variance Explained')
     plt.text(idx_95_percent + 0.5, 0.5, f'{idx_95_percent} components for {target_variance*100:.0f}% variance', rotation=90, verticalalignment='center')
-
+    
+    plt.tick_params(axis='both', which='major', labelsize=18)
+    plt.xlabel('Number of Principal Components', fontsize=24)
+    plt.ylabel('Explained Variance Ratio', fontsize=24)
     plt.tight_layout()
-    plt.savefig(outpath)
+    plt.savefig(outpath, dpi=300)
+    plt.savefig(outpath.replace('.png', '.pdf'), dpi=300)
     plt.close()
 
 def plot_hyperparam_sweep(sweep_results_df, outpath_prefix):
@@ -167,13 +173,15 @@ def plot_hyperparam_sweep(sweep_results_df, outpath_prefix):
             for shift_val in shift_values:
                 subset = sweep_results_df[sweep_results_df['shift'] == shift_val]
                 plt.plot(subset['r'], subset[col_name], marker='o', label=f'Shift: {shift_val}')
-            plt.xlabel('PCA Dimension (r)')
-            plt.ylabel(ylabel)
-            plt.title(f'{title_prefix} vs. PCA Dimension (r)')
-            plt.legend()
+            plt.xlabel('PCA Dimension (r)', fontsize=24)
+            plt.ylabel(ylabel, fontsize=24)
+            # plt.title(f'{title_prefix} vs. PCA Dimension (r)')
+            plt.legend(fontsize=18)
             plt.grid(True)
+            plt.tick_params(axis='both', which='major', labelsize=18)
             plt.tight_layout()
-            plt.savefig(f'{outpath_prefix}_{col_name}_vs_r.png')
+            plt.savefig(f'{outpath_prefix}_{col_name}_vs_r.png', dpi=300)
+            plt.savefig(f'{outpath_prefix}_{col_name}_vs_r.pdf', dpi=300)
             plt.close()
 
     # Plot each metric vs shift, colored by r (if multiple shifts)
@@ -184,13 +192,15 @@ def plot_hyperparam_sweep(sweep_results_df, outpath_prefix):
                 for r_val in r_values:
                     subset = sweep_results_df[sweep_results_df['r'] == r_val]
                     plt.plot(subset['shift'], subset[col_name], marker='o', label=f'r: {r_val}')
-                plt.xlabel('Shift')
-                plt.ylabel(ylabel)
-                plt.title(f'{title_prefix} vs. Shift')
-                plt.legend()
+                plt.xlabel('Shift', fontsize=24)
+                plt.ylabel(ylabel, fontsize=24)
+                # plt.title(f'{title_prefix} vs. Shift')
+                plt.legend(fontsize=18)
                 plt.grid(True)
+                plt.tick_params(axis='both', which='major', labelsize=18)
                 plt.tight_layout()
-                plt.savefig(f'{outpath_prefix}_{col_name}_vs_shift.png')
+                plt.savefig(f'{outpath_prefix}_{col_name}_vs_shift.png', dpi=300)
+                plt.savefig(f'{outpath_prefix}_{col_name}_vs_shift.pdf', dpi=300)
                 plt.close()
 
     # Heatmaps for 2D sweeps (r vs shift)
@@ -202,14 +212,15 @@ def plot_hyperparam_sweep(sweep_results_df, outpath_prefix):
             plt.figure(figsize=(10, 8))
             plt.imshow(pivot_table, cmap='viridis', aspect='auto', origin='lower',
                        extent=[min(r_values), max(r_values), min(shift_values), max(shift_values)])
-            plt.colorbar(label=ylabel)
-            plt.xlabel('PCA Dimension (r)')
-            plt.ylabel('Shift')
-            plt.title(f'Heatmap of {title_prefix}')
-            plt.xticks(r_values)
-            plt.yticks(shift_values)
+            plt.colorbar(label=ylabel).ax.tick_params(labelsize=18)
+            plt.xlabel('PCA Dimension (r)', fontsize=24)
+            plt.ylabel('Shift', fontsize=24)
+            # plt.title(f'Heatmap of {title_prefix}')
+            plt.xticks(r_values, fontsize=18)
+            plt.yticks(shift_values, fontsize=18)
             plt.tight_layout()
-            plt.savefig(f'{outpath_prefix}_{col_name}_heatmap.png')
+            plt.savefig(f'{outpath_prefix}_{col_name}_heatmap.png', dpi=300)
+            plt.savefig(f'{outpath_prefix}_{col_name}_heatmap.pdf', dpi=300)
             plt.close()
 
 def plot_time_series_for_pair(pair_timeseries, outpath, title="Distance Timeseries for a Pair", ylabel="Distance", x=None, sweep_param_value=None):
@@ -230,12 +241,16 @@ def plot_time_series_for_pair(pair_timeseries, outpath, title="Distance Timeseri
         plt.plot(x, pair_timeseries, marker='o', markersize=3, linewidth=1.0, alpha=0.75)
     if sweep_param_value is not None:
         title += f" - window_size={sweep_param_value}"
-    plt.title(title)
-    plt.xlabel("Time")
-    plt.ylabel(ylabel)
+    # plt.title(title)
+    if CONFIG.get("plots", {}).get("log_plot", False):
+        plt.yscale('log')
+    plt.xlabel("Token Index", fontsize=24)
+    plt.ylabel(ylabel, fontsize=24)
     plt.grid(alpha=0.25)
+    plt.tick_params(axis='both', which='major', labelsize=18)
     plt.tight_layout()
-    plt.savefig(outpath)
+    plt.savefig(outpath, dpi=300)
+    plt.savefig(outpath.replace('.png', '.pdf'), dpi=300)
     plt.close()
 
 
@@ -249,16 +264,18 @@ def plot_rank_eigen_full(closest_ranks, outpath, traj_indices=None, sweep_param_
     if traj_indices:
         xlabel = f"Eigenvector Rank (pair {traj_indices})"
         ylabel = f"Rank of Closest Match (pair {traj_indices})"
-    plt.xlabel(xlabel)
-    plt.ylabel(ylabel)
+    plt.xlabel(xlabel, fontsize=24)
+    plt.ylabel(ylabel, fontsize=24)
     title = f"Eigenvector ranking using Cosine similarity"
     if sweep_param_value is not None:
         title += f" - window_size={sweep_param_value}"
-    plt.title(title)
+    # plt.title(title)
     plt.grid(True)
-    plt.legend()
+    plt.legend(fontsize=18)
+    plt.tick_params(axis='both', which='major', labelsize=18)
     plt.tight_layout()
-    plt.savefig(outpath)
+    plt.savefig(outpath, dpi=300)
+    plt.savefig(outpath.replace('.png', '.pdf'), dpi=300)
     plt.close()
 
 

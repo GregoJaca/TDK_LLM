@@ -55,7 +55,7 @@ CONFIG = {
         
         
         "cross_corr": { # only works with window_size > 1 and is a bit noisy + window_size adds some diagonal distortion to time series distance. rp are cool across different window_size too.
-            "enabled": False,
+            "enabled": True,
             "correlation_type": "pearson", # "pearson" or "spearman" # JJ almost the same
             "window_size": 1, # embed (but for rp 4 is better)
             # "window_size": 1, # hidden
@@ -74,14 +74,14 @@ CONFIG = {
             "threshold": 0.4, # 
         },
         "frechet": {
-            "enabled": False,
+            "enabled": True,
             # "discrete": True # AA
             "window_size": 1, # embed
             "window_size": 1, # hidden
             "threshold": 0.4, # 
         },
         "dtw": {
-            "enabled": False,
+            "enabled": True,
             # "use_fastdtw": True, # AA  this not being used anywhere 
             "window_size": 1, # embed
             "window_size": 1, # hidden
@@ -108,8 +108,7 @@ CONFIG = {
     "sliding_window": {
         "use_window": True,
         "window_size": 16,
-        "displacement": 16
-
+        "displacement": 1
     },
 
     # Pair computations
@@ -122,8 +121,8 @@ CONFIG = {
         # If compute_all_pairs is False and reference_index is None,
         # use this explicit list of index pairs for computation and plotting.
         # "pairs_to_plot": [[0, 1]],
-        # "pairs_to_plot": [[0, 1], [0,2], [1,3]], #[ [i, j] for i in range(5) for j in range(i,10) ],
-        "pairs_to_plot": [ [i, j] for i in range(5) for j in range(i+1,5) ],
+        "pairs_to_plot": [[0, 1], [0,2]], #[ [i, j] for i in range(5) for j in range(i,10) ],
+        # "pairs_to_plot": [ [i, j] for i in range(100) for j in range(i+1,100) ],
     },
 
     # Lyapunov (fast pairwise slope)
@@ -153,7 +152,7 @@ CONFIG = {
         },
         "plot": {
             "save": False,
-            "log_plot": False,
+            "log_plot": True,
             "show_fit": False
         }
     },
@@ -187,8 +186,9 @@ CONFIG = {
     "plots": {
         "save_histograms": False,
         "save_timeseries": True,
-        "plot_rp_threshold": True,
+        "plot_rp_threshold": False,
         "rp_threshold": 0.3, # XX GG different for different metric. reuse that for the outlier detector
+        "log_plot": True,
     },
 
     # Logging
@@ -209,12 +209,12 @@ CONFIG['EMBEDDING_CONFIG'] = {
     "embedding_methods": [
         # examples: "sentence-transformers/all-mpnet-base-v2",
         # For per-trajectory mode provide file-stem templates like
-        "hidden_states_cond_{i}_layer_-1",
-        # "sentence-transformers_all-mpnet-base-v2_traj{i}",
+        # "hidden_states_cond_{i}_layer_-1",
+        "sentence-transformers_all-mpnet-base-v2_traj{i}",
     ],
     # When in per_trajectory mode, input_template is used to build filenames relative to run folder.
     # Example: "{embed}.pt" or "hidden_states_cond_{i}_layer_-1.pt"
-    "input_template": "hidden_states_cond_{i}_layer_-1.pt"
-    # "input_template": "sentence-transformers_all-mpnet-base-v2_traj{i}.pt"
+    # "input_template": "hidden_states_cond_{i}_layer_-1.pt"
+    "input_template": "sentence-transformers_all-mpnet-base-v2_traj{i}.pt"
     
 }

@@ -125,8 +125,12 @@ def compare_trajectories(
         if CONFIG["metrics"].get("save_plots", True):
             try:
                 os.makedirs(out_root, exist_ok=True)
-                plot_fname = os.path.join(out_root, f"cos_timeseries_{pair_id}.png" if pair_id else "cos_timeseries.png")
-                plot_time_series_for_pair(timeseries, plot_fname, title=f"Cosine distances ({pair_id})" if pair_id else "Cosine distances", ylabel="Cosine Distance")
+                fname = f"cos_timeseries_{pair_id}" if pair_id else "cos_timeseries"
+                if use_window and window_size > 0:
+                    fname += f"_window_size_{window_size}"
+                fname += ".png"
+                plot_fname = os.path.join(out_root, fname)
+                plot_time_series_for_pair(timeseries, plot_fname, title=f"Cosine distances ({pair_id})" if pair_id else "Cosine distances", ylabel="Cosine Distance", sweep_param_value=window_size if use_window else None)
             except Exception:
                 pass
         # Save timeseries array if enabled

@@ -81,12 +81,15 @@ def compare_trajectories(a: np.ndarray, b: np.ndarray, *, return_timeseries: boo
             print("plot_pairwise_distance_distribution failed for cross_cos; falling back to simple imshow.")
             plt.figure()
             plt.imshow(cross_dist, aspect='auto', origin='lower', cmap='viridis')
-            plt.colorbar(label='Cross Cosine Distance')
-            plt.title(f'Cross Cos Distance Matrix ({pair_id})')
-            plt.xlabel('Index b')
-            plt.ylabel('Index a')
+            cbar = plt.colorbar(label='Cross Cosine Distance')
+            cbar.ax.tick_params(labelsize=18)
+            # plt.title(f'Cross Cos Distance Matrix ({pair_id})')
+            plt.xlabel('Index b', fontsize=24)
+            plt.ylabel('Index a', fontsize=24)
+            plt.tick_params(axis='both', which='major', labelsize=18)
             plt.tight_layout()
-            plt.savefig(matrix_fname)
+            plt.savefig(matrix_fname, dpi=300)
+            plt.savefig(matrix_fname.replace('.png', '.pdf'), dpi=300)
             plt.close()
 
     # compute column sums (optionally windowed)
@@ -95,23 +98,28 @@ def compare_trajectories(a: np.ndarray, b: np.ndarray, *, return_timeseries: boo
     if out_root and timeseries is not None:
         # Save plot
         if CONFIG.get("plots", {}).get("save_timeseries", False):
-            timeseries_fname = os.path.join(out_root, f"cross_cos_col_sums_{pair_id}.png")
+            fname = f"cross_cos_col_sums_{pair_id}"
+            if use_window:
+                fname += f"_window_size_{window_size}"
+            fname += ".png"
+            timeseries_fname = os.path.join(out_root, fname)
             try:
-                plots.plot_time_series_for_pair(col_sums, timeseries_fname, title=f"Cross-Cos Column Averages ({pair_id})", ylabel="Cross Cosine Distance")
+                plots.plot_time_series_for_pair(col_sums, timeseries_fname, title=f"Cross-Cos Column Averages ({pair_id})", ylabel="Cross Cosine Distance", sweep_param_value=window_size)
             except Exception:
                 import matplotlib.pyplot as plt
                 plt.figure()
                 plt.plot(col_sums)
-                plt.title(f'Cross Cos Column Averages ({pair_id})')
-                plt.xlabel('Index b')
-                plt.ylabel('Cross Cosine Distance')
+                # plt.title(f'Cross Cos Column Averages ({pair_id})')
+                plt.xlabel('Index b', fontsize=24)
+                plt.ylabel('Cross Cosine Distance', fontsize=24)
+                plt.tick_params(axis='both', which='major', labelsize=18)
                 plt.tight_layout()
-                plt.savefig(timeseries_fname)
+                plt.savefig(timeseries_fname, dpi=300)
+                plt.savefig(timeseries_fname.replace('.png', '.pdf'), dpi=300)
                 plt.close()
         # Save timeseries array if enabled
         if CONFIG["metrics"].get("save_timeseries_array", False):
             try:
-                import numpy as np
                 fname = os.path.join(out_root, f"cross_cos_timeseries_{pair_id}.npy")
                 np.save(fname, col_sums)
             except Exception:
