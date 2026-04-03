@@ -28,7 +28,7 @@ from src.io.loader import load_tensor
 from src.io.saver import save_tensor
 from src.reduce.pca import PCAReducer
 from src.runner.metrics_runner import run_metrics
-# from src.runner.lyapunov import estimate_lyapunov
+from src.runner.lyapunov_lib import process_file as process_lyapunov_file
 from src.viz.plots import plot_pairwise_distance_distribution, plot_pca_explained_variance
 from src.utils.logging import get_logger
 import time
@@ -213,6 +213,7 @@ def main(input_path, results_root, sweep_param_value=None):
     # Metrics
     # run_metrics will internally respect per-metric enabled flags from CONFIG
     metrics_summary = None
+    metrics_results_dir = os.path.join(results_root, run_id)
     # Run metrics when any per-metric 'enabled' flag is True
     any_enabled = any(
         isinstance(v, dict) and bool(v.get('enabled', False))
@@ -220,7 +221,15 @@ def main(input_path, results_root, sweep_param_value=None):
     )
     if any_enabled:
         CONFIG["results_root"] = results_root
-        metrics_summary = run_metrics(X_reduced, run_id=run_id)
+        lyap_enabled = bool(CONFIG.get("lyapunov", {}).get("enabled", False))
+        prev_agg_flag = CONFIG.get("pairwise", {}).get("save_pairwise_aggregated", False)
+        if lyap_enabled:
+            CONFIG.setdefault("pairwise", {})["save_pairwise_aggregated"] = True
+
+        try:
+            metrics_summary = run_metrics(X_reduced, run_id=run_id)
+        finally:
+            CONFIG.setdefault("pairwise", {})["save_pairwise_aggregated"] = prev_agg_flag
         logger.info("Metrics complete")
     else:
         logger.info("No metrics enabled in config; skipping metrics.")
@@ -269,10 +278,22 @@ def main(input_path, results_root, sweep_param_value=None):
 
     # Lyapunov
     lyap = None
-    if CONFIG.get("lyapunov", {}).get("enabled", True):
-        # lyap = estimate_lyapunov(X_reduced, run_id=run_id)
-        # logger.info("Lyapunov done")
-        logger.info("-------- HEY -------- THIS SHOULNT HAPPEN. NO LYAPU") # AA
+    if CONFIG.get("lyapunov", {}).get("enabled", False):
+        lyap_metric = CONFIG.get("lyapunov", {}).get("source_metric", "cos")
+        lyap_npz = os.path.join(metrics_results_dir, f"{lyap_metric}_pairwise_timeseries.npz")
+
+        if os.path.exists(lyap_npz):
+            try:
+                lyap = process_lyapunov_file(lyap_npz)
+                logger.info(f"Lyapunov done using metric='{lyap_metric}'")
+            except Exception as e:
+                logger.error(f"Lyapunov processing failed for {lyap_npz}: {e}")
+        else:
+            logger.warning(
+                "Lyapunov enabled but aggregated timeseries file was not found: %s. "
+                "Enable the source metric and keep pairwise aggregation on.",
+                lyap_npz,
+            )
     else:
         logger.info("Lyapunov computation is disabled in config; skipping.")
 
@@ -316,10 +337,17 @@ def main(input_path, results_root, sweep_param_value=None):
     summary_lines.append("")
     summary_lines.append("Lyapunov Estimate:")
     if lyap:
-        summary_lines.append(f"  Slope: {np.round(lyap.get('slope', 0), 4)}")
-        summary_lines.append(f"  R2: {np.round(lyap.get('r2', 0), 4)}")
-        summary_lines.append(f"  Window: {lyap.get('linear_window', [])}")
-        summary_lines.append(f"  Plot: {os.path.join(plots_dir, 'mean_log_vs_time.png') if plots_dir is not None else 'not_saved_in_sweep'}")
+        if "mean_lyapunov_time_series" in lyap:
+            arr = np.asarray(lyap.get("mean_lyapunov_time_series", []), dtype=float)
+            if arr.size > 0:
+                summary_lines.append(f"  Mode: time_dependent")
+                summary_lines.append(f"  Mean(lambda_t): {np.round(np.nanmean(arr), 4)}")
+                summary_lines.append(f"  Std(lambda_t): {np.round(np.nanstd(arr), 4)}")
+                summary_lines.append(f"  Time steps: {arr.size}")
+        else:
+            summary_lines.append(f"  Slope: {np.round(lyap.get('slope', 0), 4)}")
+            summary_lines.append(f"  R2: {np.round(lyap.get('r2', 0), 4)}")
+            summary_lines.append(f"  Window: {lyap.get('linear_window', [])}")
 
     # Save summary only for non-sweep runs (user prefers no summary file during sweeps)
     if sweep_param_value is None:

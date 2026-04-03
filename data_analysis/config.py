@@ -4,6 +4,8 @@ from dataclasses import dataclass
 
 ### /home/grego/LLM/launch_sep/interstellar_propulsion_review_0_0.00035
 
+window = 16
+
 CONFIG = {
     # IO
     "run_id_format": "%Y%m%d-%H%M%S",        # used with random suffix
@@ -31,14 +33,13 @@ CONFIG = {
 
     # Metrics
     "metrics": {
-    "save_plots": True,
-    "save_timeseries_array": True,
+    "save_plots": False,
         "rank_eigen": {
             "enabled": False,
             "deviation_metric": 'sum_cos_dist', # 'sum_cos_dist', # "rms", # JJ
             "run_rank_eigenvectors": True,
-            "window_size": 4, # embed
-            "window_size": 4, # hidden
+            "window_size": window, # embed
+            "window_size": window, # hidden
             "threshold": 1.2, # XX window normalization currently is wrong, this is for window_size 4
         },
         # "default_pairing": "ref0",   # "all" or "ref0" # AA
@@ -48,17 +49,17 @@ CONFIG = {
             "shifts": [0],   # absolute steps to sweep; included in sweep script
             "shift_aggregation": "mean", # "min", "mean"
             # "default_max_shift": 5,
-            "window_size": 8, # embed
-            "window_size": 1, # hidden
+            "window_size": window, # embed
+            "window_size": window, # hidden
             "threshold": 0.25, # 
         },
         
         
         "cross_corr": { # only works with window_size > 1 and is a bit noisy + window_size adds some diagonal distortion to time series distance. rp are cool across different window_size too.
-            "enabled": True,
+            "enabled": False,
             "correlation_type": "pearson", # "pearson" or "spearman" # JJ almost the same
-            "window_size": 1, # embed (but for rp 4 is better)
-            # "window_size": 1, # hidden
+            "window_size": window, # embed (but for rp 4 is better)
+            # "window_size": window1, # hidden
             "threshold": 0.25, # 
         },
         
@@ -66,25 +67,25 @@ CONFIG = {
 
         # Best without sliding window
         "hausdorff": {
-            "enabled": True,
+            "enabled": False,
             # "symmetric": True, # AA
             "aggregation": "mean_of_max", # "max_of_mean", "mean_of_max" # JJ
-            "window_size": 1, # embed
-            "window_size": 1, # hidden
+            "window_size": window, # embed
+            "window_size": window, # hidden
             "threshold": 0.4, # 
         },
         "frechet": {
-            "enabled": True,
+            "enabled": False,
             # "discrete": True # AA
-            "window_size": 1, # embed
-            "window_size": 1, # hidden
+            "window_size": window, # embed
+            "window_size": window, # hidden
             "threshold": 0.4, # 
         },
         "dtw": {
-            "enabled": True,
+            "enabled": False,
             # "use_fastdtw": True, # AA  this not being used anywhere 
-            "window_size": 1, # embed
-            "window_size": 1, # hidden
+            "window_size": window, # embed
+            "window_size": window, # hidden
             "threshold": 0.4, # 
         },
         
@@ -107,7 +108,7 @@ CONFIG = {
     # Unified sliding-window parameters used by metrics that support sliding analysis
     "sliding_window": {
         "use_window": True,
-        "window_size": 16,
+        "window_size": window,
         "displacement": 1
     },
 
@@ -127,9 +128,16 @@ CONFIG = {
 
     # Lyapunov (fast pairwise slope)
     "lyapunov": {
-    "enabled": False,
+    "enabled": True,
         "method": "pairwise_slope",
+        "source_metric": "cos",
         "operation_mode": "average_first",  # "fit_first" or "average_first"
+        "time_dependent": {
+            "enabled": True,
+            "mode": "ftle",  # finite-time Lyapunov exponent: lambda(t)=ln(d(t)/d0)/t
+            "eps": 1e-12,
+            "save_csv": True,
+        },
         "fit": {
             "type": "exponential",  # default fitter type
             "log_offset_eps": 1e-12,
@@ -151,7 +159,7 @@ CONFIG = {
             "saturation_trim_frac": 0.1
         },
         "plot": {
-            "save": False,
+            "save": True,
             "log_plot": True,
             "show_fit": False
         }
@@ -185,7 +193,7 @@ CONFIG = {
     # Plotting options
     "plots": {
         "save_histograms": False,
-        "save_timeseries": True,
+        "save_timeseries": False,
         "plot_rp_threshold": False,
         "rp_threshold": 0.3, # XX GG different for different metric. reuse that for the outlier detector
         "log_plot": True,
