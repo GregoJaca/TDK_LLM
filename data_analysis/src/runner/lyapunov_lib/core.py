@@ -5,7 +5,7 @@ from config import CONFIG
 from .config import LyapunovConfig
 from .averaging import average_curves, detect_no_rise
 from .fitters import fit_timeseries
-from .plotting import plot_curves, plot_mean_and_fit, plot_lyapunov_time_series, plot_saturation_detection
+from .plotting import plot_curves, plot_mean_and_fit, plot_lyapunov_time_series, plot_saturation_detection, plot_distance_time_series
 from .results import make_output_dir, save_results, save_npz
 import json
 
@@ -84,6 +84,7 @@ def _apply_saturation_policy(timeseries: np.ndarray, cfg: LyapunovConfig, outdir
     min_points = int(sat_cfg.get("min_points", 5))
     detect_in_log_scale = bool(sat_cfg.get("detect_in_log_scale", True))
     log_eps = float(sat_cfg.get("log_eps", 1e-12))
+    debug_plot = bool(sat_cfg.get("debug_plot", False))
 
     baseline_len = max(3, int(T * baseline_frac))
     plateau_len = max(3, int(T * plateau_frac))
@@ -163,7 +164,7 @@ def _apply_saturation_policy(timeseries: np.ndarray, cfg: LyapunovConfig, outdir
             "detect_in_log_scale": bool(detect_in_log_scale),
         })
 
-        if outdir is not None and cfg.get("plot", {}).get("save", True):
+        if outdir is not None and cfg.get("plot", {}).get("save", True) and debug_plot:
             try:
                 times = np.arange(T, dtype=int)
                 plot_saturation_detection(
@@ -329,7 +330,7 @@ def _compute_ftle_curves(timeseries: np.ndarray, eps: float = 1e-12) -> np.ndarr
     t = np.arange(T, dtype=float)
     denom = np.maximum(t, 1.0)
     ftle[:, 1:] = np.log(arr_safe[:, 1:] / d0) / denom[1:]
-    ftle[:, 0] = 0.0
+    ftle[:, 0] = np.nan
     return ftle
 
 
@@ -393,6 +394,20 @@ def _process_time_dependent(timeseries, cfg: LyapunovConfig, outdir: str, pair_i
             title=None,
         )
 
+        if bool(plot_cfg.get("save_source_distance_timeseries", True)):
+            source_metric = str(cfg.get("source_metric", "cos"))
+            mean_dist = np.nanmean(timeseries, axis=0)
+            std_dist = np.nanstd(timeseries, axis=0)
+            plot_distance_time_series(
+                times=times,
+                mean_distance=mean_dist,
+                std_distance=std_dist,
+                outpath=os.path.join(outdir, f"{source_metric}_distance_time_series_mean.png"),
+                log_plot=log_plot,
+                title=None,
+                ylabel=f"{source_metric} distance",
+            )
+
         # Plot selected pairs (from config) while averaging still uses all pairs.
         pairs_to_plot = CONFIG.get("pairwise", {}).get("pairs_to_plot", []) or []
         if pair_indices is not None:
@@ -434,5 +449,17 @@ def _process_time_dependent(timeseries, cfg: LyapunovConfig, outdir: str, pair_i
                 log_plot=log_plot,
                 title=None,
             )
+
+            if bool(plot_cfg.get("save_source_distance_timeseries", True)):
+                dist_curve = np.asarray(timeseries[row_idx], dtype=float)
+                plot_distance_time_series(
+                    times=times,
+                    mean_distance=dist_curve,
+                    std_distance=np.zeros_like(dist_curve),
+                    outpath=os.path.join(outdir, f"{source_metric}_distance_time_series_pair_{i}_{j}.png"),
+                    log_plot=log_plot,
+                    title=None,
+                    ylabel=f"{source_metric} distance",
+                )
 
     return out

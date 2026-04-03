@@ -3,6 +3,21 @@ import matplotlib.pyplot as plt
 import numpy as np
 from config import CONFIG
 
+
+def _save_with_formats(outpath: str):
+    if '.' in outpath:
+        base, _ext = outpath.rsplit('.', 1)
+    else:
+        base = outpath
+    formats = CONFIG.get("plots", {}).get("output_formats", ["png"])
+    if not isinstance(formats, (list, tuple)) or len(formats) == 0:
+        formats = ["png"]
+    for fmt in formats:
+        fmt_l = str(fmt).lower().strip('.')
+        if fmt_l not in ("png", "pdf"):
+            continue
+        plt.savefig(f"{base}.{fmt_l}", dpi=300)
+
 def plot_pairwise_distance_distribution(aggregates, outpath, metric_name="cos", aggregate_type="mean", sweep_param_value=None):
     """Plots a histogram of the distances for a specific metric and aggregate type."""
     # Respect global plot saving configuration
@@ -82,8 +97,7 @@ def plot_pairwise_distance_distribution(aggregates, outpath, metric_name="cos", 
     plt.grid(axis='y', alpha=0.3)
     plt.tick_params(axis='both', which='major', labelsize=18)
     plt.tight_layout()
-    plt.savefig(outpath, dpi=300)
-    plt.savefig(outpath.replace('.png', '.pdf'), dpi=300)
+    _save_with_formats(outpath)
     plt.close()
 
 def plot_mean_log_distance_vs_time(mean_log_array, outpath, window=None, slope=None, r2=None, sweep_param_value=None):
@@ -109,7 +123,7 @@ def plot_mean_log_distance_vs_time(mean_log_array, outpath, window=None, slope=N
                  verticalalignment='top', bbox=props)
 
     plt.legend()
-    plt.savefig(outpath)
+    _save_with_formats(outpath)
     plt.close()
 
 def plot_pca_explained_variance(pca_model, outpath, sweep_param_value=None):
@@ -143,8 +157,7 @@ def plot_pca_explained_variance(pca_model, outpath, sweep_param_value=None):
     plt.xlabel('Number of Principal Components', fontsize=24)
     plt.ylabel('Explained Variance Ratio', fontsize=24)
     plt.tight_layout()
-    plt.savefig(outpath, dpi=300)
-    plt.savefig(outpath.replace('.png', '.pdf'), dpi=300)
+    _save_with_formats(outpath)
     plt.close()
 
 def plot_hyperparam_sweep(sweep_results_df, outpath_prefix):
@@ -180,8 +193,7 @@ def plot_hyperparam_sweep(sweep_results_df, outpath_prefix):
             plt.grid(True)
             plt.tick_params(axis='both', which='major', labelsize=18)
             plt.tight_layout()
-            plt.savefig(f'{outpath_prefix}_{col_name}_vs_r.png', dpi=300)
-            plt.savefig(f'{outpath_prefix}_{col_name}_vs_r.pdf', dpi=300)
+            _save_with_formats(f'{outpath_prefix}_{col_name}_vs_r.png')
             plt.close()
 
     # Plot each metric vs shift, colored by r (if multiple shifts)
@@ -199,8 +211,7 @@ def plot_hyperparam_sweep(sweep_results_df, outpath_prefix):
                 plt.grid(True)
                 plt.tick_params(axis='both', which='major', labelsize=18)
                 plt.tight_layout()
-                plt.savefig(f'{outpath_prefix}_{col_name}_vs_shift.png', dpi=300)
-                plt.savefig(f'{outpath_prefix}_{col_name}_vs_shift.pdf', dpi=300)
+                _save_with_formats(f'{outpath_prefix}_{col_name}_vs_shift.png')
                 plt.close()
 
     # Heatmaps for 2D sweeps (r vs shift)
@@ -219,8 +230,7 @@ def plot_hyperparam_sweep(sweep_results_df, outpath_prefix):
             plt.xticks(r_values, fontsize=18)
             plt.yticks(shift_values, fontsize=18)
             plt.tight_layout()
-            plt.savefig(f'{outpath_prefix}_{col_name}_heatmap.png', dpi=300)
-            plt.savefig(f'{outpath_prefix}_{col_name}_heatmap.pdf', dpi=300)
+            _save_with_formats(f'{outpath_prefix}_{col_name}_heatmap.png')
             plt.close()
 
 def plot_time_series_for_pair(pair_timeseries, outpath, title="Distance Timeseries for a Pair", ylabel="Distance", x=None, sweep_param_value=None):
@@ -249,8 +259,7 @@ def plot_time_series_for_pair(pair_timeseries, outpath, title="Distance Timeseri
     plt.grid(alpha=0.25)
     plt.tick_params(axis='both', which='major', labelsize=18)
     plt.tight_layout()
-    plt.savefig(outpath, dpi=300)
-    plt.savefig(outpath.replace('.png', '.pdf'), dpi=300)
+    _save_with_formats(outpath)
     plt.close()
 
 
@@ -274,8 +283,7 @@ def plot_rank_eigen_full(closest_ranks, outpath, traj_indices=None, sweep_param_
     plt.legend(fontsize=18)
     plt.tick_params(axis='both', which='major', labelsize=18)
     plt.tight_layout()
-    plt.savefig(outpath, dpi=300)
-    plt.savefig(outpath.replace('.png', '.pdf'), dpi=300)
+    _save_with_formats(outpath)
     plt.close()
 
 

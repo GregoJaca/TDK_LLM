@@ -33,7 +33,7 @@ CONFIG = {
 
     # Metrics
     "metrics": {
-    "save_plots": False,
+    "save_plots": True,
         "rank_eigen": {
             "enabled": False,
             "deviation_metric": 'sum_cos_dist', # 'sum_cos_dist', # "rms", # JJ
@@ -124,6 +124,7 @@ CONFIG = {
         # "pairs_to_plot": [[0, 1]],
         "pairs_to_plot": [[0, 1], [0,2]], #[ [i, j] for i in range(5) for j in range(i,10) ],
         # "pairs_to_plot": [ [i, j] for i in range(100) for j in range(i+1,100) ],
+        # "pairs_to_plot": [ [i, j] for i in range(4) for j in range(i+1,4) ],
     },
 
     # Lyapunov (fast pairwise slope)
@@ -133,9 +134,10 @@ CONFIG = {
         "source_metric": "cos",
         "operation_mode": "average_first",  # "fit_first" or "average_first"
         "exclude_saturation": {
-            "mode": "exclude_full",  # "none", "exclude_full", "exclude_half"
+            "mode": "exclude_half",  # "none", "exclude_full", "exclude_half"
             "detect_in_log_scale": True,
             "log_eps": 1e-12,
+            "debug_plot": False,
             "baseline_frac": 0.05,  # fraction from start to estimate baseline
             "plateau_frac": 0.2,    # fraction from end to estimate plateau
             "midpoint_frac": 0.5,   # midpoint between baseline and plateau
@@ -170,6 +172,7 @@ CONFIG = {
         "plot": {
             "save": True,
             "log_plot": True,
+            "save_source_distance_timeseries": False,
             "show_fit": False
         }
     },
@@ -206,6 +209,7 @@ CONFIG = {
         "plot_rp_threshold": False,
         "rp_threshold": 0.3, # XX GG different for different metric. reuse that for the outlier detector
         "log_plot": True,
+        "output_formats": ["png"],  # choose from ["png"], ["pdf"], ["png", "pdf"]
     },
 
     # Logging
@@ -231,7 +235,7 @@ CONFIG['EMBEDDING_CONFIG'] = {
     ],
     # When in per_trajectory mode, input_template is used to build filenames relative to run folder.
     # Example: "{embed}.pt" or "hidden_states_cond_{i}_layer_-1.pt"
-    # "input_template": "hidden_states_cond_{i}_layer_-1.pt"
-    "input_template": "sentence-transformers_all-mpnet-base-v2_traj{i}.pt"
+    "input_template": "hidden_states_cond_{i}_layer_-1.pt"
+    # "input_template": "sentence-transformers_all-mpnet-base-v2_traj{i}.pt"
     
 }

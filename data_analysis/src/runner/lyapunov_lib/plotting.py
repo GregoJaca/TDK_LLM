@@ -1,6 +1,19 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import os
+from config import CONFIG
+
+
+def _save_with_formats(outpath: str):
+    base, _ext = os.path.splitext(outpath)
+    formats = CONFIG.get("plots", {}).get("output_formats", ["png"])
+    if not isinstance(formats, (list, tuple)) or len(formats) == 0:
+        formats = ["png"]
+    for fmt in formats:
+        fmt_l = str(fmt).lower().strip(".")
+        if fmt_l not in ("png", "pdf"):
+            continue
+        plt.savefig(f"{base}.{fmt_l}", dpi=300)
 
 
 def plot_curves(times, curves, outpath, labels=None, log_plot=False, title=None):
@@ -18,8 +31,7 @@ def plot_curves(times, curves, outpath, labels=None, log_plot=False, title=None)
     #     plt.title(title)
     plt.tick_params(axis='both', which='major', labelsize=16)
     plt.tight_layout()
-    plt.savefig(outpath, dpi=300)
-    plt.savefig(outpath.replace('.png', '.pdf'), dpi=300)
+    _save_with_formats(outpath)
     plt.close()
 
 
@@ -39,8 +51,7 @@ def plot_mean_and_fit(times, mean_curve, fit_curve, outpath, log_plot=False, tit
     #     plt.title(title)
     plt.tick_params(axis='both', which='major', labelsize=16)
     plt.tight_layout()
-    plt.savefig(outpath, dpi=300)
-    plt.savefig(outpath.replace('.png', '.pdf'), dpi=300)
+    _save_with_formats(outpath)
     plt.close()
 
 
@@ -69,8 +80,38 @@ def plot_lyapunov_time_series(times, mean_lambda, std_lambda, outpath, log_plot=
     plt.grid(alpha=0.25)
     plt.tick_params(axis='both', which='major', labelsize=14)
     plt.tight_layout()
-    plt.savefig(outpath, dpi=300)
-    plt.savefig(outpath.replace('.png', '.pdf'), dpi=300)
+    _save_with_formats(outpath)
+    plt.close()
+
+
+def plot_distance_time_series(times, mean_distance, std_distance, outpath, log_plot=False, title=None, ylabel="Distance"):
+    os.makedirs(os.path.dirname(outpath), exist_ok=True)
+    plt.figure(figsize=(6, 4))
+
+    mean_distance = np.asarray(mean_distance, dtype=float)
+    std_distance = np.asarray(std_distance, dtype=float)
+    lower = mean_distance - std_distance
+    upper = mean_distance + std_distance
+
+    plt.plot(times, mean_distance, label="mean distance", linewidth=1.5)
+    plt.fill_between(times, lower, upper, alpha=0.2, label="±1 std")
+
+    if log_plot:
+        if np.nanmin(mean_distance) > 0:
+            plt.yscale("log")
+        else:
+            plt.yscale("symlog", linthresh=1e-6)
+
+    if title:
+        plt.title(title)
+
+    plt.xlabel("Time index", fontsize=16)
+    plt.ylabel(ylabel, fontsize=16)
+    plt.legend(fontsize=12)
+    plt.grid(alpha=0.25)
+    plt.tick_params(axis='both', which='major', labelsize=14)
+    plt.tight_layout()
+    _save_with_formats(outpath)
     plt.close()
 
 
@@ -111,6 +152,5 @@ def plot_saturation_detection(
     plt.grid(alpha=0.25)
     plt.tick_params(axis='both', which='major', labelsize=12)
     plt.tight_layout()
-    plt.savefig(outpath, dpi=300)
-    plt.savefig(outpath.replace('.png', '.pdf'), dpi=300)
+    _save_with_formats(outpath)
     plt.close()
