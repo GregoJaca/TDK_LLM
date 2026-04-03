@@ -132,6 +132,15 @@ CONFIG = {
         "method": "pairwise_slope",
         "source_metric": "cos",
         "operation_mode": "average_first",  # "fit_first" or "average_first"
+        "exclude_saturation": {
+            "mode": "exclude_full",  # "none", "exclude_full", "exclude_half"
+            "detect_in_log_scale": True,
+            "log_eps": 1e-12,
+            "baseline_frac": 0.05,  # fraction from start to estimate baseline
+            "plateau_frac": 0.2,    # fraction from end to estimate plateau
+            "midpoint_frac": 0.5,   # midpoint between baseline and plateau
+            "min_points": 5,
+        },
         "time_dependent": {
             "enabled": True,
             "mode": "ftle",  # finite-time Lyapunov exponent: lambda(t)=ln(d(t)/d0)/t

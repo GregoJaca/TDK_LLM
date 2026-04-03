@@ -72,3 +72,45 @@ def plot_lyapunov_time_series(times, mean_lambda, std_lambda, outpath, log_plot=
     plt.savefig(outpath, dpi=300)
     plt.savefig(outpath.replace('.png', '.pdf'), dpi=300)
     plt.close()
+
+
+def plot_saturation_detection(
+    times,
+    mean_curve,
+    smooth_curve,
+    jump_idx,
+    sat_idx,
+    baseline,
+    plateau,
+    midpoint,
+    outpath,
+    log_plot=False,
+):
+    os.makedirs(os.path.dirname(outpath), exist_ok=True)
+    plt.figure(figsize=(8, 4))
+
+    plt.plot(times, mean_curve, label="mean distance", linewidth=1.2, alpha=0.7)
+    plt.plot(times, smooth_curve, label="smoothed mean", linewidth=1.8)
+
+    plt.axvline(jump_idx, color="tab:orange", linestyle="--", alpha=0.8, label=f"jump idx={jump_idx}")
+    plt.axvline(sat_idx, color="tab:red", linestyle="-.", alpha=0.9, label=f"sat idx={sat_idx}")
+
+    plt.axhline(baseline, color="tab:green", linestyle=":", alpha=0.8, label="baseline")
+    plt.axhline(plateau, color="tab:purple", linestyle=":", alpha=0.8, label="plateau")
+    plt.axhline(midpoint, color="tab:brown", linestyle="--", alpha=0.9, label="midpoint")
+
+    if log_plot:
+        if np.nanmin(mean_curve) > 0 and np.nanmin(smooth_curve) > 0 and baseline > 0 and plateau > 0 and midpoint > 0:
+            plt.yscale("log")
+        else:
+            plt.yscale("symlog", linthresh=1e-6)
+
+    plt.xlabel("Time index", fontsize=16)
+    plt.ylabel("Distance", fontsize=16)
+    plt.legend(fontsize=10, ncol=2)
+    plt.grid(alpha=0.25)
+    plt.tick_params(axis='both', which='major', labelsize=12)
+    plt.tight_layout()
+    plt.savefig(outpath, dpi=300)
+    plt.savefig(outpath.replace('.png', '.pdf'), dpi=300)
+    plt.close()
