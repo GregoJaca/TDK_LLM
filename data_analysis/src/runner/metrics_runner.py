@@ -208,17 +208,20 @@ def run_metrics(trajectories: np.ndarray, run_id: str) -> Dict:
     if CONFIG.get("pairwise", {}).get("save_pairwise_aggregated", False):
         # Collect lists per metric
         metric_collections = {}
-        for (_, _res, _ts) in results:
+        metric_pairs = {}
+        for (_pair, _res, _ts) in results:
             # _ts is a dict metric->array for this pair
             for m, arr in (_ts or {}).items():
                 metric_collections.setdefault(m, []).append(arr)
+                metric_pairs.setdefault(m, []).append(_pair)
 
         import numpy as _np
         for m, lst in metric_collections.items():
             try:
                 stacked = _np.stack([_np.asarray(x) for x in lst], axis=0)
+                pair_idx = _np.asarray(metric_pairs.get(m, []), dtype=int)
                 save_path = os.path.join(results_dir, f"{m}_pairwise_timeseries.npz")
-                save_npz({"timeseries": stacked}, save_path)
+                save_npz({"timeseries": stacked, "pair_indices": pair_idx}, save_path)
                 if CONFIG["logging"]["enabled"]:
                     print(f"[metrics_runner] Saved aggregated timeseries for metric {m} to {save_path}")
             except Exception as e:

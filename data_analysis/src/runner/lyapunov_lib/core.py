@@ -1,6 +1,7 @@
 import os
 import numpy as np
 import csv
+from config import CONFIG
 from .config import LyapunovConfig
 from .averaging import average_curves, detect_no_rise
 from .fitters import fit_timeseries
@@ -9,33 +10,43 @@ from .results import make_output_dir, save_results, save_npz
 import json
 
 
-def process_file(path, cfg: LyapunovConfig = None):
+def process_file(path, cfg: LyapunovConfig = None, outdir: str = None):
     cfg = cfg or LyapunovConfig.from_global()
     data = np.load(path)
     timeseries = data["timeseries"]
-    outdir = make_output_dir(path)
-    res = _process_timeseries_array(timeseries, path, cfg, outdir)
+    pair_indices = data["pair_indices"] if "pair_indices" in data.files else None
+
+    if outdir is None:
+        outdir = make_output_dir(path)
+    else:
+        os.makedirs(outdir, exist_ok=True)
+
+    res = _process_timeseries_array(timeseries, path, cfg, outdir, pair_indices=pair_indices)
     # Save outputs
-    save_results(outdir, os.path.splitext(os.path.basename(path))[0] + "_results", res)
+    save_results(outdir, "lyapunov_results", res)
     # Optionally save averaged curve
     if "average_curve" in res:
-        save_npz(outdir, os.path.splitext(os.path.basename(path))[0] + "_average", average_curve=np.array(res["average_curve"]))
+        save_npz(outdir, "lyapunov_average", average_curve=np.array(res["average_curve"]))
 
     if "lyapunov_time_series" in res:
-        base_name = os.path.splitext(os.path.basename(path))[0]
         lyap_arr = np.asarray(res["lyapunov_time_series"], dtype=float)
         dist_arr = np.asarray(timeseries, dtype=float)
         t = np.arange(lyap_arr.shape[1], dtype=int)
+        save_kwargs = {
+            "lambda_t": lyap_arr,
+            "distance_timeseries": dist_arr,
+            "time": t,
+        }
+        if pair_indices is not None:
+            save_kwargs["pair_indices"] = np.asarray(pair_indices, dtype=int)
         save_npz(
             outdir,
-            f"{base_name}_lyapunov_time_series",
-            lambda_t=lyap_arr,
-            distance_timeseries=dist_arr,
-            time=t,
+            "lyapunov_time_series",
+            **save_kwargs,
         )
 
         if cfg.get("time_dependent", {}).get("save_csv", True):
-            _save_ftle_csv(outdir, f"{base_name}_lyapunov_time_series.csv", lyap_arr, dist_arr)
+            _save_ftle_csv(outdir, "lyapunov_time_series.csv", lyap_arr, dist_arr, pair_indices=pair_indices)
 
     return res
 
@@ -58,11 +69,11 @@ def process_path(path, cfg: LyapunovConfig = None):
         return res
 
 
-def _process_timeseries_array(timeseries, path, cfg: LyapunovConfig, outdir: str):
+def _process_timeseries_array(timeseries, path, cfg: LyapunovConfig, outdir: str, pair_indices=None):
     # timeseries: shape (n_pairs, T)
     time_dep_cfg = cfg.get("time_dependent", {})
     if time_dep_cfg.get("enabled", False):
-        return _process_time_dependent(timeseries, cfg, outdir)
+        return _process_time_dependent(timeseries, cfg, outdir, pair_indices=pair_indices)
 
     op = cfg.get("operation_mode", "fit_first")
     averaging_cfg = cfg.get("averaging", {})
@@ -174,16 +185,24 @@ def _compute_ftle_curves(timeseries: np.ndarray, eps: float = 1e-12) -> np.ndarr
     return ftle
 
 
-def _save_ftle_csv(outdir: str, filename: str, lyap_arr: np.ndarray, dist_arr: np.ndarray):
+def _save_ftle_csv(outdir: str, filename: str, lyap_arr: np.ndarray, dist_arr: np.ndarray, pair_indices: np.ndarray = None):
     csv_path = os.path.join(outdir, filename)
     with open(csv_path, "w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
-        writer.writerow(["pair_index", "time_index", "lambda_t", "distance"])
+        writer.writerow(["pair_index", "traj_i", "traj_j", "time_index", "lambda_t", "distance"])
         n_pairs, T = lyap_arr.shape
         for pair_idx in range(n_pairs):
+            if pair_indices is not None and pair_idx < len(pair_indices):
+                traj_i = int(pair_indices[pair_idx][0])
+                traj_j = int(pair_indices[pair_idx][1])
+            else:
+                traj_i = -1
+                traj_j = -1
             for t in range(T):
                 writer.writerow([
                     int(pair_idx),
+                    traj_i,
+                    traj_j,
                     int(t),
                     float(lyap_arr[pair_idx, t]),
                     float(dist_arr[pair_idx, t]),
@@ -191,7 +210,7 @@ def _save_ftle_csv(outdir: str, filename: str, lyap_arr: np.ndarray, dist_arr: n
     return csv_path
 
 
-def _process_time_dependent(timeseries, cfg: LyapunovConfig, outdir: str):
+def _process_time_dependent(timeseries, cfg: LyapunovConfig, outdir: str, pair_indices: np.ndarray = None):
     td_cfg = cfg.get("time_dependent", {})
     mode = td_cfg.get("mode", "ftle")
     eps = float(td_cfg.get("eps", 1e-12))
@@ -225,5 +244,47 @@ def _process_time_dependent(timeseries, cfg: LyapunovConfig, outdir: str):
             log_plot=log_plot,
             title=None,
         )
+
+        # Plot selected pairs (from config) while averaging still uses all pairs.
+        pairs_to_plot = CONFIG.get("pairwise", {}).get("pairs_to_plot", []) or []
+        if pair_indices is not None:
+            pair_map = {
+                (int(p[0]), int(p[1])): idx
+                for idx, p in enumerate(np.asarray(pair_indices, dtype=int))
+            }
+        else:
+            pair_map = {}
+
+        for pair in pairs_to_plot:
+            try:
+                i, j = int(pair[0]), int(pair[1])
+            except Exception:
+                continue
+
+            row_idx = None
+            if pair_map:
+                row_idx = pair_map.get((i, j), pair_map.get((j, i)))
+            else:
+                # Fallback: assume timeseries rows follow pairs_to_plot order.
+                try:
+                    row_idx = pairs_to_plot.index([i, j])
+                except Exception:
+                    row_idx = None
+
+            if row_idx is None:
+                continue
+            if row_idx < 0 or row_idx >= lyap_ts.shape[0]:
+                continue
+
+            curve = lyap_ts[row_idx]
+            zero_std = np.zeros_like(curve)
+            plot_lyapunov_time_series(
+                times=times,
+                mean_lambda=curve,
+                std_lambda=zero_std,
+                outpath=os.path.join(outdir, f"lyapunov_time_series_pair_{i}_{j}.png"),
+                log_plot=log_plot,
+                title=None,
+            )
 
     return out

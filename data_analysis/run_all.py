@@ -4,6 +4,8 @@ import sys
 import os
 import importlib.util
 import importlib
+import numpy as np
+import re
 
 # # Robustly load config.py (located alongside this script) and register it as module 'config'
 # SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -70,6 +72,21 @@ def main(input_path, results_root, sweep_param_value=None):
     embedding_cfg = globals().get('CONFIG', {}).get('EMBEDDING_CONFIG', {})
     input_mode = embedding_cfg.get('input_mode', 'single_file')
 
+    def _build_template_regex(template: str, current_embed=None):
+        pattern = re.escape(template)
+        pattern = pattern.replace(r"\{i\}", r"(?P<i>\d+)")
+        if "{embed}" in template:
+            if current_embed is None:
+                pattern = pattern.replace(r"\{embed\}", r"(?P<embed>.+?)")
+            else:
+                pattern = pattern.replace(r"\{embed\}", re.escape(str(current_embed)))
+        return re.compile(rf"^{pattern}$")
+
+    def _safe_format_template(template: str, i: int, current_embed=None):
+        if "{embed}" in template and current_embed is None:
+            raise ValueError("input_template contains '{embed}' but CONFIG['current_embed_raw'] is not set")
+        return template.format(i=i, embed=current_embed)
+
     if input_mode == 'per_trajectory':
         # Expect input_path to point to a single example trajectory file or a template path.
         # If input_path is a file that exists, treat it as a single trajectory; otherwise
@@ -78,7 +95,28 @@ def main(input_path, results_root, sweep_param_value=None):
         X = None
         trajectories = []
         if os.path.isdir(input_path):
-            files = sorted([os.path.join(input_path, f) for f in os.listdir(input_path) if f.endswith('.pt')])
+            embed_cfg = CONFIG.get('EMBEDDING_CONFIG', {})
+            input_template = embed_cfg.get('input_template', '{embed}.pt')
+            current_embed = CONFIG.get('current_embed_raw')
+            pattern = _build_template_regex(input_template, current_embed=current_embed)
+
+            matched = []
+            for fname in os.listdir(input_path):
+                m = pattern.match(fname)
+                if m:
+                    idx = int(m.group('i')) if 'i' in m.groupdict() and m.group('i') is not None else 10**9
+                    matched.append((idx, fname))
+
+            matched.sort(key=lambda x: (x[0], x[1]))
+            files = [os.path.join(input_path, f) for _, f in matched]
+
+            if len(files) == 0:
+                logger.warning(
+                    "No files matched input_template='%s' in directory %s",
+                    input_template,
+                    input_path,
+                )
+
             for p in files:
                 try:
                     t = load_tensor(p)
@@ -138,10 +176,14 @@ def main(input_path, results_root, sweep_param_value=None):
             input_template = embed_cfg.get('input_template', '{embed}.pt')
             base_folder = input_path if os.path.isdir(input_path) else os.path.dirname(input_path)
 
-            if indices_to_load is not None and current_embed is not None:
+            if indices_to_load is not None:
                 trajectories = []
                 for i in indices_to_load:
-                    fname = input_template.format(embed=current_embed, i=i)
+                    try:
+                        fname = _safe_format_template(input_template, i=i, current_embed=current_embed)
+                    except Exception as e:
+                        logger.warning(f"Could not format input_template for i={i}: {e}")
+                        continue
                     p = os.path.join(base_folder, fname)
                     if os.path.exists(p):
                         try:
@@ -160,15 +202,32 @@ def main(input_path, results_root, sweep_param_value=None):
                 X = torch.stack([torch.as_tensor(t) for t in trajectories], dim=0)
             except Exception:
                 # fallback: convert to numpy then to tensor
-                import numpy as np
-                lst = [(np.asarray(t)) for t in trajectories]
+                lst = [np.asarray(t) for t in trajectories]
+                # keep only 2D trajectory tensors
+                lst = [arr for arr in lst if arr.ndim == 2]
+                if len(lst) == 0:
+                    raise ValueError("No valid 2D trajectory tensors could be loaded from the selected files.")
+
+                # keep only dominant feature dimension (D), drop unrelated tensors
+                dims = [arr.shape[1] for arr in lst]
+                dim_counts = {}
+                for d in dims:
+                    dim_counts[d] = dim_counts.get(d, 0) + 1
+                target_dim = max(dim_counts.items(), key=lambda kv: kv[1])[0]
+                before = len(lst)
+                lst = [arr for arr in lst if arr.shape[1] == target_dim]
+                dropped = before - len(lst)
+                if dropped > 0:
+                    logger.warning(
+                        "Dropped %d trajectory files due to feature-dimension mismatch; keeping D=%d.",
+                        dropped,
+                        target_dim,
+                    )
+
                 if len(lst) > 1:
-                    shapes = [arr.shape for arr in lst]
-                    if not all(shape == shapes[0] for shape in shapes):
-                        min_len = min(shape[0] for shape in shapes)
-                        lst = [arr[:min_len] for arr in lst]
-                else:
-                    print("XXX ------- Grego stupiduss ---------------- XXXXX")
+                    min_len = min(arr.shape[0] for arr in lst)
+                    lst = [arr[:min_len] for arr in lst]
+
                 X = torch.as_tensor(np.stack(lst, axis=0))
 
         logger.info("Loaded per-trajectory input; num trajectories=%d", X.shape[0])
@@ -284,7 +343,7 @@ def main(input_path, results_root, sweep_param_value=None):
 
         if os.path.exists(lyap_npz):
             try:
-                lyap = process_lyapunov_file(lyap_npz)
+                lyap = process_lyapunov_file(lyap_npz, outdir=metrics_results_dir)
                 logger.info(f"Lyapunov done using metric='{lyap_metric}'")
             except Exception as e:
                 logger.error(f"Lyapunov processing failed for {lyap_npz}: {e}")

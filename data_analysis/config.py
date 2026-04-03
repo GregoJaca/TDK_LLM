@@ -114,7 +114,7 @@ CONFIG = {
 
     # Pair computations
     "pairwise": {
-        "compute_all_pairs": False, # AA XX doesnt work
+        "compute_all_pairs": True, # AA XX doesnt work
         # Single, simple toggle: when True, save one aggregated per-metric
         # timeseries file containing all pairs. No per-pair files are written.
         "save_pairwise_aggregated": False,
