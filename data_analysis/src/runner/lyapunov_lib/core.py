@@ -5,7 +5,7 @@ from config import CONFIG
 from .config import LyapunovConfig
 from .averaging import average_curves, detect_no_rise
 from .fitters import fit_timeseries
-from .plotting import plot_curves, plot_mean_and_fit, plot_lyapunov_time_series, plot_saturation_detection, plot_distance_time_series
+from .plotting import plot_curves, plot_mean_and_fit, plot_lyapunov_time_series, plot_saturation_detection, plot_distance_time_series, plot_midpoint_distribution
 from .results import make_output_dir, save_results, save_npz
 import json
 
@@ -23,7 +23,7 @@ def process_file(path, cfg: LyapunovConfig = None, outdir: str = None):
 
     timeseries, saturation_info = _apply_saturation_policy(timeseries_raw, cfg, outdir=outdir)
 
-    res = _process_timeseries_array(timeseries, path, cfg, outdir, pair_indices=pair_indices)
+    res = _process_timeseries_array(timeseries, path, cfg, outdir, pair_indices=pair_indices, saturation_info=saturation_info)
     res["saturation"] = saturation_info
     # Save outputs
     save_results(outdir, "lyapunov_results", res)
@@ -85,6 +85,7 @@ def _apply_saturation_policy(timeseries: np.ndarray, cfg: LyapunovConfig, outdir
     detect_in_log_scale = bool(sat_cfg.get("detect_in_log_scale", True))
     log_eps = float(sat_cfg.get("log_eps", 1e-12))
     debug_plot = bool(sat_cfg.get("debug_plot", False))
+    save_midpoint_distribution = bool(sat_cfg.get("save_midpoint_distribution", False))
 
     baseline_len = max(3, int(T * baseline_frac))
     plateau_len = max(3, int(T * plateau_frac))
@@ -185,6 +186,17 @@ def _apply_saturation_policy(timeseries: np.ndarray, cfg: LyapunovConfig, outdir
     used_lengths = [x["used_length"] for x in per_curve] if per_curve else [T]
     sat_indices = [x["saturation_index"] for x in per_curve] if per_curve else []
     jump_indices = [x["jump_index"] for x in per_curve] if per_curve else []
+    midpoint_indices = [x["saturation_index"] for x in per_curve] if per_curve else []
+
+    if outdir is not None and save_midpoint_distribution and len(midpoint_indices) > 0:
+        try:
+            np.savez(os.path.join(outdir, "midpoint_index_distribution.npz"), midpoint_indices=np.asarray(midpoint_indices, dtype=int))
+            plot_midpoint_distribution(
+                midpoint_indices=np.asarray(midpoint_indices, dtype=int),
+                outpath=os.path.join(outdir, "midpoint_index_distribution.png"),
+            )
+        except Exception:
+            pass
 
     info.update({
         "used_length": int(np.nanmin(used_lengths)) if len(used_lengths) > 0 else int(T),
@@ -194,6 +206,7 @@ def _apply_saturation_policy(timeseries: np.ndarray, cfg: LyapunovConfig, outdir
         "plateau": None,
         "midpoint": None,
         "smooth_window": int(per_curve[0]["smooth_window"]) if len(per_curve) > 0 else None,
+        "midpoint_indices": midpoint_indices,
         "per_curve": per_curve,
     })
 
@@ -218,11 +231,11 @@ def process_path(path, cfg: LyapunovConfig = None):
         return res
 
 
-def _process_timeseries_array(timeseries, path, cfg: LyapunovConfig, outdir: str, pair_indices=None):
+def _process_timeseries_array(timeseries, path, cfg: LyapunovConfig, outdir: str, pair_indices=None, saturation_info=None):
     # timeseries: shape (n_pairs, T)
     time_dep_cfg = cfg.get("time_dependent", {})
     if time_dep_cfg.get("enabled", False):
-        return _process_time_dependent(timeseries, cfg, outdir, pair_indices=pair_indices)
+        return _process_time_dependent(timeseries, cfg, outdir, pair_indices=pair_indices, saturation_info=saturation_info)
 
     op = cfg.get("operation_mode", "fit_first")
     averaging_cfg = cfg.get("averaging", {})
@@ -334,6 +347,43 @@ def _compute_ftle_curves(timeseries: np.ndarray, eps: float = 1e-12) -> np.ndarr
     return ftle
 
 
+def _align_curves_by_midpoint(curves: np.ndarray, midpoint_indices) -> np.ndarray:
+    arr = np.asarray(curves, dtype=float)
+    if arr.ndim != 2:
+        return arr
+
+    mids = np.asarray(midpoint_indices, dtype=float)
+    if mids.size != arr.shape[0]:
+        return arr
+
+    valid = np.isfinite(mids)
+    if not np.any(valid):
+        return arr
+
+    mids = np.round(mids).astype(int)
+    ref = int(np.median(mids[valid]))
+    max_shift_left = int(np.max(np.maximum(0, ref - mids[valid]))) if np.any(valid) else 0
+    max_shift_right = int(np.max(np.maximum(0, mids[valid] - ref))) if np.any(valid) else 0
+    T = arr.shape[1]
+    out_T = T + max_shift_left + max_shift_right
+    aligned = np.full((arr.shape[0], out_T), np.nan, dtype=float)
+
+    for i in range(arr.shape[0]):
+        if i >= mids.size or not np.isfinite(mids[i]):
+            continue
+        shift = int(ref - mids[i])
+        start = max_shift_left + shift
+        end = start + T
+        s = max(0, start)
+        e = min(out_T, end)
+        src_s = s - start
+        src_e = src_s + (e - s)
+        if e > s:
+            aligned[i, s:e] = arr[i, src_s:src_e]
+
+    return aligned
+
+
 def _save_ftle_csv(outdir: str, filename: str, lyap_arr: np.ndarray, dist_arr: np.ndarray, pair_indices: np.ndarray = None):
     csv_path = os.path.join(outdir, filename)
     with open(csv_path, "w", newline="", encoding="utf-8") as f:
@@ -359,7 +409,7 @@ def _save_ftle_csv(outdir: str, filename: str, lyap_arr: np.ndarray, dist_arr: n
     return csv_path
 
 
-def _process_time_dependent(timeseries, cfg: LyapunovConfig, outdir: str, pair_indices: np.ndarray = None):
+def _process_time_dependent(timeseries, cfg: LyapunovConfig, outdir: str, pair_indices: np.ndarray = None, saturation_info=None):
     td_cfg = cfg.get("time_dependent", {})
     mode = td_cfg.get("mode", "ftle")
     eps = float(td_cfg.get("eps", 1e-12))
@@ -367,10 +417,24 @@ def _process_time_dependent(timeseries, cfg: LyapunovConfig, outdir: str, pair_i
     if mode != "ftle":
         raise ValueError(f"Unsupported time-dependent Lyapunov mode: {mode}")
 
+    sat_info = saturation_info if isinstance(saturation_info, dict) else {}
+    midpoint_indices = sat_info.get("midpoint_indices", []) if isinstance(sat_info, dict) else []
+
+    align_distance = bool(td_cfg.get("align_distance_on_midpoint", False))
+    align_lyap = bool(td_cfg.get("align_lyapunov_on_midpoint", False))
+
+    distance_for_mean = np.asarray(timeseries, dtype=float)
+    if align_distance and len(midpoint_indices) > 0:
+        distance_for_mean = _align_curves_by_midpoint(distance_for_mean, midpoint_indices)
+
     lyap_ts = _compute_ftle_curves(timeseries, eps=eps)
-    mean_curve = np.nanmean(lyap_ts, axis=0)
-    std_curve = np.nanstd(lyap_ts, axis=0)
-    times = np.arange(lyap_ts.shape[1], dtype=int)
+    lyap_for_mean = lyap_ts
+    if align_lyap and len(midpoint_indices) > 0:
+        lyap_for_mean = _align_curves_by_midpoint(lyap_ts, midpoint_indices)
+
+    mean_curve = np.nanmean(lyap_for_mean, axis=0)
+    std_curve = np.nanstd(lyap_for_mean, axis=0)
+    times = np.arange(mean_curve.shape[0], dtype=int)
 
     out = {
         "mode": "time_dependent",
@@ -378,8 +442,10 @@ def _process_time_dependent(timeseries, cfg: LyapunovConfig, outdir: str, pair_i
         "lyapunov_time_series": lyap_ts.tolist(),
         "mean_lyapunov_time_series": mean_curve.tolist(),
         "std_lyapunov_time_series": std_curve.tolist(),
+        "distance_mean_aligned_on_midpoint": align_distance,
+        "lyapunov_mean_aligned_on_midpoint": align_lyap,
         "n_pairs": int(lyap_ts.shape[0]),
-        "time_length": int(lyap_ts.shape[1]),
+        "time_length": int(mean_curve.shape[0]),
     }
 
     plot_cfg = cfg.get("plot", {})
@@ -396,10 +462,10 @@ def _process_time_dependent(timeseries, cfg: LyapunovConfig, outdir: str, pair_i
 
         if bool(plot_cfg.get("save_source_distance_timeseries", True)):
             source_metric = str(cfg.get("source_metric", "cos"))
-            mean_dist = np.nanmean(timeseries, axis=0)
-            std_dist = np.nanstd(timeseries, axis=0)
+            mean_dist = np.nanmean(distance_for_mean, axis=0)
+            std_dist = np.nanstd(distance_for_mean, axis=0)
             plot_distance_time_series(
-                times=times,
+                times=np.arange(mean_dist.shape[0], dtype=int),
                 mean_distance=mean_dist,
                 std_distance=std_dist,
                 outpath=os.path.join(outdir, f"{source_metric}_distance_time_series_mean.png"),
@@ -442,7 +508,7 @@ def _process_time_dependent(timeseries, cfg: LyapunovConfig, outdir: str, pair_i
             curve = lyap_ts[row_idx]
             zero_std = np.zeros_like(curve)
             plot_lyapunov_time_series(
-                times=times,
+                times=np.arange(curve.shape[0], dtype=int),
                 mean_lambda=curve,
                 std_lambda=zero_std,
                 outpath=os.path.join(outdir, f"lyapunov_time_series_pair_{i}_{j}.png"),
@@ -453,7 +519,7 @@ def _process_time_dependent(timeseries, cfg: LyapunovConfig, outdir: str, pair_i
             if bool(plot_cfg.get("save_source_distance_timeseries", True)):
                 dist_curve = np.asarray(timeseries[row_idx], dtype=float)
                 plot_distance_time_series(
-                    times=times,
+                    times=np.arange(dist_curve.shape[0], dtype=int),
                     mean_distance=dist_curve,
                     std_distance=np.zeros_like(dist_curve),
                     outpath=os.path.join(outdir, f"{source_metric}_distance_time_series_pair_{i}_{j}.png"),

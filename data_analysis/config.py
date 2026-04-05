@@ -122,7 +122,8 @@ CONFIG = {
         # If compute_all_pairs is False and reference_index is None,
         # use this explicit list of index pairs for computation and plotting.
         # "pairs_to_plot": [[0, 1]],
-        "pairs_to_plot": [[0, 1], [0,2]], #[ [i, j] for i in range(5) for j in range(i,10) ],
+        # "pairs_to_plot": [[0, 1], [0,2]], #[ [i, j] for i in range(5) for j in range(i,10) ],
+        "pairs_to_plot": [], 
         # "pairs_to_plot": [ [i, j] for i in range(100) for j in range(i+1,100) ],
         # "pairs_to_plot": [ [i, j] for i in range(4) for j in range(i+1,4) ],
     },
@@ -138,6 +139,7 @@ CONFIG = {
             "detect_in_log_scale": True,
             "log_eps": 1e-12,
             "debug_plot": False,
+            "save_midpoint_distribution": True,
             "baseline_frac": 0.05,  # fraction from start to estimate baseline
             "plateau_frac": 0.2,    # fraction from end to estimate plateau
             "midpoint_frac": 0.5,   # midpoint between baseline and plateau
@@ -147,7 +149,9 @@ CONFIG = {
             "enabled": True,
             "mode": "ftle",  # finite-time Lyapunov exponent: lambda(t)=ln(d(t)/d0)/t
             "eps": 1e-12,
-            "save_csv": True,
+            "save_csv": False,
+            "align_distance_on_midpoint": False,
+            "align_lyapunov_on_midpoint": False,
         },
         "fit": {
             "type": "exponential",  # default fitter type
@@ -172,7 +176,7 @@ CONFIG = {
         "plot": {
             "save": True,
             "log_plot": True,
-            "save_source_distance_timeseries": False,
+            "save_source_distance_timeseries": True,
             "show_fit": False
         }
     },

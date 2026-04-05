@@ -154,3 +154,21 @@ def plot_saturation_detection(
     plt.tight_layout()
     _save_with_formats(outpath)
     plt.close()
+
+
+def plot_midpoint_distribution(midpoint_indices, outpath):
+    os.makedirs(os.path.dirname(outpath), exist_ok=True)
+    arr = np.asarray(midpoint_indices, dtype=float)
+    arr = arr[np.isfinite(arr)]
+    if arr.size == 0:
+        return
+
+    plt.figure(figsize=(6, 4))
+    bins = max(10, min(60, int(np.sqrt(arr.size))))
+    plt.hist(arr, bins=bins, alpha=0.8, edgecolor='k')
+    plt.xlabel('Midpoint index', fontsize=14)
+    plt.ylabel('Count', fontsize=14)
+    plt.grid(alpha=0.25)
+    plt.tight_layout()
+    _save_with_formats(outpath)
+    plt.close()
