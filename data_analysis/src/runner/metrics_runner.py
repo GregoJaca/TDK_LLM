@@ -24,6 +24,17 @@ METRIC_FUNCTIONS = {
     "wasserstein": wasserstein.compare_trajectories,
 }
 
+
+def _prepare_trajectories_numpy(trajectories):
+    """Convert trajectories to numpy arrays once to avoid repeated per-pair conversions."""
+    prepared = []
+    for t in trajectories:
+        if isinstance(t, torch.Tensor):
+            prepared.append(t.detach().cpu().numpy())
+        else:
+            prepared.append(np.asarray(t))
+    return prepared
+
 def _compute_metric_for_pair(pair, trajectories, metrics_to_run, results_dir):
     i, j = pair
     traj_a = trajectories[i]
@@ -61,13 +72,19 @@ def _compute_metric_for_pair(pair, trajectories, metrics_to_run, results_dir):
                 # prefer a per-metric directory under results_root (so we don't create
                 # a top-level 'plots' folder). Otherwise use the run's plots folder.
                 sw = CONFIG.get('sweep')
-                if sw:
-                    # results_dir is usually CONFIG['results_root']/run_id; place
-                    # per-metric plots alongside results_dir (i.e., results_root/<metric_name>)
-                    plots_dir = os.path.join(os.path.dirname(results_dir), metric_name)
-                else:
-                    plots_dir = os.path.join(results_dir, "plots")
-                os.makedirs(plots_dir, exist_ok=True)
+                save_metric_plots = bool(CONFIG.get("metrics", {}).get("save_plots", True))
+                save_timeseries_array = bool(CONFIG.get("metrics", {}).get("save_timeseries_array", False))
+                needs_out_root = save_metric_plots or save_timeseries_array
+
+                plots_dir = None
+                if needs_out_root:
+                    if sw:
+                        # results_dir is usually CONFIG['results_root']/run_id; place
+                        # per-metric plots alongside results_dir (i.e., results_root/<metric_name>)
+                        plots_dir = os.path.join(os.path.dirname(results_dir), metric_name)
+                    else:
+                        plots_dir = os.path.join(results_dir, "plots")
+                    os.makedirs(plots_dir, exist_ok=True)
 
                 # Pass pair-specific identifiers and output root so metrics can save per-pair plots
                 # Also forward sliding-window configuration explicitly so callers that
@@ -186,13 +203,17 @@ def run_metrics(trajectories: np.ndarray, run_id: str) -> Dict:
         print(f"[metrics_runner] pairing_mode={pairing_mode}")
         print(f"[metrics_runner] metrics_to_run={metrics_to_run}")
 
-    # Use a lambda to pass additional arguments to the worker function
-    worker_func = lambda pair: _compute_metric_for_pair(pair, trajectories, metrics_to_run, results_dir)
+    # Pre-convert once to avoid repeated tensor->numpy conversion in each pair.
+    trajectories_prepared = _prepare_trajectories_numpy(trajectories)
 
-    # This part is currently not working as intended with map_pairs
-    # results = map_pairs(worker_func, pairs)
-    # For now, run sequentially
-    results = [worker_func(p) for p in pairs]
+    # Use a lambda to pass additional arguments to the worker function.
+    worker_func = lambda pair: _compute_metric_for_pair(pair, trajectories_prepared, metrics_to_run, results_dir)
+
+    pairwise_parallel = bool(CONFIG.get("parallel", {}).get("enable_pairwise_parallel", True))
+    if pairwise_parallel and len(pairs) > 1:
+        results = map_pairs(worker_func, pairs)
+    else:
+        results = [worker_func(p) for p in pairs]
 
     # Process results
     final_results = {

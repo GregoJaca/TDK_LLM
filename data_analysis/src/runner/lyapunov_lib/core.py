@@ -60,15 +60,45 @@ def detect_curve_transition_points(curve: np.ndarray, sat_cfg: dict, total_lengt
         deriv = np.abs(np.diff(smooth))
         jump_idx = int(np.argmax(deriv)) + 1
 
+        # Second jump detection: after first jump, require a settled region and
+        # then detect a sustained rise toward the final plateau.
         min_sep = max(2, int(round(T * float(sat_cfg.get("second_jump_min_sep_frac", 0.05)))))
-        lo = max(0, (jump_idx - 1) - min_sep)
-        hi = min(deriv.shape[0], (jump_idx - 1) + min_sep + 1)
-        deriv_second = deriv.copy()
-        deriv_second[lo:hi] = -np.inf
-        if np.isfinite(np.nanmax(deriv_second)):
-            second_jump_idx = int(np.argmax(deriv_second)) + 1
-        else:
+        settle_len = max(5, int(round(T * float(sat_cfg.get("second_jump_settle_frac", 0.08)))))
+        level_frac = float(sat_cfg.get("second_jump_level_frac", 0.5))
+        min_delta_frac = float(sat_cfg.get("second_jump_min_delta_frac", 0.08))
+        consecutive = max(1, int(sat_cfg.get("second_jump_consecutive_points", 3)))
+
+        final_plateau = float(np.nanmedian(smooth[max(0, T - plateau_len):]))
+        start2 = min(T - 1, jump_idx + min_sep)
+
+        if start2 + settle_len >= T:
             second_jump_idx = None
+        else:
+            mid_plateau = float(np.nanmedian(smooth[start2:start2 + settle_len]))
+            total_range = float(np.nanmax(smooth) - np.nanmin(smooth))
+            delta_to_final = float(final_plateau - mid_plateau)
+            required_delta = max(1e-12, min_delta_frac * max(total_range, 1e-12))
+
+            if delta_to_final <= required_delta:
+                second_jump_idx = None
+            else:
+                target2 = mid_plateau + level_frac * delta_to_final
+                post = smooth[start2:]
+                hits = post >= target2
+
+                second_jump_idx = None
+                if hits.size > 0:
+                    run = 0
+                    for k, ok in enumerate(hits):
+                        run = run + 1 if ok else 0
+                        if run >= consecutive:
+                            second_jump_idx = int(start2 + k - consecutive + 1)
+                            break
+
+                if second_jump_idx is None:
+                    deriv2 = np.abs(np.diff(smooth[start2:]))
+                    if deriv2.size > 0 and np.isfinite(np.nanmax(deriv2)):
+                        second_jump_idx = int(start2 + np.argmax(deriv2) + 1)
 
     left_end = max(baseline_len, jump_idx)
     right_start = min(jump_idx, T - plateau_len)

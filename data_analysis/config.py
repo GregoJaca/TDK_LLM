@@ -148,6 +148,11 @@ CONFIG = {
             "baseline_frac": 0.05,  # fraction from start to estimate baseline
             "plateau_frac": 0.2,    # fraction from end to estimate plateau
             "midpoint_frac": 0.5,   # midpoint between baseline and plateau
+            "second_jump_min_sep_frac": 0.05,
+            "second_jump_settle_frac": 0.08,
+            "second_jump_level_frac": 0.5,
+            "second_jump_min_delta_frac": 0.08,
+            "second_jump_consecutive_points": 3,
             "min_points": 5,
         },
         "time_dependent": {
@@ -188,6 +193,7 @@ CONFIG = {
 
     # Parallel & performance
     "parallel": {
+        "enable_pairwise_parallel": True,
         "max_workers": 16,
         "use_multiprocessing": False
     },

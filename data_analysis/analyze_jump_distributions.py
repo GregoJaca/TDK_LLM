@@ -100,7 +100,7 @@ def main():
     try:
         CONFIG.setdefault("lyapunov", {}).setdefault("exclude_saturation", {})["debug_plot"] = bool(args.debug_plot)
 
-        first_midpoint_indices = []
+        first_jump_indices = []
         second_jump_indices = []
         per_curve = []
 
@@ -108,10 +108,11 @@ def main():
             curve = np.asarray(timeseries[curve_idx], dtype=float)
             det = detect_curve_transition_points(curve, sat_cfg=sat_cfg, total_length=curve.shape[0])
 
+            first_jump = int(det["jump_index"])
             first_midpoint = int(det["saturation_index"])
             second_jump = det.get("second_jump_index", None)
 
-            first_midpoint_indices.append(first_midpoint)
+            first_jump_indices.append(first_jump)
             if second_jump is not None:
                 second_jump_indices.append(int(second_jump))
 
@@ -123,8 +124,8 @@ def main():
                 {
                     "curve_index": int(curve_idx),
                     "pair": pair,
+                    "first_jump_index": int(first_jump),
                     "first_midpoint_index": int(first_midpoint),
-                    "first_jump_index": int(det["jump_index"]),
                     "second_jump_index": int(second_jump) if second_jump is not None else None,
                     "smooth_window": int(det["smooth_window"]),
                 }
@@ -135,7 +136,7 @@ def main():
                     times=np.arange(curve.shape[0], dtype=int),
                     mean_curve=curve,
                     smooth_curve=np.asarray(det["smooth_curve_plot"], dtype=float),
-                    jump_idx=int(det["jump_index"]),
+                    jump_idx=int(first_jump),
                     sat_idx=int(det["saturation_index"]),
                     baseline=float(det["baseline_plot"]),
                     plateau=float(det["plateau_plot"]),
@@ -144,19 +145,19 @@ def main():
                     log_plot=log_plot,
                 )
 
-        first_midpoint_arr = np.asarray(first_midpoint_indices, dtype=int)
+        first_jump_arr = np.asarray(first_jump_indices, dtype=int)
         second_jump_arr = np.asarray(second_jump_indices, dtype=int)
 
         np.savez(
             os.path.join(args.analysis_out_dir, "jump_index_distributions.npz"),
-            first_midpoint_indices=first_midpoint_arr,
+            first_jump_indices=first_jump_arr,
             second_jump_indices=second_jump_arr,
         )
 
-        if args.save_midpoint_distribution and first_midpoint_arr.size > 0:
+        if args.save_midpoint_distribution and first_jump_arr.size > 0:
             plot_midpoint_distribution(
-                midpoint_indices=first_midpoint_arr,
-                outpath=os.path.join(args.analysis_out_dir, "first_midpoint_index_distribution.png"),
+                midpoint_indices=first_jump_arr,
+                outpath=os.path.join(args.analysis_out_dir, "first_jump_index_distribution.png"),
             )
 
         if args.save_second_jump_distribution and second_jump_arr.size > 0:
@@ -169,10 +170,10 @@ def main():
             "input_npz": args.cosine_npz_path,
             "n_curves": int(timeseries.shape[0]),
             "time_length": int(timeseries.shape[1]),
-            "first_midpoint": {
-                "count": int(first_midpoint_arr.size),
-                "mean": float(np.nanmean(first_midpoint_arr)) if first_midpoint_arr.size > 0 else None,
-                "std": float(np.nanstd(first_midpoint_arr)) if first_midpoint_arr.size > 0 else None,
+            "first_jump": {
+                "count": int(first_jump_arr.size),
+                "mean": float(np.nanmean(first_jump_arr)) if first_jump_arr.size > 0 else None,
+                "std": float(np.nanstd(first_jump_arr)) if first_jump_arr.size > 0 else None,
             },
             "second_jump": {
                 "count": int(second_jump_arr.size),
