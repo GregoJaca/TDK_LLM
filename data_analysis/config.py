@@ -123,9 +123,9 @@ CONFIG = {
         # use this explicit list of index pairs for computation and plotting.
         # "pairs_to_plot": [[0, 1]],
         # "pairs_to_plot": [[0, 1], [0,2]], #[ [i, j] for i in range(5) for j in range(i,10) ],
-        "pairs_to_plot": [], 
+        # "pairs_to_plot": [], 
         # "pairs_to_plot": [ [i, j] for i in range(100) for j in range(i+1,100) ],
-        # "pairs_to_plot": [ [i, j] for i in range(4) for j in range(i+1,4) ],
+        "pairs_to_plot": [ [i, j] for i in range(4) for j in range(i+1,10) ],
     },
 
     # Lyapunov (fast pairwise slope)
@@ -140,6 +140,11 @@ CONFIG = {
             "log_eps": 1e-12,
             "debug_plot": False,
             "save_midpoint_distribution": True,
+            "midpoint_outlier_filter": {
+                "enabled": False,
+                "num_bins": 25,
+                "neighbor_bins": 1,
+            },
             "baseline_frac": 0.05,  # fraction from start to estimate baseline
             "plateau_frac": 0.2,    # fraction from end to estimate plateau
             "midpoint_frac": 0.5,   # midpoint between baseline and plateau
@@ -150,7 +155,7 @@ CONFIG = {
             "mode": "ftle",  # finite-time Lyapunov exponent: lambda(t)=ln(d(t)/d0)/t
             "eps": 1e-12,
             "save_csv": False,
-            "align_distance_on_midpoint": False,
+            "align_distance_on_midpoint": True,
             "align_lyapunov_on_midpoint": False,
         },
         "fit": {
@@ -225,7 +230,37 @@ CONFIG = {
 
     # Misc
     "random_seed": 42,
-    "default_dtype": "float32"
+    "default_dtype": "float32",
+
+    # Cosine precompute workflow (compute once, iterate analysis many times)
+    "cached_cosine_pipeline": {
+        # Input folder/file consumed by run_all.main during precompute
+        "input_path": "/home/grego/LLM/launch_sep/interstellar_test",
+
+        # Explicit output locations for cosine distances
+        "cosine_out_dir": "cosine_distances",
+        "cosine_npz_path": "cosine_distances/cos_pairwise_timeseries.npz",
+
+        # Metric precompute behavior
+        "metric_name": "cos",
+        "force_recompute": False,
+        "precompute": {
+            "only_source_metric": True,
+            "disable_lyapunov": True,
+            "disable_histograms": True,
+            "disable_metric_plots": True,
+        },
+
+        # Midpoint analysis over cached cosine file
+        "midpoint_analysis": {
+            "output_dir": "cosine_distances/midpoint_analysis",
+            "debug_plots_dir": "cosine_distances/midpoint_debug_plots",
+            "debug_plot": True,
+            "save_midpoint_distribution": True,
+            "save_second_jump_distribution": True,
+            "save_lyapunov_plots": False,
+        },
+    },
 }
 
 # Embedding / input selection: supports two modes and lives inside CONFIG under 'EMBEDDING_CONFIG'

@@ -414,6 +414,7 @@ def main(input_path, results_root, sweep_param_value=None):
             f.write("\n".join(summary_lines))
 
     print("Run complete:", run_id)
+    return {"run_id": run_id, "results_dir": results_dir}
 
 if __name__ == "__main__":
     import argparse

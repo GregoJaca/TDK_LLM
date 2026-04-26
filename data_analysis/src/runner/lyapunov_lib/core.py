@@ -10,6 +10,113 @@ from .results import make_output_dir, save_results, save_npz
 import json
 
 
+def detect_curve_transition_points(curve: np.ndarray, sat_cfg: dict, total_length: int = None):
+    arr = np.asarray(curve, dtype=float)
+    if arr.ndim != 1:
+        raise ValueError(f"curve must be 1D, got shape={arr.shape}")
+
+    T = int(arr.shape[0]) if total_length is None else int(total_length)
+    if T <= 0:
+        return {
+            "jump_index": 0,
+            "second_jump_index": None,
+            "saturation_index": 0,
+            "baseline": float("nan"),
+            "plateau": float("nan"),
+            "midpoint": float("nan"),
+            "smooth_window": 1,
+            "detect_in_log_scale": bool(sat_cfg.get("detect_in_log_scale", True)),
+            "smooth_curve_detect": arr.copy(),
+            "smooth_curve_plot": arr.copy(),
+            "baseline_plot": float("nan"),
+            "plateau_plot": float("nan"),
+            "midpoint_plot": float("nan"),
+        }
+
+    baseline_frac = float(sat_cfg.get("baseline_frac", 0.05))
+    plateau_frac = float(sat_cfg.get("plateau_frac", 0.2))
+    midpoint_frac = float(sat_cfg.get("midpoint_frac", 0.5))
+    detect_in_log_scale = bool(sat_cfg.get("detect_in_log_scale", True))
+    log_eps = float(sat_cfg.get("log_eps", 1e-12))
+
+    baseline_len = max(3, int(T * baseline_frac))
+    plateau_len = max(3, int(T * plateau_frac))
+
+    detect_curve = np.log(np.maximum(arr, log_eps)) if detect_in_log_scale else arr
+    smooth_w = max(3, int(round(T * 0.03)))
+    if smooth_w % 2 == 0:
+        smooth_w += 1
+
+    pad = smooth_w // 2
+    padded = np.pad(detect_curve, (pad, pad), mode="edge")
+    kernel = np.ones(smooth_w, dtype=float) / float(smooth_w)
+    smooth = np.convolve(padded, kernel, mode="valid")
+
+    if T <= 3:
+        jump_idx = 1 if T > 1 else 0
+        second_jump_idx = None
+        deriv = np.zeros(max(0, T - 1), dtype=float)
+    else:
+        deriv = np.abs(np.diff(smooth))
+        jump_idx = int(np.argmax(deriv)) + 1
+
+        min_sep = max(2, int(round(T * float(sat_cfg.get("second_jump_min_sep_frac", 0.05)))))
+        lo = max(0, (jump_idx - 1) - min_sep)
+        hi = min(deriv.shape[0], (jump_idx - 1) + min_sep + 1)
+        deriv_second = deriv.copy()
+        deriv_second[lo:hi] = -np.inf
+        if np.isfinite(np.nanmax(deriv_second)):
+            second_jump_idx = int(np.argmax(deriv_second)) + 1
+        else:
+            second_jump_idx = None
+
+    left_end = max(baseline_len, jump_idx)
+    right_start = min(jump_idx, T - plateau_len)
+    if right_start < 0:
+        right_start = 0
+
+    baseline = float(np.nanmedian(smooth[:left_end])) if left_end > 0 else float(np.nanmedian(smooth[:baseline_len]))
+    plateau = float(np.nanmedian(smooth[right_start:])) if right_start < T else float(np.nanmedian(smooth[-plateau_len:]))
+    midpoint = baseline + midpoint_frac * (plateau - baseline)
+
+    search_start = max(0, jump_idx - max(2, int(0.05 * T)))
+    if plateau >= baseline:
+        local = np.where(smooth[search_start:] >= midpoint)[0]
+    else:
+        local = np.where(smooth[search_start:] <= midpoint)[0]
+    if local.size > 0:
+        sat_idx = int(search_start + local[0])
+    else:
+        sat_idx = int(jump_idx)
+
+    if detect_in_log_scale:
+        baseline_plot = float(np.exp(np.clip(baseline, -700, 700)))
+        plateau_plot = float(np.exp(np.clip(plateau, -700, 700)))
+        midpoint_plot = float(np.exp(np.clip(midpoint, -700, 700)))
+        smooth_plot = np.exp(np.clip(smooth, -700, 700))
+    else:
+        baseline_plot = float(baseline)
+        plateau_plot = float(plateau)
+        midpoint_plot = float(midpoint)
+        smooth_plot = smooth
+
+    return {
+        "jump_index": int(jump_idx),
+        "second_jump_index": int(second_jump_idx) if second_jump_idx is not None else None,
+        "saturation_index": int(sat_idx),
+        "baseline": float(baseline),
+        "plateau": float(plateau),
+        "midpoint": float(midpoint),
+        "smooth_window": int(smooth_w),
+        "detect_in_log_scale": bool(detect_in_log_scale),
+        "smooth_curve_detect": smooth,
+        "smooth_curve_plot": smooth_plot,
+        "baseline_plot": float(baseline_plot),
+        "plateau_plot": float(plateau_plot),
+        "midpoint_plot": float(midpoint_plot),
+    }
+
+
 def process_file(path, cfg: LyapunovConfig = None, outdir: str = None):
     cfg = cfg or LyapunovConfig.from_global()
     data = np.load(path)
@@ -22,6 +129,13 @@ def process_file(path, cfg: LyapunovConfig = None, outdir: str = None):
         os.makedirs(outdir, exist_ok=True)
 
     timeseries, saturation_info = _apply_saturation_policy(timeseries_raw, cfg, outdir=outdir)
+    kept_curve_indices = saturation_info.get("kept_curve_indices", None) if isinstance(saturation_info, dict) else None
+    if pair_indices is not None and kept_curve_indices is not None:
+        kept_curve_indices = np.asarray(kept_curve_indices, dtype=int)
+        if kept_curve_indices.size > 0:
+            pair_indices = np.asarray(pair_indices, dtype=int)[kept_curve_indices]
+        else:
+            pair_indices = np.asarray(pair_indices, dtype=int)
 
     res = _process_timeseries_array(timeseries, path, cfg, outdir, pair_indices=pair_indices, saturation_info=saturation_info)
     res["saturation"] = saturation_info
@@ -78,17 +192,10 @@ def _apply_saturation_policy(timeseries: np.ndarray, cfg: LyapunovConfig, outdir
     if mode == "none" or T <= 2:
         return arr, info
 
-    baseline_frac = float(sat_cfg.get("baseline_frac", 0.05))
-    plateau_frac = float(sat_cfg.get("plateau_frac", 0.2))
-    midpoint_frac = float(sat_cfg.get("midpoint_frac", 0.5))
     min_points = int(sat_cfg.get("min_points", 5))
-    detect_in_log_scale = bool(sat_cfg.get("detect_in_log_scale", True))
-    log_eps = float(sat_cfg.get("log_eps", 1e-12))
     debug_plot = bool(sat_cfg.get("debug_plot", False))
     save_midpoint_distribution = bool(sat_cfg.get("save_midpoint_distribution", False))
 
-    baseline_len = max(3, int(T * baseline_frac))
-    plateau_len = max(3, int(T * plateau_frac))
     log_plot = bool(cfg.get("plot", {}).get("log_plot", False))
 
     arr_masked = np.array(arr, copy=True)
@@ -96,40 +203,10 @@ def _apply_saturation_policy(timeseries: np.ndarray, cfg: LyapunovConfig, outdir
 
     for curve_idx in range(arr.shape[0]):
         curve = arr[curve_idx]
-        detect_curve = np.log(np.maximum(curve, log_eps)) if detect_in_log_scale else curve
-
-        smooth_w = max(3, int(round(T * 0.03)))
-        if smooth_w % 2 == 0:
-            smooth_w += 1
-        pad = smooth_w // 2
-        padded = np.pad(detect_curve, (pad, pad), mode="edge")
-        kernel = np.ones(smooth_w, dtype=float) / float(smooth_w)
-        smooth = np.convolve(padded, kernel, mode="valid")
-
-        if T <= 3:
-            jump_idx = 1
-        else:
-            deriv = np.abs(np.diff(smooth))
-            jump_idx = int(np.argmax(deriv)) + 1
-
-        left_end = max(baseline_len, jump_idx)
-        right_start = min(jump_idx, T - plateau_len)
-        if right_start < 0:
-            right_start = 0
-
-        baseline = float(np.nanmedian(smooth[:left_end])) if left_end > 0 else float(np.nanmedian(smooth[:baseline_len]))
-        plateau = float(np.nanmedian(smooth[right_start:])) if right_start < T else float(np.nanmedian(smooth[-plateau_len:]))
-        midpoint = baseline + midpoint_frac * (plateau - baseline)
-
-        search_start = max(0, jump_idx - max(2, int(0.05 * T)))
-        if plateau >= baseline:
-            local = np.where(smooth[search_start:] >= midpoint)[0]
-        else:
-            local = np.where(smooth[search_start:] <= midpoint)[0]
-        if local.size > 0:
-            sat_idx = int(search_start + local[0])
-        else:
-            sat_idx = int(jump_idx)
+        det = detect_curve_transition_points(curve, sat_cfg=sat_cfg, total_length=T)
+        jump_idx = int(det["jump_index"])
+        sat_idx = int(det["saturation_index"])
+        second_jump_idx = det.get("second_jump_index", None)
 
         if mode == "exclude_full":
             cutoff = sat_idx
@@ -142,27 +219,22 @@ def _apply_saturation_policy(timeseries: np.ndarray, cfg: LyapunovConfig, outdir
         if cutoff < T:
             arr_masked[curve_idx, cutoff:] = np.nan
 
-        if detect_in_log_scale:
-            baseline_plot = float(np.exp(np.clip(baseline, -700, 700)))
-            plateau_plot = float(np.exp(np.clip(plateau, -700, 700)))
-            midpoint_plot = float(np.exp(np.clip(midpoint, -700, 700)))
-            smooth_plot = np.exp(np.clip(smooth, -700, 700))
-        else:
-            baseline_plot = float(baseline)
-            plateau_plot = float(plateau)
-            midpoint_plot = float(midpoint)
-            smooth_plot = smooth
+        baseline_plot = float(det["baseline_plot"])
+        plateau_plot = float(det["plateau_plot"])
+        midpoint_plot = float(det["midpoint_plot"])
+        smooth_plot = np.asarray(det["smooth_curve_plot"], dtype=float)
 
         per_curve.append({
             "curve_index": int(curve_idx),
             "used_length": int(cutoff),
             "saturation_index": int(sat_idx),
             "jump_index": int(jump_idx),
+            "second_jump_index": int(second_jump_idx) if second_jump_idx is not None else None,
             "baseline": float(baseline_plot),
             "plateau": float(plateau_plot),
             "midpoint": float(midpoint_plot),
-            "smooth_window": int(smooth_w),
-            "detect_in_log_scale": bool(detect_in_log_scale),
+            "smooth_window": int(det["smooth_window"]),
+            "detect_in_log_scale": bool(det["detect_in_log_scale"]),
         })
 
         if outdir is not None and cfg.get("plot", {}).get("save", True) and debug_plot:
@@ -188,13 +260,67 @@ def _apply_saturation_policy(timeseries: np.ndarray, cfg: LyapunovConfig, outdir
     jump_indices = [x["jump_index"] for x in per_curve] if per_curve else []
     midpoint_indices = [x["saturation_index"] for x in per_curve] if per_curve else []
 
+    outlier_cfg = sat_cfg.get("midpoint_outlier_filter", {}) or {}
+    outlier_enabled = bool(outlier_cfg.get("enabled", False))
+    outlier_bins = int(outlier_cfg.get("num_bins", min(25, max(5, T // 4))))
+    outlier_bins = max(3, min(outlier_bins, max(3, T)))
+    neighbor_bins = int(outlier_cfg.get("neighbor_bins", 1))
+    neighbor_bins = max(0, neighbor_bins)
+
+    keep_mask = np.ones(arr_masked.shape[0], dtype=bool)
+    selected_bin = None
+    selected_bin_range = None
+    midpoint_indices_filtered = list(midpoint_indices)
+
+    if outlier_enabled and len(midpoint_indices) > 0:
+        mids = np.asarray(midpoint_indices, dtype=float)
+        mids = mids[np.isfinite(mids)]
+        if mids.size > 0:
+            hist, edges = np.histogram(mids, bins=outlier_bins, range=(0, T))
+            if np.any(hist > 0):
+                peak_bin = int(np.argmax(hist))
+                left_bin = max(0, peak_bin - neighbor_bins)
+                right_bin = min(outlier_bins - 1, peak_bin + neighbor_bins)
+                left_edge = float(edges[left_bin])
+                right_edge = float(edges[right_bin + 1])
+
+                keep_mask = (
+                    np.asarray(midpoint_indices, dtype=float) >= left_edge
+                ) & (
+                    np.asarray(midpoint_indices, dtype=float) < right_edge
+                )
+                if right_bin == outlier_bins - 1:
+                    keep_mask = keep_mask | (np.asarray(midpoint_indices, dtype=float) == right_edge)
+
+                if np.any(keep_mask):
+                    arr_masked = arr_masked[keep_mask]
+                    per_curve = [pc for pc, keep in zip(per_curve, keep_mask) if keep]
+                    midpoint_indices_filtered = [int(x) for x, keep in zip(midpoint_indices, keep_mask) if keep]
+                    used_lengths = [x["used_length"] for x in per_curve] if per_curve else [T]
+                    sat_indices = [x["saturation_index"] for x in per_curve] if per_curve else []
+                    jump_indices = [x["jump_index"] for x in per_curve] if per_curve else []
+                    selected_bin = int(peak_bin)
+                    selected_bin_range = [int(left_bin), int(right_bin)]
+                else:
+                    keep_mask = np.ones(arr_masked.shape[0], dtype=bool)
+
     if outdir is not None and save_midpoint_distribution and len(midpoint_indices) > 0:
         try:
-            np.savez(os.path.join(outdir, "midpoint_index_distribution.npz"), midpoint_indices=np.asarray(midpoint_indices, dtype=int))
+            np.savez(
+                os.path.join(outdir, "midpoint_index_distribution.npz"),
+                midpoint_indices=np.asarray(midpoint_indices, dtype=int),
+                midpoint_indices_filtered=np.asarray(midpoint_indices_filtered, dtype=int),
+                kept_curve_indices=np.where(keep_mask)[0].astype(int),
+            )
             plot_midpoint_distribution(
                 midpoint_indices=np.asarray(midpoint_indices, dtype=int),
                 outpath=os.path.join(outdir, "midpoint_index_distribution.png"),
             )
+            if outlier_enabled and len(midpoint_indices_filtered) > 0:
+                plot_midpoint_distribution(
+                    midpoint_indices=np.asarray(midpoint_indices_filtered, dtype=int),
+                    outpath=os.path.join(outdir, "midpoint_index_distribution_filtered.png"),
+                )
         except Exception:
             pass
 
@@ -206,7 +332,18 @@ def _apply_saturation_policy(timeseries: np.ndarray, cfg: LyapunovConfig, outdir
         "plateau": None,
         "midpoint": None,
         "smooth_window": int(per_curve[0]["smooth_window"]) if len(per_curve) > 0 else None,
-        "midpoint_indices": midpoint_indices,
+        "midpoint_indices": midpoint_indices_filtered,
+        "midpoint_indices_raw": midpoint_indices,
+        "kept_curve_indices": np.where(keep_mask)[0].astype(int).tolist(),
+        "midpoint_outlier_filter": {
+            "enabled": bool(outlier_enabled),
+            "num_bins": int(outlier_bins),
+            "neighbor_bins": int(neighbor_bins),
+            "selected_peak_bin": selected_bin,
+            "selected_bin_range": selected_bin_range,
+            "n_kept": int(np.sum(keep_mask)),
+            "n_total": int(len(keep_mask)),
+        },
         "per_curve": per_curve,
     })
 
