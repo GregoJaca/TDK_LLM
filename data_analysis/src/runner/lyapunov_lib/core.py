@@ -60,45 +60,73 @@ def detect_curve_transition_points(curve: np.ndarray, sat_cfg: dict, total_lengt
         deriv = np.abs(np.diff(smooth))
         jump_idx = int(np.argmax(deriv)) + 1
 
-        # Second jump detection: after first jump, require a settled region and
-        # then detect a sustained rise toward the final plateau.
+        # Second jump detection strategy:
+        # 1) Find first jump on detection scale (current behavior).
+        # 2) In raw scale, check if level after first jump already reached final plateau.
+        #    If yes, no second jump.
+        # 3) If not, search for best positive changepoint after first jump using
+        #    windowed mean difference, then refine to earliest sustained crossing.
         min_sep = max(2, int(round(T * float(sat_cfg.get("second_jump_min_sep_frac", 0.05)))))
         settle_len = max(5, int(round(T * float(sat_cfg.get("second_jump_settle_frac", 0.08)))))
         level_frac = float(sat_cfg.get("second_jump_level_frac", 0.5))
         min_delta_frac = float(sat_cfg.get("second_jump_min_delta_frac", 0.08))
         consecutive = max(1, int(sat_cfg.get("second_jump_consecutive_points", 3)))
+        second_window_frac = float(sat_cfg.get("second_jump_window_frac", 0.04))
+        second_window = max(3, int(round(T * second_window_frac)))
+        if second_window % 2 == 0:
+            second_window += 1
 
-        final_plateau = float(np.nanmedian(smooth[max(0, T - plateau_len):]))
+        raw_arr = np.maximum(arr, log_eps)
+        raw_pad = smooth_w // 2
+        raw_padded = np.pad(raw_arr, (raw_pad, raw_pad), mode="edge")
+        raw_kernel = np.ones(smooth_w, dtype=float) / float(smooth_w)
+        raw_smooth = np.convolve(raw_padded, raw_kernel, mode="valid")
+
+        final_plateau_raw = float(np.nanmedian(raw_smooth[max(0, T - plateau_len):]))
         start2 = min(T - 1, jump_idx + min_sep)
 
         if start2 + settle_len >= T:
             second_jump_idx = None
         else:
-            mid_plateau = float(np.nanmedian(smooth[start2:start2 + settle_len]))
-            total_range = float(np.nanmax(smooth) - np.nanmin(smooth))
-            delta_to_final = float(final_plateau - mid_plateau)
-            required_delta = max(1e-12, min_delta_frac * max(total_range, 1e-12))
+            mid_plateau_raw = float(np.nanmedian(raw_smooth[start2:start2 + settle_len]))
+            raw_range = float(np.nanmax(raw_smooth) - np.nanmin(raw_smooth))
+            delta_to_final_raw = float(final_plateau_raw - mid_plateau_raw)
+            required_delta_raw = max(1e-12, min_delta_frac * max(raw_range, 1e-12))
 
-            if delta_to_final <= required_delta:
+            # If already at final level after first jump, treat as single-jump curve.
+            if delta_to_final_raw <= required_delta_raw:
                 second_jump_idx = None
             else:
-                target2 = mid_plateau + level_frac * delta_to_final
-                post = smooth[start2:]
-                hits = post >= target2
-
+                # Windowed changepoint search on raw scale.
                 second_jump_idx = None
-                if hits.size > 0:
-                    run = 0
-                    for k, ok in enumerate(hits):
-                        run = run + 1 if ok else 0
-                        if run >= consecutive:
-                            second_jump_idx = int(start2 + k - consecutive + 1)
-                            break
+                search_lo = start2 + second_window
+                search_hi = T - second_window
+                if search_hi > search_lo:
+                    best_idx = None
+                    best_score = -np.inf
+                    for t in range(search_lo, search_hi):
+                        left = raw_smooth[t - second_window:t]
+                        right = raw_smooth[t:t + second_window]
+                        if left.size == 0 or right.size == 0:
+                            continue
+                        score = float(np.nanmean(right) - np.nanmean(left))
+                        if score > best_score:
+                            best_score = score
+                            best_idx = t
 
-                if second_jump_idx is None:
-                    deriv2 = np.abs(np.diff(smooth[start2:]))
-                    if deriv2.size > 0 and np.isfinite(np.nanmax(deriv2)):
-                        second_jump_idx = int(start2 + np.argmax(deriv2) + 1)
+                    if best_idx is not None and best_score >= required_delta_raw * 0.5:
+                        target2 = mid_plateau_raw + level_frac * delta_to_final_raw
+                        post = raw_smooth[best_idx:]
+                        hits = post >= target2
+                        if hits.size > 0:
+                            run = 0
+                            for k, ok in enumerate(hits):
+                                run = run + 1 if ok else 0
+                                if run >= consecutive:
+                                    second_jump_idx = int(best_idx + k - consecutive + 1)
+                                    break
+                        if second_jump_idx is None:
+                            second_jump_idx = int(best_idx)
 
     left_end = max(baseline_len, jump_idx)
     right_start = min(jump_idx, T - plateau_len)

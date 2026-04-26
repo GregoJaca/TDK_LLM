@@ -153,6 +153,7 @@ CONFIG = {
             "second_jump_level_frac": 0.5,
             "second_jump_min_delta_frac": 0.08,
             "second_jump_consecutive_points": 3,
+            "second_jump_window_frac": 0.04,
             "min_points": 5,
         },
         "time_dependent": {
