@@ -30,7 +30,8 @@ def run_prompt(
     input_ids = tokenizer(prompt["text"], return_tensors="pt").input_ids.to(device)
     attention_mask = build_attention_mask(input_ids)
 
-    base_embeds = model.get_input_embeddings()(input_ids).to(dtype=dtype)
+    with torch.no_grad():
+        base_embeds = model.get_input_embeddings()(input_ids).to(dtype=dtype)
     prompt_len = input_ids.shape[1]
     embed_dim = base_embeds.shape[2]
     total_dim = prompt_len * embed_dim
@@ -72,8 +73,11 @@ def run_prompt(
             attention_mask=attention_mask,
             gen_kwargs=gen_kwargs,
         )
-
-        baseline_ids_device = baseline_ids
+        baseline_ids_cpu = baseline_ids[0].detach().cpu().numpy()
+        baseline_ids_device = baseline_ids if adaptive_stop else None
+        if not adaptive_stop:
+            del baseline_ids
+            cleanup()
 
         for magnitude in cfg["perturbation"]["magnitude_list"]:
             run_dir = make_run_dir(output_dir, int(sliding_window), float(magnitude), prompt["name"])
@@ -117,7 +121,7 @@ def run_prompt(
             save_config_snapshot(os.path.join(run_dir, "config.json"), config_snapshot)
             save_tokens_npz(
                 path=os.path.join(run_dir, "tokens.npz"),
-                baseline_ids=baseline_ids[0].detach().cpu().numpy(),
+                baseline_ids=baseline_ids_cpu,
                 perturbed_ids=perturbed_ids,
                 divergence_index=divergence_index,
                 pad_token_id=int(cfg["output"]["pad_token_id"]),
@@ -127,7 +131,8 @@ def run_prompt(
             del perturbed_ids, divergence_index
             cleanup()
 
-        del baseline_ids
+        if baseline_ids_device is not None:
+            del baseline_ids_device
         cleanup()
 
     del base_embeds, input_ids, attention_mask

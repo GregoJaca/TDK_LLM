@@ -17,3 +17,6 @@ autoencoder_trying.py
 *exp_fit*
 *launch_sep*
 *.npy
+uj_plotter.py
+plotter_rp.py
+sweep_analysis.py

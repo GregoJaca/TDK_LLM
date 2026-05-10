@@ -1,4 +1,4 @@
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 import torch
 from transformers import StoppingCriteria, StoppingCriteriaList
@@ -50,13 +50,15 @@ def generate_with_perturbation(
     inputs_embeds: torch.Tensor,
     attention_mask: torch.Tensor,
     gen_kwargs: Dict[str, Any],
-    baseline_ids: torch.Tensor,
+    baseline_ids: Optional[torch.Tensor],
     prompt_len: int,
     adaptive_stop: bool,
 ) -> Tuple[torch.Tensor, int]:
     stopping = None
     criterion = None
     if adaptive_stop:
+        if baseline_ids is None:
+            raise ValueError("baseline_ids must be provided when adaptive_stop is True")
         criterion = BaselineDivergenceCriteria(baseline_ids=baseline_ids, prompt_len=prompt_len)
         stopping = StoppingCriteriaList([criterion])
 
