@@ -8,7 +8,6 @@ experiment:
   results_dir: "./results_perturbations"
   n_conditions: 6
   radii: [0.00035]
-  subspace_dim: 100
   subspace_mode: "random"
   selected_layers: "all"  # or specify a list of integers e.g., [0, 12, 24]
   
@@ -24,13 +23,22 @@ experiment:
       prompt_id: "single_token"
       mode: "all"
       m_tokens: null
+      max_new_tokens: 0
     
     - name: "long_prompt_perturb_all"
       prompt_id: "long_prompt"
       mode: "all"
       m_tokens: null
+      max_new_tokens: 0
       
     - name: "long_prompt_perturb_first_m"
       prompt_id: "long_prompt"
       mode: "first_m"
       m_tokens: 3
+      max_new_tokens: 0
+      
+    - name: "long_prompt_autoregressive"
+      prompt_id: "long_prompt"
+      mode: "all"
+      m_tokens: null
+      max_new_tokens: 10

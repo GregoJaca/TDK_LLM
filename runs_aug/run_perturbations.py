@@ -41,7 +41,8 @@ def run_experiment(config):
     else:
         selected_layers = exp_config["selected_layers"]
 
-    ensure_dir(exp_config["results_dir"])
+    base_results_dir = exp_config["results_dir"]
+    ensure_dir(base_results_dir)
 
     prompts = {p["id"]: p["text"] for p in exp_config["prompts"]}
 
@@ -65,7 +66,6 @@ def run_experiment(config):
             elif setup["mode"] == "first_m":
                 target_tokens = setup["m_tokens"]
             elif setup["mode"] == "single_token":
-                # Ensure the prompt is truly a single token or we just perturb the first token
                 target_tokens = 1
             else:
                 raise ValueError(f"Unknown mode: {setup['mode']}")
@@ -78,29 +78,35 @@ def run_experiment(config):
                 target_tokens=target_tokens
             )
             
+            # Create a dedicated directory for this specific configuration
             run_name = f"{setup['name']}_r{radius}"
+            setup_dir = os.path.join(base_results_dir, run_name)
+            ensure_dir(setup_dir)
+            
+            max_new_tokens = setup.get("max_new_tokens", 0)
             
             generate_and_save_hidden_states(
                 model=model,
                 attention_mask=attention_mask,
                 perturbed_embeddings=perturbed_embeddings,
                 selected_layers=selected_layers,
-                results_dir=exp_config["results_dir"],
-                run_name=run_name
+                results_dir=setup_dir,
+                run_name=run_name,
+                max_new_tokens=max_new_tokens
             )
             
-            # Save metadata for this specific run
+            # Save metadata/config for this specific run inside its folder
             metadata = {
                 "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
                 "setup": setup,
                 "radius": radius,
                 "n_conditions": exp_config["n_conditions"],
-                "subspace_dim": exp_config["subspace_dim"],
                 "subspace_mode": exp_config["subspace_mode"],
                 "prompt_text": prompt_text,
-                "target_tokens_perturbed": target_tokens if target_tokens is not None else base_embeds.shape[1]
+                "target_tokens_perturbed": target_tokens if target_tokens is not None else base_embeds.shape[1],
+                "max_new_tokens": max_new_tokens
             }
-            with open(os.path.join(exp_config["results_dir"], f"{run_name}_metadata.json"), "w") as f:
+            with open(os.path.join(setup_dir, "config.json"), "w") as f:
                 json.dump(metadata, f, indent=4)
 
     monitor.end()
