@@ -1,0 +1,36 @@
+model:
+  name: "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"
+  local_dir: "."
+  device: "cuda"
+  dtype: "float16"
+
+experiment:
+  results_dir: "./results_perturbations"
+  n_conditions: 6
+  radii: [0.00035]
+  subspace_dim: 100
+  subspace_mode: "random"
+  selected_layers: "all"  # or specify a list of integers e.g., [0, 12, 24]
+  
+  prompts:
+    - id: "single_token"
+      text: "The"
+    - id: "long_prompt"
+      text: "This is a longer prompt to test how perturbations propagate across layers in a deep neural network and see the attention mechanism coupling."
+
+  # The different setups we want to run
+  setups:
+    - name: "single_token_perturb_all"
+      prompt_id: "single_token"
+      mode: "all"
+      m_tokens: null
+    
+    - name: "long_prompt_perturb_all"
+      prompt_id: "long_prompt"
+      mode: "all"
+      m_tokens: null
+      
+    - name: "long_prompt_perturb_first_m"
+      prompt_id: "long_prompt"
+      mode: "first_m"
+      m_tokens: 3
