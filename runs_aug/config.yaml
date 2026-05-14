@@ -57,6 +57,6 @@ plotting:
   metric: ["mean", "median"]  # Options: mean, median, mode, individual
   error_bars: "std"    # Options: none, std, var
   plot_prompt_together: true
-  plot_prompt_separated: true
+  plot_prompt_separated: false
   separate_figure_metrics: true
 
