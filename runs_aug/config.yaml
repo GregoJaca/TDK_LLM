@@ -6,9 +6,9 @@ model:
 
 experiment:
   results_dir: "./results_perturbations"
-  seed: 69
-  n_conditions: 100
-  radii: [0.0005, 0.0002]
+  seed: 420
+  n_conditions: 500
+  radii: [0.0005, 0.00035, 0.0002]
   subspace_mode: "random"
   remove_bos_token: true
   selected_layers: "all"  # or specify a list of integers e.g., [0, 12, 24]
