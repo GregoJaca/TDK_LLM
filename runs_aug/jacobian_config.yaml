@@ -9,30 +9,37 @@ experiment:
     - id: "long_prompts"
       texts: 
         - >
-          Chaos theory is an interdisciplinary area of scientific study and branch of mathematics 
-          focused on underlying patterns and deterministic laws of dynamical systems that are highly 
-          sensitive to initial conditions, and were once thought to have completely random states of 
-          disorder and irregularities. Chaos theory states that within the apparent randomness of 
-          chaotic complex systems, there are underlying patterns, interconnectedness, constant 
-          feedback loops, repetition, self-similarity, fractals, and self-organization. The 
-          butterfly effect, an underlying principle of chaos, describes how a small change in one 
-          state of a deterministic nonlinear system can result in large differences in a later state.
-        - >
-          Let's think step by step to solve the following problem. A train leaves the station at 
-          3:00 PM traveling at 60 miles per hour. Another train leaves on a parallel track at 
-          4:00 PM traveling at 80 miles per hour. When will the second train catch up to the first 
-          train? To find the answer, we must first establish the distance the first train has 
-          traveled by the time the second train departs. Since it travels for one hour at 60 mph, 
-          the initial distance gap is exactly 60 miles. The relative speed of the second train 
-          with respect to the first is 20 miles per hour.
-        - >
-          Write a Python function to compute the Fibonacci sequence using dynamic programming. 
-          The function should take an integer n as input and return a list containing the first 
-          n numbers of the sequence. To optimize performance and avoid redundant calculations, 
-          we should use a technique called memoization. This involves storing the previously 
-          computed values in an array or dictionary, so that when the recursive call requests 
-          a value that has already been calculated, it can be returned immediately in O(1) time 
-          complexity rather than recalculating the entire tree.
+          Chaos theory is an interdisciplinary area of scientific study and branch of mathematics.
+        # - >
+        #   Chaos theory is an interdisciplinary area of scientific study and branch of mathematics 
+        #   focused on underlying patterns and deterministic laws of dynamical systems that are highly 
+        #   sensitive to initial conditions, and were once thought to have completely random states of 
+        #   disorder and irregularities.
+        # - >
+        #   Chaos theory is an interdisciplinary area of scientific study and branch of mathematics 
+        #   focused on underlying patterns and deterministic laws of dynamical systems that are highly 
+        #   sensitive to initial conditions, and were once thought to have completely random states of 
+        #   disorder and irregularities. Chaos theory states that within the apparent randomness of 
+        #   chaotic complex systems, there are underlying patterns, interconnectedness, constant 
+        #   feedback loops, repetition, self-similarity, fractals, and self-organization. The 
+        #   butterfly effect, an underlying principle of chaos, describes how a small change in one 
+        #   state of a deterministic nonlinear system can result in large differences in a later state.
+        # - >
+        #   Let's think step by step to solve the following problem. A train leaves the station at 
+        #   3:00 PM traveling at 60 miles per hour. Another train leaves on a parallel track at 
+        #   4:00 PM traveling at 80 miles per hour. When will the second train catch up to the first 
+        #   train? To find the answer, we must first establish the distance the first train has 
+        #   traveled by the time the second train departs. Since it travels for one hour at 60 mph, 
+        #   the initial distance gap is exactly 60 miles. The relative speed of the second train 
+        #   with respect to the first is 20 miles per hour.
+        # - >
+        #   Write a Python function to compute the Fibonacci sequence using dynamic programming. 
+        #   The function should take an integer n as input and return a list containing the first 
+        #   n numbers of the sequence. To optimize performance and avoid redundant calculations, 
+        #   we should use a technique called memoization. This involves storing the previously 
+        #   computed values in an array or dictionary, so that when the recursive call requests 
+        #   a value that has already been calculated, it can be returned immediately in O(1) time 
+        #   complexity rather than recalculating the entire tree.
 
   setups:
     - name: "jacobian_base"
@@ -43,7 +50,7 @@ analysis:
   error_bars: "std"    # Options: none, std, var
 
 plotting:
-  metric: ["mean", "median"]  # Options: mean, median, mode
+  metric: ["mean", "median", "mode"]  # Options: mean, median, mode
   error_bars: "std"    # Options: none, std, var
   plot_prompt_together: true
   plot_prompt_separated: false
