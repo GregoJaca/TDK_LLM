@@ -153,15 +153,15 @@ def analyze_perturbations(base_results_dir, metric="mean", error_bars="none", pl
                 runs_list = radii_data[radius]
                 
                 # Aggregate points per layer across all irrelevant pooled parameters (seeds, prompts)
-                layer_to_points = defaultdict(list)
+                layer_to_arrays = defaultdict(list)
                 for (layers, traj_array) in runs_list:
                     for l_idx, l_data in zip(layers, traj_array):
-                        layer_to_points[l_idx].extend(l_data)
+                        layer_to_arrays[l_idx].append(l_data)
                         
-                if not layer_to_points:
+                if not layer_to_arrays:
                     continue
                     
-                sorted_layers = sorted(layer_to_points.keys())
+                sorted_layers = sorted(layer_to_arrays.keys())
                 layer_arr = np.array(sorted_layers)
                 
                 # Label logic
@@ -181,7 +181,7 @@ def analyze_perturbations(base_results_dir, metric="mean", error_bars="none", pl
                     m_vals = []
                     e_vals = []
                     for l_idx in sorted_layers:
-                        pts = np.array(layer_to_points[l_idx])
+                        pts = np.concatenate(layer_to_arrays[l_idx])
                         m_vals.append(get_metric(pts, current_metric))
                         e_vals.append(get_error(pts, error_bars))
                         
