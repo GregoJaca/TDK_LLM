@@ -32,7 +32,8 @@ def generate_simplex_perturbations(
     n_conditions: int,
     radius: float,
     subspace_mode: str,
-    target_tokens: int = None
+    target_tokens: int = None,
+    seed: int = 42
 ) -> torch.Tensor:
     """
     Generates N perturbed embeddings using a regular simplex.
@@ -54,8 +55,8 @@ def generate_simplex_perturbations(
     
     total_perturbable_dim = target_tokens * embed_dim
     
-    # Fixed seed for reproducible permutations
-    rng = np.random.default_rng(42)
+    # Use provided seed for reproducible permutations
+    rng = np.random.default_rng(seed)
     
     simplex = build_simplex(n_conditions)
     # The subspace we perturb has exactly `n_conditions` dimensions
