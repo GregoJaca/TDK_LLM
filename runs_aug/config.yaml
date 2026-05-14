@@ -10,6 +10,7 @@ experiment:
   n_conditions: 6
   radii: [0.00035]
   subspace_mode: "random"
+  remove_bos_token: true
   selected_layers: "all"  # or specify a list of integers e.g., [0, 12, 24]
   
   prompts:

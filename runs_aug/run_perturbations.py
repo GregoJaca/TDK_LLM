@@ -60,8 +60,14 @@ def run_experiment(config):
             print(f"Text: '{prompt_text}'")
             
             encoded = tokenizer(prompt_text, return_tensors="pt")
+            
             initial_tokens = encoded["input_ids"].to(device)
             attention_mask = encoded["attention_mask"].to(device)
+            
+            if exp_config.get("remove_bos_token", False):
+                # Pop the first token (usually the BOS token like <|begin_of_text|>)
+                initial_tokens = initial_tokens[:, 1:]
+                attention_mask = attention_mask[:, 1:]
             
             # Print tokenized strings for transparency
             token_ids = initial_tokens[0].tolist()
