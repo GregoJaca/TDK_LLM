@@ -8,7 +8,7 @@ experiment:
   results_dir: "./results_perturbations"
   seed: [420, 69, 42, 10]  # Can be a single integer or a list of integers
   n_conditions: 1000
-  radii: [0.1, 0.01, 0.000001, 0.0000001]
+  radii: [1, 0.00000001]
   subspace_mode: "random"
   remove_bos_token: true
   selected_layers: "all"  # or specify a list of integers e.g., [0, 12, 24]
