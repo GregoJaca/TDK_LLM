@@ -15,7 +15,7 @@ experiment:
   
   prompts:
     - id: "singles"
-      texts: ["The", "House", "she", " understanding", "idiot", "sex"]
+      texts: ["The", "House", "she", " understanding", "id", "sex"]
 
     # - id: "long_prompt"
     #   text: "This is a longer prompt to test how perturbations propagate across layers in a deep neural network and see the attention mechanism coupling."

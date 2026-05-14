@@ -35,9 +35,10 @@ def get_error(distances_array, error_type):
 def analyze_perturbations(base_results_dir, metric="mean", error_bars="none", plot_prompt_together=False):
     """
     Crawls the base_results_dir for all subfolders with config.json.
-    Aggregates results by setup (and prompt, if requested) pooling irrelevant parameters like seeds.
     Plots lines for different perturbation radii.
     """
+    metric_list = metric if isinstance(metric, list) else [metric]
+    
     if not os.path.exists(base_results_dir):
         print(f"Error: Directory {base_results_dir} does not exist.")
         return
@@ -121,10 +122,16 @@ def analyze_perturbations(base_results_dir, metric="mean", error_bars="none", pl
         plt.figure(figsize=(10, 6))
         sorted_radii = sorted(radii_data.keys())
         
+        # Create combinations of (radius, metric)
+        combinations = []
+        for r in sorted_radii:
+            for m in metric_list:
+                combinations.append((r, m))
+                
         # Colormap abstraction
-        colors = plt.cm.tab10(np.linspace(0, 1, max(len(sorted_radii), 10)))
+        colors = plt.cm.tab10(np.linspace(0, 1, max(len(combinations), 10)))
         
-        for i, radius in enumerate(sorted_radii):
+        for i, (radius, current_metric) in enumerate(combinations):
             color = colors[i % len(colors)]
             runs_list = radii_data[radius]
             
@@ -140,25 +147,31 @@ def analyze_perturbations(base_results_dir, metric="mean", error_bars="none", pl
             sorted_layers = sorted(layer_to_points.keys())
             layer_arr = np.array(sorted_layers)
             
-            if metric == "individual":
+            # Label logic
+            if len(metric_list) > 1:
+                line_label = f"R={radius} | {current_metric.capitalize()}"
+            else:
+                line_label = f"{radius}"
+            
+            if current_metric == "individual":
                 # Plot every single trajectory as a faint line
                 for (layers, traj_array) in runs_list:
                     plt.plot(layers, traj_array, color=color, alpha=0.08, linewidth=0.5)
                 # Plot an invisible line just to get the legend to show
-                plt.plot([], [], color=color, label=f"{radius}")
+                plt.plot([], [], color=color, label=line_label)
             else:
                 # Plot aggregated metric
                 m_vals = []
                 e_vals = []
                 for l_idx in sorted_layers:
                     pts = np.array(layer_to_points[l_idx])
-                    m_vals.append(get_metric(pts, metric))
+                    m_vals.append(get_metric(pts, current_metric))
                     e_vals.append(get_error(pts, error_bars))
                     
                 m_arr = np.array(m_vals)
                 e_arr = np.array(e_vals)
                 
-                plt.plot(layer_arr, m_arr, marker='o', color=color, label=f"{radius}")
+                plt.plot(layer_arr, m_arr, marker='o', color=color, label=line_label)
                 if error_bars != "none":
                     plt.fill_between(layer_arr, m_arr - e_arr, m_arr + e_arr, color=color, alpha=0.2)
                     
@@ -167,10 +180,12 @@ def analyze_perturbations(base_results_dir, metric="mean", error_bars="none", pl
         plt.xlabel("Layer Index", fontsize=12)
         
         ylabel = "L2 Distance"
-        if metric != "individual":
-            ylabel = f"{metric.capitalize()} " + ylabel
+        if len(metric_list) == 1 and metric_list[0] != "individual":
+            ylabel = f"{metric_list[0].capitalize()} " + ylabel
             if error_bars != "none":
                 ylabel += f" (± {error_bars})"
+        elif len(metric_list) > 1:
+            ylabel = "Aggregated L2 Distances"
                 
         plt.ylabel(ylabel, fontsize=12)
         plt.grid(True, alpha=0.3)
@@ -179,7 +194,8 @@ def analyze_perturbations(base_results_dir, metric="mean", error_bars="none", pl
         
         # Sanitize filename
         safe_key = group_key.replace(" ", "_").replace("/", "-")
-        plot_filename = f"{safe_key}_metric-{metric}_err-{error_bars}.png"
+        metric_str = "-".join(metric_list)
+        plot_filename = f"{safe_key}_metric-{metric_str}_err-{error_bars}.png"
         plot_path = os.path.join(plots_dir, plot_filename)
         plt.savefig(plot_path, dpi=300)
         print(f"Generated plot: {plot_path}")
@@ -197,11 +213,14 @@ def main():
     results_dir = config.get("experiment", {}).get("results_dir", "./results_perturbations")
     analysis_cfg = config.get("analysis", {})
     
-    metric = analysis_cfg.get("metric", "mean")
+    metric = analysis_cfg.get("metric", ["mean"])
+    if isinstance(metric, str):
+        metric = [metric]
+    
     error_bars = analysis_cfg.get("error_bars", "none")
     plot_prompt_together = analysis_cfg.get("plot_prompt_together", False)
     
-    if metric == "individual":
+    if "individual" in metric:
         error_bars = "none"
         
     print(f"Loaded config | Metric: {metric} | Error Bars: {error_bars} | Aggregating Prompts: {plot_prompt_together}")
