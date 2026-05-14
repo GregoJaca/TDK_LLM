@@ -48,7 +48,7 @@ experiment:
     #   max_new_tokens: 10
 
 analysis:
-  distance_metric: "L2"  # Options: "L2", "cos"
+  distance_metric: "cos"  # Options: "L2", "cos"
   metric: ["mean", "median", "mode"]  # Options: mean, median, mode, individual
   error_bars: "std"    # Options: none, std, var
   eval_tokens: "last"  # Options: "last" (only measure last token), "all" (flatten sequence)
