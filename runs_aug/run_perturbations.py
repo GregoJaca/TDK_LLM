@@ -115,6 +115,7 @@ def run_experiment(config):
                     ensure_dir(setup_dir)
                     
                     max_new_tokens = setup.get("max_new_tokens", 0)
+                    batch_size = exp_config.get("batch_size", 64)
                     
                     generate_and_save_hidden_states(
                         model=model,
@@ -123,7 +124,8 @@ def run_experiment(config):
                         selected_layers=selected_layers,
                         results_dir=setup_dir,
                         run_name=run_name,
-                        max_new_tokens=max_new_tokens
+                        max_new_tokens=max_new_tokens,
+                        batch_size=batch_size
                     )
                     
                     # Save metadata/config for this specific run inside its folder
