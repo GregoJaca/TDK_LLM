@@ -1,224 +1,187 @@
 import os
-import json
-import argparse
+import yaml
+import pickle
 import numpy as np
 import matplotlib.pyplot as plt
 
 class JacobianPlotter:
-    """
-    A modular and flexible class to plot exact Jacobian measurements.
-    Designed so that researchers can easily inherit, modify, or extract individual plotting methods.
-    """
-    def __init__(self, json_path, output_dir=None):
-        self.json_path = json_path
+    def __init__(self, analyzed_data_path, plotting_cfg):
+        self.data_path = analyzed_data_path
+        self.plotting_cfg = plotting_cfg
         
-        # Determine output directory
-        if output_dir is None:
-            base_dir = os.path.dirname(json_path)
-            prompt_id = os.path.basename(json_path).replace("mlp_jacobian_measurements_", "").replace(".json", "")
-            self.output_dir = os.path.join(base_dir, f"plots_{prompt_id}")
-        else:
-            self.output_dir = output_dir
+        with open(self.data_path, "rb") as f:
+            self.analyzed_data = pickle.load(f)
             
-        os.makedirs(self.output_dir, exist_ok=True)
+        self.group_titles = self.analyzed_data["group_titles"]
+        self.data = self.analyzed_data["data"]
         
-        # Load Data
-        with open(json_path, 'r') as f:
-            self.data = json.load(f)
+        base_dir = os.path.dirname(analyzed_data_path)
+        self.plots_dir = os.path.join(base_dir, "aggregated_plots")
+        os.makedirs(self.plots_dir, exist_ok=True)
+        
+        self.metric_list = self.plotting_cfg.get("metric", ["mean"])
+        if isinstance(self.metric_list, str):
+            self.metric_list = [self.metric_list]
             
-        self.layers = sorted([int(k) for k in self.data["layers"].keys()])
-        self.num_layers = len(self.layers)
-        self.num_tokens = self.data["metadata"]["seq_len"]
-
-    def _get_token_metric(self, metric_key, sub_key=None):
-        """
-        Extracts a token-level metric across all layers.
-        Returns array of shape [num_layers, num_tokens]
-        """
-        result = []
-        for l in self.layers:
-            layer_data = self.data["layers"][str(l)]
-            if sub_key:
-                val = layer_data[metric_key][sub_key]
+        self.error_bars = self.plotting_cfg.get("error_bars", "none")
+        self.plot_prompt_together = self.plotting_cfg.get("plot_prompt_together", False)
+        self.plot_prompt_separated = self.plotting_cfg.get("plot_prompt_separated", True)
+        self.separate_figure_metrics = self.plotting_cfg.get("separate_figure_metrics", False)
+        
+    def _should_plot(self, group_key):
+        if group_key.endswith("_aggregated") and not self.plot_prompt_together:
+            return False
+        if not group_key.endswith("_aggregated") and not self.plot_prompt_separated:
+            return False
+        return True
+        
+    def _plot_metric_across_layers(self, group_key, metric_names, title_prefix, ylabel, filename_prefix, labels=None, colors=None, hlines=None):
+        metrics_to_process = [[m] for m in self.metric_list] if self.separate_figure_metrics else [self.metric_list]
+        group_data = self.data[group_key]
+        
+        for current_metric_list in metrics_to_process:
+            plt.figure(figsize=(10, 6))
+            
+            if colors is None:
+                cmap = plt.cm.tab10(np.linspace(0, 1, max(len(metric_names) * len(current_metric_list), 10)))
             else:
-                val = layer_data[metric_key]
-            result.append(val)
-        return np.array(result)
+                cmap = colors
+                
+            color_idx = 0
+            
+            for m_idx, m_name in enumerate(metric_names):
+                if m_name not in group_data:
+                    continue
+                    
+                layer_arr = group_data[m_name]["layers"]
+                
+                for stat_metric in current_metric_list:
+                    m_arr = group_data[m_name][stat_metric]
+                    e_arr = group_data[m_name][self.error_bars]
+                    
+                    color = cmap[color_idx % len(cmap)] if colors is None else cmap[m_idx % len(cmap)]
+                    color_idx += 1
+                    
+                    base_label = labels[m_idx] if labels else m_name
+                    line_label = f"{base_label} ({stat_metric.capitalize()})" if len(current_metric_list) > 1 else base_label
+                    
+                    plt.plot(layer_arr, m_arr, marker='o', color=color, label=line_label)
+                    if self.error_bars != "none":
+                        plt.fill_between(layer_arr, m_arr - e_arr, m_arr + e_arr, color=color, alpha=0.2)
+                        
+            if hlines:
+                for h in hlines:
+                    plt.axhline(y=h['y'], color=h.get('color', 'black'), linestyle=h.get('linestyle', '--'), label=h.get('label', ''))
+                    
+            title = f"{title_prefix} | {self.group_titles[group_key]}"
+            if self.separate_figure_metrics and len(current_metric_list) == 1:
+                title += f" ({current_metric_list[0].capitalize()})"
+                
+            plt.title(title, fontsize=14)
+            plt.xlabel("Layer Index", fontsize=12)
+            
+            y_ax_label = ylabel
+            if len(current_metric_list) == 1:
+                y_ax_label = f"{current_metric_list[0].capitalize()} " + ylabel
+                if self.error_bars != "none":
+                    y_ax_label += f" (± {self.error_bars})"
+                    
+            plt.ylabel(y_ax_label, fontsize=12)
+            plt.grid(True, alpha=0.3)
+            plt.legend(title="Metric")
+            plt.tight_layout()
+            
+            safe_key = group_key.replace(" ", "_").replace("/", "-")
+            metric_str = "-".join(current_metric_list)
+            plot_filename = f"{filename_prefix}_{safe_key}_metric-{metric_str}_err-{self.error_bars}.png"
+            plot_path = os.path.join(self.plots_dir, plot_filename)
+            plt.savefig(plot_path, dpi=300)
+            print(f"Generated plot: {plot_path}")
+            plt.close()
 
-    def _get_scalar_metric(self, category, metric_name):
-        """
-        Extracts a scalar metric (like a weight matrix norm) across all layers.
-        Returns array of shape [num_layers]
-        """
-        result = []
-        for l in self.layers:
-            val = self.data["layers"][str(l)][category][metric_name]
-            result.append(val)
-        return np.array(result)
-
-    def plot_spectral_norms(self, show=False):
-        """
-        Plots the local Jacobian Spectral Norm ||J_MLP||_2 across layers.
-        Since we have values for each token, it plots the mean and shaded standard deviation.
-        """
-        norms = self._get_token_metric("spectral_norms") # [layers, tokens]
-        means = norms.mean(axis=1)
-        stds = norms.std(axis=1)
-        
-        plt.figure(figsize=(10, 6))
-        plt.plot(self.layers, means, marker='o', label='Mean Spectral Norm', color='darkred')
-        plt.fill_between(self.layers, means - stds, means + stds, color='darkred', alpha=0.2, label='±1 Std Dev')
-        
-        # Reference line for expansive mapping
-        plt.axhline(y=1.0, color='black', linestyle='--', label='Neutral Boundary (||J||_2 = 1)')
-        
-        plt.title(r"Local Jacobian Spectral Norm $\|J_{MLP}\|_2$ across Layers", fontsize=14)
-        plt.xlabel("Layer Index", fontsize=12)
-        plt.ylabel(r"Spectral Norm $\|J\|_2$", fontsize=12)
-        plt.legend(fontsize=11)
-        plt.grid(True, alpha=0.3)
-        plt.tight_layout()
-        
-        out_path = os.path.join(self.output_dir, "spectral_norms.png")
-        plt.savefig(out_path, dpi=300)
-        print(f"Saved: {out_path}")
-        if show: plt.show()
-        plt.close()
-
-    def plot_lambda_true(self, show=False):
-        """
-        Plots the actual mean squared singular value lambda_true = (1/d) * ||J||_F^2.
-        """
-        l_true = self._get_token_metric("lambda_true") # [layers, tokens]
-        means = l_true.mean(axis=1)
-        stds = l_true.std(axis=1)
-        
-        plt.figure(figsize=(10, 6))
-        plt.plot(self.layers, means, marker='s', label=r'Mean $\bar{\lambda}_{true}$', color='navy')
-        plt.fill_between(self.layers, means - stds, means + stds, color='navy', alpha=0.2)
-        
-        plt.axhline(y=1.0, color='black', linestyle='--', label='Neutral Boundary')
-        
-        plt.title(r"Mean Squared Singular Value $\bar{\lambda}_{true}$ across Layers", fontsize=14)
-        plt.xlabel("Layer Index", fontsize=12)
-        plt.ylabel(r"$\bar{\lambda}_{true} = \frac{1}{d} \|J\|_F^2$", fontsize=12)
-        plt.legend(fontsize=11)
-        plt.grid(True, alpha=0.3)
-        plt.tight_layout()
-        
-        out_path = os.path.join(self.output_dir, "lambda_true.png")
-        plt.savefig(out_path, dpi=300)
-        print(f"Saved: {out_path}")
-        if show: plt.show()
-        plt.close()
-
-    def plot_weight_svds(self, show=False):
-        """
-        Plots the maximum singular values of the raw MLP weight matrices.
-        """
-        gate_svd = self._get_scalar_metric("weight_metrics", "W_gate_max_SVD")
-        up_svd = self._get_scalar_metric("weight_metrics", "W_up_max_SVD")
-        down_svd = self._get_scalar_metric("weight_metrics", "W_down_max_SVD")
-        
-        plt.figure(figsize=(10, 6))
-        plt.plot(self.layers, gate_svd, marker='^', label=r'$W_{gate}$ Max SVD')
-        plt.plot(self.layers, up_svd, marker='v', label=r'$W_{up}$ Max SVD')
-        plt.plot(self.layers, down_svd, marker='d', label=r'$W_{down}$ Max SVD')
-        
-        plt.axhline(y=1.0, color='black', linestyle='--', label='Neutral Boundary')
-        
-        plt.title("Maximum Singular Values of SwiGLU Weight Matrices", fontsize=14)
-        plt.xlabel("Layer Index", fontsize=12)
-        plt.ylabel("Max Singular Value", fontsize=12)
-        plt.legend(fontsize=11)
-        plt.grid(True, alpha=0.3)
-        plt.tight_layout()
-        
-        out_path = os.path.join(self.output_dir, "weight_svds.png")
-        plt.savefig(out_path, dpi=300)
-        print(f"Saved: {out_path}")
-        if show: plt.show()
-        plt.close()
-
-    def plot_scaled_frobenius(self, show=False):
-        """
-        Plots the dimensionally scaled Frobenius traces of the weight matrices.
-        """
-        gate_f2 = self._get_scalar_metric("weight_metrics", "W_gate_scaled_F2")
-        up_f2 = self._get_scalar_metric("weight_metrics", "W_up_scaled_F2")
-        down_f2 = self._get_scalar_metric("weight_metrics", "W_down_scaled_F2")
-        
-        plt.figure(figsize=(10, 6))
-        plt.plot(self.layers, gate_f2, marker='^', label=r'$W_{gate}$ Scaled $\| \cdot \|_F^2$ (div by 1536)')
-        plt.plot(self.layers, up_f2, marker='v', label=r'$W_{up}$ Scaled $\| \cdot \|_F^2$ (div by 1536)')
-        plt.plot(self.layers, down_f2, marker='d', label=r'$W_{down}$ Scaled $\| \cdot \|_F^2$ (div by 8960)')
-        
-        plt.axhline(y=1.0, color='black', linestyle='--', label='Neutral Boundary')
-        
-        plt.title("Scaled Frobenius Traces of Weight Matrices", fontsize=14)
-        plt.xlabel("Layer Index", fontsize=12)
-        plt.ylabel("Scaled Squared Frobenius Norm", fontsize=12)
-        plt.legend(fontsize=11)
-        plt.grid(True, alpha=0.3)
-        plt.tight_layout()
-        
-        out_path = os.path.join(self.output_dir, "scaled_frobenius.png")
-        plt.savefig(out_path, dpi=300)
-        print(f"Saved: {out_path}")
-        if show: plt.show()
-        plt.close()
-
-    def plot_activation_densities(self, show=False):
-        """
-        Plots the state-dependent activation terms: 
-        Mean squared magnitudes of S(x) and D(x) arrays across the hidden dimensions.
-        """
-        S_x = self._get_token_metric("activation_density", "S_x_sq_mean") # [layers, tokens]
-        D_x = self._get_token_metric("activation_density", "D_x_sq_mean") # [layers, tokens]
-        
-        s_means = S_x.mean(axis=1)
-        d_means = D_x.mean(axis=1)
-        
-        plt.figure(figsize=(10, 6))
-        plt.plot(self.layers, s_means, marker='o', label=r'Mean $S(x)^2$', color='teal')
-        plt.plot(self.layers, d_means, marker='x', label=r'Mean $D(x)^2$', color='orange')
-        
-        plt.title("Activation Density / Magnitude Across Layers", fontsize=14)
-        plt.xlabel("Layer Index", fontsize=12)
-        plt.ylabel("Mean Squared Magnitude", fontsize=12)
-        plt.legend(fontsize=11)
-        plt.grid(True, alpha=0.3)
-        plt.tight_layout()
-        
-        out_path = os.path.join(self.output_dir, "activation_densities.png")
-        plt.savefig(out_path, dpi=300)
-        print(f"Saved: {out_path}")
-        if show: plt.show()
-        plt.close()
-        
     def plot_all(self):
-        """Generates all defined plots."""
-        print(f"--- Generating plots for {os.path.basename(self.json_path)} ---")
-        self.plot_spectral_norms()
-        self.plot_lambda_true()
-        self.plot_weight_svds()
-        self.plot_scaled_frobenius()
-        self.plot_activation_densities()
+        print("--- Generating Jacobian Plots ---")
+        for group_key in self.data.keys():
+            if not self._should_plot(group_key):
+                continue
+                
+            # 1. Spectral Norms
+            self._plot_metric_across_layers(
+                group_key, 
+                ["spectral_norms"], 
+                r"Local Jacobian Spectral Norm $\|J_{MLP}\|_2$", 
+                r"Spectral Norm $\|J\|_2$", 
+                "spectral_norms",
+                labels=["Spectral Norm"],
+                colors=['darkred'],
+                hlines=[{'y': 1.0, 'label': 'Neutral Boundary (||J||_2 = 1)'}]
+            )
+            
+            # 2. Lambda True
+            self._plot_metric_across_layers(
+                group_key, 
+                ["lambda_true"], 
+                r"Mean Squared Singular Value $\bar{\lambda}_{true}$", 
+                r"$\bar{\lambda}_{true} = \frac{1}{d} \|J\|_F^2$", 
+                "lambda_true",
+                labels=[r"$\bar{\lambda}_{true}$"],
+                colors=['navy'],
+                hlines=[{'y': 1.0, 'label': 'Neutral Boundary'}]
+            )
+            
+            # 3. Weight SVDs (Scalar metrics, we still use the same logic but error_bars will naturally be 0 if single prompt)
+            self._plot_metric_across_layers(
+                group_key, 
+                ["W_gate_max_SVD", "W_up_max_SVD", "W_down_max_SVD"], 
+                "Maximum Singular Values of SwiGLU Weight Matrices", 
+                "Max Singular Value", 
+                "weight_svds",
+                labels=[r'$W_{gate}$ Max SVD', r'$W_{up}$ Max SVD', r'$W_{down}$ Max SVD'],
+                hlines=[{'y': 1.0, 'label': 'Neutral Boundary'}]
+            )
+            
+            # 4. Scaled Frobenius
+            self._plot_metric_across_layers(
+                group_key, 
+                ["W_gate_scaled_F2", "W_up_scaled_F2", "W_down_scaled_F2"], 
+                "Scaled Frobenius Traces of Weight Matrices", 
+                "Scaled Squared Frobenius Norm", 
+                "scaled_frobenius",
+                labels=[r'$W_{gate}$ Scaled $\| \cdot \|_F^2$', r'$W_{up}$ Scaled $\| \cdot \|_F^2$', r'$W_{down}$ Scaled $\| \cdot \|_F^2$'],
+                hlines=[{'y': 1.0, 'label': 'Neutral Boundary'}]
+            )
+            
+            # 5. Activation Densities
+            self._plot_metric_across_layers(
+                group_key, 
+                ["S_x_sq_mean", "D_x_sq_mean"], 
+                "Activation Density / Magnitude Across Layers", 
+                "Squared Magnitude", 
+                "activation_densities",
+                labels=[r'$S(x)^2$', r'$D(x)^2$'],
+                colors=['teal', 'orange']
+            )
         print("-" * 50)
 
 def main():
-    parser = argparse.ArgumentParser(description="Plot Jacobian measurement JSON results.")
-    parser.add_argument("--json_path", type=str, required=True, 
-                        help="Path to the generated mlp_jacobian_measurements_{prompt_id}.json file")
-    parser.add_argument("--output_dir", type=str, default=None, 
-                        help="Directory to save the plots. Defaults to a new folder next to the JSON.")
-    args = parser.parse_args()
-    
-    if not os.path.exists(args.json_path):
-        print(f"Error: JSON file not found at {args.json_path}")
+    config_path = "jacobian_config.yaml"
+    if not os.path.exists(config_path):
+        print(f"Error: {config_path} not found.")
         return
         
-    plotter = JacobianPlotter(args.json_path, args.output_dir)
+    with open(config_path, "r") as f:
+        config = yaml.safe_load(f)
+        
+    results_dir = config.get("experiment", {}).get("results_dir", "./results_jacobians")
+    plotting_cfg = config.get("plotting", {})
+    
+    data_path = os.path.join(results_dir, "analyzed_jacobians.pkl")
+    if not os.path.exists(data_path):
+        print(f"Error: {data_path} not found. Run analyze_jacobians.py first.")
+        return
+        
+    print(f"Starting plotting from pre-calculated data...")
+    plotter = JacobianPlotter(data_path, plotting_cfg)
     plotter.plot_all()
 
 if __name__ == "__main__":
