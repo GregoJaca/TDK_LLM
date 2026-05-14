@@ -32,7 +32,7 @@ def get_error(distances_array, error_type):
     else:
         raise ValueError(f"Unknown error type: {error_type}")
 
-def analyze_perturbations(base_results_dir, metric="mean", error_bars="none", plot_prompt_together=False):
+def analyze_perturbations(base_results_dir, metric="mean", error_bars="none", plot_prompt_together=False, plot_prompt_separated=True, eval_tokens="last"):
     """
     Crawls the base_results_dir for all subfolders with config.json.
     Plots lines for different perturbation radii.
@@ -62,21 +62,26 @@ def analyze_perturbations(base_results_dir, metric="mean", error_bars="none", pl
             config = json.load(f)
             
         setup_name = config["setup"]["name"]
-        prompt_idx = config.get("prompt_idx", 0)
+        prompt_hash = config.get("prompt_hash", "unknown")
         prompt_text = config.get("prompt_text", "Unknown Prompt")
         radius = config["radius"]
         
-        # Grouping Abstraction
-        # If plot_prompt_together is True, prompts become an irrelevant parameter and are pooled
-        if plot_prompt_together:
-            group_key = f"{setup_name}"
-            title = f"Setup: {setup_name} (All Prompts Aggregated)"
-        else:
-            group_key = f"{setup_name}_p{prompt_idx}"
+        # We will add the trajectory to grouped_trajectories for both separated and together if requested
+        keys_to_add = []
+        
+        if plot_prompt_separated:
+            group_key_sep = f"{setup_name}_{prompt_hash}"
             short_prompt = prompt_text if len(prompt_text) < 40 else prompt_text[:37] + "..."
-            title = f"Setup: {setup_name} | Prompt: '{short_prompt}'"
+            group_titles[group_key_sep] = f"Setup: {setup_name} | Prompt: '{short_prompt}'"
+            keys_to_add.append(group_key_sep)
             
-        group_titles[group_key] = title
+        if plot_prompt_together:
+            group_key_tog = f"{setup_name}_aggregated"
+            group_titles[group_key_tog] = f"Setup: {setup_name} (All Prompts Aggregated)"
+            keys_to_add.append(group_key_tog)
+            
+        if not keys_to_add:
+            continue
         
         # Load all .pt files for this run
         layer_files = glob.glob(os.path.join(run_dir, "*.pt"))
@@ -107,12 +112,18 @@ def analyze_perturbations(base_results_dir, metric="mean", error_bars="none", pl
             diffs = perturbed_states - base_state.unsqueeze(0)
             distances = torch.norm(diffs, p=2, dim=-1) # [n_conditions-1, seq_len]
             
-            run_layer_distances.append(distances.flatten().cpu().numpy())
+            if eval_tokens == "last":
+                target_distances = distances[:, -1].cpu().numpy()
+            else:
+                target_distances = distances.flatten().cpu().numpy()
+            
+            run_layer_distances.append(target_distances)
             valid_layers.append(l_idx)
             
         if run_layer_distances:
             traj_array = np.stack(run_layer_distances, axis=0)
-            grouped_trajectories[group_key][radius].append((valid_layers, traj_array))
+            for key in keys_to_add:
+                grouped_trajectories[key][radius].append((valid_layers, traj_array))
             
     plots_dir = os.path.join(base_results_dir, "aggregated_plots")
     os.makedirs(plots_dir, exist_ok=True)
@@ -219,12 +230,14 @@ def main():
     
     error_bars = analysis_cfg.get("error_bars", "none")
     plot_prompt_together = analysis_cfg.get("plot_prompt_together", False)
+    plot_prompt_separated = analysis_cfg.get("plot_prompt_separated", True)
+    eval_tokens = analysis_cfg.get("eval_tokens", "last")
     
     if "individual" in metric:
         error_bars = "none"
         
-    print(f"Loaded config | Metric: {metric} | Error Bars: {error_bars} | Aggregating Prompts: {plot_prompt_together}")
-    analyze_perturbations(results_dir, metric=metric, error_bars=error_bars, plot_prompt_together=plot_prompt_together)
+    print(f"Loaded config | Metric: {metric} | Error Bars: {error_bars} | Aggregating Prompts: {plot_prompt_together} | Eval: {eval_tokens}")
+    analyze_perturbations(results_dir, metric=metric, error_bars=error_bars, plot_prompt_together=plot_prompt_together, plot_prompt_separated=plot_prompt_separated, eval_tokens=eval_tokens)
 
 if __name__ == "__main__":
     main()

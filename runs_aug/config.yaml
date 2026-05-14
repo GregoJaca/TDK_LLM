@@ -6,8 +6,8 @@ model:
 
 experiment:
   results_dir: "./results_perturbations"
-  seed: 420
-  n_conditions: 500
+  seed: [420, 69, 42, 10]  # Can be a single integer or a list of integers
+  n_conditions: 1000
   radii: [0.0005, 0.00035, 0.0002]
   subspace_mode: "random"
   remove_bos_token: true
@@ -15,7 +15,7 @@ experiment:
   
   prompts:
     - id: "singles"
-      texts: ["The", "House", "she", " understanding", "id", "sex"]
+      texts: ["The", "House", "she", " understanding", "id", "sex", "cat", "a", "win", "fly"]
 
     # - id: "long_prompt"
     #   text: "This is a longer prompt to test how perturbations propagate across layers in a deep neural network and see the attention mechanism coupling."
@@ -50,3 +50,5 @@ analysis:
   metric: ["mean", "median"]  # Options: mean, median, mode, individual
   error_bars: "std"    # Options: none, std, var
   plot_prompt_together: true
+  plot_prompt_separated: true
+  eval_tokens: "last"  # Options: "last" (only measure last token), "all" (flatten sequence)
