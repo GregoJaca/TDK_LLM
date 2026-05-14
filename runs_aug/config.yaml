@@ -48,9 +48,15 @@ experiment:
     #   max_new_tokens: 10
 
 analysis:
+  distance_metric: "L2"  # Options: "L2", "cos"
+  metric: ["mean", "median", "mode"]  # Options: mean, median, mode, individual
+  error_bars: "std"    # Options: none, std, var
+  eval_tokens: "last"  # Options: "last" (only measure last token), "all" (flatten sequence)
+
+plotting:
   metric: ["mean", "median"]  # Options: mean, median, mode, individual
   error_bars: "std"    # Options: none, std, var
   plot_prompt_together: true
   plot_prompt_separated: true
   separate_figure_metrics: true
-  eval_tokens: "last"  # Options: "last" (only measure last token), "all" (flatten sequence)
+
