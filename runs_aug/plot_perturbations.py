@@ -120,9 +120,18 @@ def plot_perturbations(base_results_dir, plotting_cfg):
                 x_radii.append(radius)
                 y_avg.append(np.mean(selected_vals))
                 
-                if error_bars != "none":
-                    # We can use standard error of the mean or just standard deviation over those layers
-                    y_err.append(np.std(selected_vals))
+                if error_bars == "std":
+                    # The overall variance across the layers is the mean of the layer-wise variances 
+                    # plus the variance of the layer-wise means (Law of Total Variance).
+                    var_arr = metrics_dict["var"]
+                    selected_vars = var_arr[mask]
+                    overall_var = np.mean(selected_vars) + np.var(selected_vals)
+                    y_err.append(np.sqrt(overall_var))
+                elif error_bars == "var":
+                    var_arr = metrics_dict["var"]
+                    selected_vars = var_arr[mask]
+                    overall_var = np.mean(selected_vars) + np.var(selected_vals)
+                    y_err.append(overall_var)
                 else:
                     y_err.append(0)
 
@@ -130,13 +139,23 @@ def plot_perturbations(base_results_dir, plotting_cfg):
                 continue
 
             plt.figure(figsize=(8, 6))
+            
+            # Matplotlib's errorbar doesn't always show up well on log-log if the bottom error goes below 0.
+            # We calculate asymmetrical error bars for log scale to prevent negative values.
             if error_bars != "none":
-                plt.errorbar(x_radii, y_avg, yerr=y_err, marker='o', capsize=5, linestyle='-', color='b')
+                y_err_np = np.array(y_err)
+                y_avg_np = np.array(y_avg)
+                
+                # Prevent lower error bar from going to <= 0 in log scale
+                lower_error = np.clip(y_err_np, 0, y_avg_np * 0.999)
+                upper_error = y_err_np
+                
+                plt.errorbar(x_radii, y_avg_np, yerr=[lower_error, upper_error], marker='o', capsize=5, linestyle='-', color='b')
             else:
                 plt.plot(x_radii, y_avg, marker='o', linestyle='-', color='b')
 
-            plt.xscale('log') # Radii are usually logarithmic (0.001, 0.0001, ...)
-            plt.yscale('log') # Distance might also span orders of magnitude
+            plt.xscale('log') 
+            plt.yscale('log') 
             
             title = group_titles[group_key]
             plt.title(f"Avg Divergence (Layers 2-25) vs Radius | {title}", fontsize=12)
