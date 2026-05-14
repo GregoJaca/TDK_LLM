@@ -41,15 +41,34 @@ def compute_mlp_jacobian_metrics(model, x_norm, layer_idx):
     batch_jac_fn = vmap(jac_fn, in_dims=(None, None, 0))
     
     with torch.no_grad():
-        # [seq_len, hidden_size, hidden_size]
-        jacobians = batch_jac_fn(params, buffers, x_norm_32)
+        # Process the exact Jacobian in chunks to prevent OOM on long prompts.
+        # jacrev computes vjp for 1536 basis vectors. vmap adds seq_len batching.
+        # This requires enormous intermediate memory (chunk_size * 1536 * 8960 * 4 bytes).
+        chunk_size = 16 
+        seq_len = x_norm_32.size(0)
         
-        # matrix_norm ord=2 is the largest singular value
-        spectral_norms = torch.linalg.matrix_norm(jacobians, ord=2)
+        spectral_norms_list = []
+        lambda_true_list = []
         
-        # Calculate lambda_true: 1/d * ||J||_F^2
-        J_f2 = torch.sum(jacobians ** 2, dim=(1, 2))
-        lambda_true = J_f2 / jacobians.shape[-1]
+        for i in range(0, seq_len, chunk_size):
+            x_chunk = x_norm_32[i:i+chunk_size]
+            # [chunk_size, hidden_size, hidden_size]
+            jac_chunk = batch_jac_fn(params, buffers, x_chunk)
+            
+            # Calculate metrics immediately and discard the massive jacobian tensor
+            sn_chunk = torch.linalg.matrix_norm(jac_chunk, ord=2)
+            j_f2_chunk = torch.sum(jac_chunk ** 2, dim=(1, 2))
+            lt_chunk = j_f2_chunk / jac_chunk.shape[-1]
+            
+            spectral_norms_list.append(sn_chunk)
+            lambda_true_list.append(lt_chunk)
+            
+            del jac_chunk
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+                
+        spectral_norms = torch.cat(spectral_norms_list, dim=0)
+        lambda_true = torch.cat(lambda_true_list, dim=0)
         
         # Calculate scaled Gramian metrics for weights
         W_gate = mlp.gate_proj.weight.data
