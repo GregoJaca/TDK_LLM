@@ -80,6 +80,8 @@ def run_experiment(config):
             for radius in exp_config["radii"]:
                 print(f"  Radius: {radius}")
                 
+                seed_val = exp_config.get("seed", 42)
+                
                 # Determine target tokens based on mode
                 if setup["mode"] == "all":
                     target_tokens = None
@@ -96,11 +98,11 @@ def run_experiment(config):
                     radius=radius,
                     subspace_mode=exp_config["subspace_mode"],
                     target_tokens=target_tokens,
-                    seed=exp_config.get("seed", 42)
+                    seed=seed_val
                 )
                 
                 # Create a dedicated directory for this specific configuration
-                run_name = f"{setup['name']}_p{prompt_idx}_r{radius}"
+                run_name = f"{setup['name']}_p{prompt_idx}_r{radius}_s{seed_val}"
                 setup_dir = os.path.join(base_results_dir, run_name)
                 ensure_dir(setup_dir)
                 
@@ -128,7 +130,7 @@ def run_experiment(config):
                     "tokenized_strings": token_strings,
                     "target_tokens_perturbed": target_tokens if target_tokens is not None else base_embeds.shape[1],
                     "max_new_tokens": max_new_tokens,
-                    "seed": exp_config.get("seed", 42)
+                    "seed": seed_val
                 }
                 with open(os.path.join(setup_dir, "config.json"), "w") as f:
                     json.dump(metadata, f, indent=4)

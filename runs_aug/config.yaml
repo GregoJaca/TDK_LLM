@@ -7,15 +7,15 @@ model:
 experiment:
   results_dir: "./results_perturbations"
   seed: 42
-  n_conditions: 6
-  radii: [0.00035]
+  n_conditions: 20
+  radii: [0.0005, 0.0002]
   subspace_mode: "random"
   remove_bos_token: true
   selected_layers: "all"  # or specify a list of integers e.g., [0, 12, 24]
   
   prompts:
     - id: "singles"
-      texts: ["The", "House", "she", " understanding"]
+      texts: ["The", "House", "she", " understanding", "idiot", "sex"]
 
     # - id: "long_prompt"
     #   text: "This is a longer prompt to test how perturbations propagate across layers in a deep neural network and see the attention mechanism coupling."
@@ -45,3 +45,8 @@ experiment:
     #   mode: "all"
     #   m_tokens: null
     #   max_new_tokens: 10
+
+analysis:
+  metric: ["mean", "median"]  # Options: mean, median, mode, individual
+  error_bars: "std"    # Options: none, std, var
+  plot_prompt_together: true
