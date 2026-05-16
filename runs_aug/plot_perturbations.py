@@ -188,3 +188,21 @@ def plot_perturbations(base_results_dir, plotting_cfg):
             safe_key = group_key.replace(" ", "_").replace("/", "-")
             plt.savefig(os.path.join(plots_dir, f"{safe_key}_scaling_{current_metric}.png"), dpi=300)
             plt.close()
+
+def main():
+    config_path = "config.yaml"
+    if not os.path.exists(config_path):
+        print(f"Error: {config_path} not found.")
+        return
+        
+    with open(config_path, "r") as f:
+        config = yaml.safe_load(f)
+        
+    results_dir = config.get("experiment", {}).get("results_dir", "./results_perturbations")
+    plotting_cfg = config.get("plotting", {})
+    
+    print(f"Starting plotting from pre-calculated data...")
+    plot_perturbations(results_dir, plotting_cfg)
+
+if __name__ == "__main__":
+    main()
