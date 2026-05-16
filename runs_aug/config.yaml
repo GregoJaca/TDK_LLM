@@ -9,9 +9,10 @@ model:
 experiment:
   results_dir: "./results_perturbations_microsoft"
   # seed: [420, 69, 42, 10]  # Can be a single integer or a list of integers
-  seed: [69]  # Can be a single integer or a list of integers
+  seed: [420, 42, 10]  # Can be a single integer or a list of integers
   n_conditions: 1000
-  radii: [0.00001, 0.0001, 0.001, 0.1]
+  radii: [0.000001, 0.00001, 0.0001, 0.001, 0.01]
+  # radii: [0.00001, 0.0001, 0.001, 0.1] # used seed 69
   subspace_mode: "random"
   remove_bos_token: false
   selected_layers: "all"  # or specify a list of integers e.g., [0, 12, 24]
@@ -64,4 +65,5 @@ plotting:
   separate_figure_metrics: true
   plot_magnitude_together: true
   plot_magnitude_separated: true
+  y_scale: "log"        # Options: "linear", "log"
 
