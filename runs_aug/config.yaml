@@ -62,4 +62,6 @@ plotting:
   plot_prompt_together: true
   plot_prompt_separated: false
   separate_figure_metrics: true
+  plot_magnitude_together: true
+  plot_magnitude_separated: true
 
