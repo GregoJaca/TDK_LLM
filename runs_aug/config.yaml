@@ -15,7 +15,7 @@ experiment:
   subspace_mode: "random"
   remove_bos_token: false
   selected_layers: "all"  # or specify a list of integers e.g., [0, 12, 24]
-  batch_size: 32
+  batch_size: 16
   
   prompts:
     - id: "singles"
