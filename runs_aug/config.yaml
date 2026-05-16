@@ -1,8 +1,8 @@
 model:
   name: "microsoft/Phi-4-mini-instruct"
   local_dir: "../../"
-  name: "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"
-  local_dir: "."
+  # name: "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"
+  # local_dir: "."
   device: "cuda"
   dtype: "bfloat16"
 
