@@ -51,9 +51,9 @@ experiment:
     #   max_new_tokens: 10
 
 analysis:
-  distance_metric: "cos"  # Options: "L2", "cos"
-  metric: ["mean", "median", "p10", "p25", "p75", "p90", "min", "max"]  # Now supporting percentiles and extremum
-  error_bars: "fan"    # Options: none, std, var, fan, percentiles
+  distance_metric: "L2"  # Options: "L2", "cos"
+  metric: ["mean", "median"]  # Now supporting percentiles and extremum
+  error_bars: "std"    # Options: none, std, var, fan, percentiles
   eval_tokens: "last"  # Options: "last" (only measure last token), "all" (flatten sequence)
 
 plotting:
