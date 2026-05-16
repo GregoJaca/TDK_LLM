@@ -8,17 +8,30 @@ from collections import defaultdict
 from scipy import stats
 import pickle
 
-def get_metrics_and_errors(distances_array):
-    """Calculates all metrics and errors for a flat array of distances."""
-    mean_val = np.mean(distances_array)
-    median_val = np.median(distances_array)
+def get_metrics_and_errors(data_array):
+    """Calculates all metrics and errors for a flat array of data."""
+    if len(data_array) == 0:
+        return {k: 0.0 for k in ["mean", "median", "mode", "std", "var", "min", "max", "p10", "p25", "p75", "p90", "none"]}
+
+    mean_val = np.mean(data_array)
+    median_val = np.median(data_array)
     
-    rounded = np.round(distances_array, decimals=4)
+    # Mode is slow on large arrays, skip if too big or use a sample
+    if len(data_array) > 10000:
+        sample = np.random.choice(data_array, 10000, replace=False)
+        rounded = np.round(sample, decimals=4)
+    else:
+        rounded = np.round(data_array, decimals=4)
+    
     mode_result = stats.mode(rounded, keepdims=False)
     mode_val = float(mode_result.mode)
     
-    std_val = np.std(distances_array)
-    var_val = np.var(distances_array)
+    std_val = np.std(data_array)
+    var_val = np.var(data_array)
+    min_val = np.min(data_array)
+    max_val = np.max(data_array)
+    
+    p10, p25, p75, p90 = np.percentile(data_array, [10, 25, 75, 90])
     
     return {
         "mean": float(mean_val),
@@ -26,6 +39,12 @@ def get_metrics_and_errors(distances_array):
         "mode": float(mode_val),
         "std": float(std_val),
         "var": float(var_val),
+        "min": float(min_val),
+        "max": float(max_val),
+        "p10": float(p10),
+        "p25": float(p25),
+        "p75": float(p75),
+        "p90": float(p90),
         "none": 0.0
     }
 
@@ -131,7 +150,9 @@ def analyze_perturbations(base_results_dir, distance_metric="L2", eval_tokens="l
             layer_arr = np.array(sorted_layers)
             
             metrics_per_layer = {
-                "mean": [], "median": [], "mode": [], "std": [], "var": [], "none": []
+                "mean": [], "median": [], "mode": [], "std": [], "var": [], 
+                "min": [], "max": [], "p10": [], "p25": [], "p75": [], "p90": [],
+                "none": [], "hist": [], "hist_bins": []
             }
             
             for l_idx in sorted_layers:
@@ -139,6 +160,12 @@ def analyze_perturbations(base_results_dir, distance_metric="L2", eval_tokens="l
                 metrics = get_metrics_and_errors(pts)
                 for k, v in metrics.items():
                     metrics_per_layer[k].append(v)
+                
+                # Compute histogram for distribution heatmap
+                # Use log bins if the data spans orders of magnitude, but for now linear is safer
+                h, b = np.histogram(pts, bins=100, density=True)
+                metrics_per_layer["hist"].append(h)
+                metrics_per_layer["hist_bins"].append(b)
             
             # Convert to numpy arrays for storage
             metrics_per_layer = {k: np.array(v) for k, v in metrics_per_layer.items()}

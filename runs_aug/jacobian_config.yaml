@@ -69,12 +69,12 @@ experiment:
       prompt_id: "long_prompts"
 
 analysis:
-  metric: ["mean", "median"]  # Options: mean, median, mode
-  error_bars: "std"    # Options: none, std, var
+  metric: ["mean", "median", "p10", "p25", "p75", "p90", "min", "max"]
+  error_bars: "fan"    # Options: none, std, var, fan
 
 plotting:
   metric: ["mean", "median"]  # Options: mean, median, mode
-  error_bars: "std"    # Options: none, std, var
+  error_bars: "fan"    # "none" "var" "std" "fan"
   plot_prompt_together: true
   plot_prompt_separated: false
   separate_figure_metrics: true
