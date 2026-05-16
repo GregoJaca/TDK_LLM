@@ -1,19 +1,19 @@
 model:
-  # name: "microsoft/Phi-4-mini-instruct"
-  # local_dir: "../../"
+  name: "microsoft/Phi-4-mini-instruct"
+  local_dir: "../../"
   name: "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"
   local_dir: "."
   device: "cuda"
   dtype: "bfloat16"
 
 experiment:
-  results_dir: "./results_perturbations_new"
+  results_dir: "./results_perturbations_microsoft"
   # seed: [420, 69, 42, 10]  # Can be a single integer or a list of integers
   seed: [69]  # Can be a single integer or a list of integers
   n_conditions: 1000
   radii: [0.00001, 0.0001, 0.001, 0.1]
   subspace_mode: "random"
-  remove_bos_token: true
+  remove_bos_token: false
   selected_layers: "all"  # or specify a list of integers e.g., [0, 12, 24]
   batch_size: 32
   
