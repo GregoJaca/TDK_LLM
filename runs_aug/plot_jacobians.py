@@ -100,11 +100,17 @@ class JacobianPlotter:
                 metrics_dict = group_data[m_name]
                 layers = metrics_dict["layers"]
                 all_hists = np.stack(metrics_dict["hist"], axis=1)
+                all_hists = np.nan_to_num(all_hists, nan=0.0, posinf=0.0, neginf=0.0)
                 y_bins = metrics_dict["hist_bins"][0]
+                
+                vmax = float(all_hists.max())
+                vmin = 1e-3
+                if not np.isfinite(vmax) or vmax <= vmin:
+                    vmax = vmin * 10.0
                 
                 plt.figure(figsize=(12, 8))
                 extent = [layers[0], layers[-1], y_bins[0], y_bins[-1]]
-                plt.imshow(all_hists, aspect='auto', origin='lower', extent=extent, cmap='magma', norm=LogNorm(vmin=1e-3, vmax=all_hists.max()))
+                plt.imshow(all_hists, aspect='auto', origin='lower', extent=extent, cmap='magma', norm=LogNorm(vmin=vmin, vmax=vmax))
                 plt.colorbar(label='Density')
                 
                 # Overlay

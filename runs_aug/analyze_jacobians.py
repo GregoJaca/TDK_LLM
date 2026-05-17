@@ -139,7 +139,17 @@ def analyze_jacobians(base_results_dir):
                     metrics_per_layer[k].append(v)
                 
                 # Compute histogram for distribution heatmap
-                h, b = np.histogram(pts, bins=100, density=True)
+                # Safely handle the case where all values are identical (zero variance)
+                if np.max(pts) == np.min(pts):
+                    val = pts[0]
+                    if val == 0.0:
+                        b = np.linspace(-0.05, 0.05, 101)
+                    else:
+                        b = np.linspace(val * 0.95, val * 1.05, 101)
+                    h = np.zeros(100)
+                    h[50] = 1.0 / (b[51] - b[50])
+                else:
+                    h, b = np.histogram(pts, bins=100, density=True)
                 metrics_per_layer["hist"].append(h)
                 metrics_per_layer["hist_bins"].append(b)
                     
