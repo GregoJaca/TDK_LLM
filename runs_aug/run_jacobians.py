@@ -50,21 +50,21 @@ def main():
             prompts[p["id"]] = [p["text"]]
 
     for setup in exp_config.get("setups", []):
-        print(f"\n=== Running Setup: {setup['name']} ===")
+        print(f"\n=== Running Setup: {setup['name']} ===", flush=True)
         
         prompt_texts = prompts[setup["prompt_id"]]
         for prompt_idx, prompt_text in enumerate(prompt_texts):
             import hashlib
             prompt_hash = hashlib.md5(prompt_text.encode('utf-8')).hexdigest()[:8]
             
-            print(f"\n--- Prompt {prompt_idx + 1}/{len(prompt_texts)} ---")
+            print(f"\n--- Prompt {prompt_idx + 1}/{len(prompt_texts)} ---", flush=True)
             
             encoded = tokenizer(prompt_text, return_tensors="pt")
             input_ids = encoded["input_ids"].to(device)
             attention_mask = encoded["attention_mask"].to(device)
             
             seq_len = input_ids.shape[1]
-            print(f"Tokenized prompt length: {seq_len} tokens")
+            print(f"Tokenized prompt length: {seq_len} tokens", flush=True)
             
             # Hook into the post_attention_layernorm to capture x_norm
             layer_x_norms = {}
@@ -81,18 +81,25 @@ def main():
                 h = model.model.layers[i].post_attention_layernorm.register_forward_hook(get_hook(i))
                 hooks.append(h)
                 
-            print("Running forward pass to extract x_norm...")
+            print("Running forward pass to extract x_norm...", flush=True)
             with torch.no_grad():
                 _ = model(input_ids=input_ids, attention_mask=attention_mask)
                 
             for h in hooks:
                 h.remove()
                 
-            print("Computing exact Jacobians and weight metrics layer-by-layer...")
+            print("Computing exact Jacobians and weight metrics layer-by-layer...", flush=True)
             
             results = {
                 "layers": {}
             }
+            
+            # Create a dedicated directory early so we can save incrementally
+            run_name = f"{setup['name']}_{prompt_hash}"
+            setup_dir = os.path.join(base_results_dir, run_name)
+            ensure_dir(setup_dir)
+            
+            output_file = os.path.join(setup_dir, f"mlp_jacobian_measurements.json")
             
             for layer_idx in range(num_layers):
                 # Move only the current layer's x_norm to GPU
@@ -107,24 +114,19 @@ def main():
                 print(f"Layer {layer_idx:02d} | "
                       f"Avg ||J||_2: {avg_spectral:.4f} | "
                       f"Avg \u03bb_true: {avg_lambda:.4f} | "
-                      f"W_gate_F2/1536: {metrics['weight_metrics']['W_gate_scaled_F2']:.4f}")
+                      f"W_gate_F2: {metrics['weight_metrics']['W_gate_scaled_F2']:.4f}", flush=True)
                       
                 results["layers"][layer_idx] = metrics
+                
+                # Incrementally save results after each layer
+                with open(output_file, "w") as f:
+                    json.dump(results, f, indent=4)
                 
                 # Clear memory immediately
                 del x_norm
                 if torch.cuda.is_available():
                     torch.cuda.empty_cache()
                     
-            # Create a dedicated directory for this specific configuration
-            run_name = f"{setup['name']}_{prompt_hash}"
-            setup_dir = os.path.join(base_results_dir, run_name)
-            ensure_dir(setup_dir)
-            
-            output_file = os.path.join(setup_dir, f"mlp_jacobian_measurements.json")
-            with open(output_file, "w") as f:
-                json.dump(results, f, indent=4)
-                
             # Save metadata/config for this specific run inside its folder
             metadata = {
                 "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
@@ -136,7 +138,7 @@ def main():
             with open(os.path.join(setup_dir, "config.json"), "w") as f:
                 json.dump(metadata, f, indent=4)
                 
-            print(f"Measurements saved successfully to {setup_dir}")
+            print(f"Measurements saved successfully to {setup_dir}", flush=True)
 
 if __name__ == "__main__":
     main()
