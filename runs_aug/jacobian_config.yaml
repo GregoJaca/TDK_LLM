@@ -1,9 +1,11 @@
 model:
-  name: "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"
-  local_dir: "."
+  # name: "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"
+  # local_dir: "."
+  name: "microsoft/Phi-4-mini-instruct" # Qwen/Qwen2.5-3B-Instruct
+  local_dir: "../../"
 
 experiment:
-  results_dir: "./results_jacobians"
+  results_dir: "./results_jacobians_microsoft"
   
   prompts:
     - id: "long_prompts"
