@@ -71,9 +71,37 @@ def compute_mlp_jacobian_metrics(model, x_norm, layer_idx):
         lambda_true = torch.cat(lambda_true_list, dim=0)
         
         # Calculate scaled Gramian metrics for weights
-        W_gate = mlp.gate_proj.weight.data
-        W_up = mlp.up_proj.weight.data
-        W_down = mlp.down_proj.weight.data
+        if hasattr(mlp, 'gate_proj') and hasattr(mlp, 'up_proj'):
+            W_gate = mlp.gate_proj.weight.data
+            W_up = mlp.up_proj.weight.data
+        elif hasattr(mlp, 'gate_up_proj'):
+            W_gate_up = mlp.gate_up_proj.weight.data
+            split_dim = W_gate_up.shape[0] // 2
+            W_gate = W_gate_up[:split_dim, :]
+            W_up = W_gate_up[split_dim:, :]
+        else:
+            # Fallback for models that might use different naming but still have SwiGLU
+            # Attempt to find linear layers
+            linears = [m for m in mlp.modules() if isinstance(m, torch.nn.Linear)]
+            if len(linears) >= 3:
+                W_gate = linears[0].weight.data
+                W_up = linears[1].weight.data
+            elif len(linears) == 2:
+                W_gate_up = linears[0].weight.data
+                split_dim = W_gate_up.shape[0] // 2
+                W_gate = W_gate_up[:split_dim, :]
+                W_up = W_gate_up[split_dim:, :]
+            else:
+                raise AttributeError(f"Could not automatically determine MLP weight matrices for {type(mlp)}")
+                
+        if hasattr(mlp, 'down_proj'):
+            W_down = mlp.down_proj.weight.data
+        else:
+            linears = [m for m in mlp.modules() if isinstance(m, torch.nn.Linear)]
+            if len(linears) >= 2:
+                W_down = linears[-1].weight.data
+            else:
+                raise AttributeError(f"Could not automatically determine MLP down_proj for {type(mlp)}")
         
         gate_f2 = torch.sum(W_gate ** 2).item()
         up_f2 = torch.sum(W_up ** 2).item()
