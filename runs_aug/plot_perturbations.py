@@ -30,6 +30,7 @@ def plot_perturbations(base_results_dir, plotting_cfg):
     separate_figure_metrics = plotting_cfg.get("separate_figure_metrics", False)
     plot_magnitude_together = plotting_cfg.get("plot_magnitude_together", True)
     plot_magnitude_separated = plotting_cfg.get("plot_magnitude_separated", True)
+    y_scale = plotting_cfg.get("y_scale", "linear")
     
     # 1. Standard Divergence Plots with Fan Shading
     metrics_to_process = [[m] for m in metric_list] if separate_figure_metrics else [metric_list]
@@ -82,6 +83,7 @@ def plot_perturbations(base_results_dir, plotting_cfg):
                 plt.title(f"Divergence over Layers | {title}", fontsize=14)
                 plt.xlabel("Layer Index", fontsize=12)
                 plt.ylabel("Distance", fontsize=12)
+                plt.yscale(y_scale)
                 plt.grid(True, alpha=0.3)
                 plt.legend(title="Magnitude", loc='upper left', bbox_to_anchor=(1, 1))
                 plt.tight_layout()
@@ -127,6 +129,7 @@ def plot_perturbations(base_results_dir, plotting_cfg):
                     plt.title(f"Divergence over Layers | {title}", fontsize=14)
                     plt.xlabel("Layer Index", fontsize=12)
                     plt.ylabel("Distance", fontsize=12)
+                    plt.yscale(y_scale)
                     plt.grid(True, alpha=0.3)
                     if len(current_metric_list) > 1:
                         plt.legend(title="Metric", loc='upper left', bbox_to_anchor=(1, 1))
