@@ -82,3 +82,4 @@ plotting:
   separate_figure_metrics: true
   x_scales: ["linear"]
   y_scales: ["linear", "log"]
+  plot_swarm: true

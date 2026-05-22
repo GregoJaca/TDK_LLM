@@ -154,7 +154,7 @@ def analyze_jacobians(base_results_dir):
                 "mean": [], "median": [], "mode": [], "harmonic": [], "std": [], "var": [], 
                 "harmonic_std": [], "harmonic_var": [],
                 "min": [], "max": [], "p10": [], "p25": [], "p75": [], "p90": [],
-                "none": [], "hist": [], "hist_bins": []
+                "none": [], "hist": [], "hist_bins": [], "raw": []
             }
             
             for l_idx in sorted_layers:
@@ -162,6 +162,7 @@ def analyze_jacobians(base_results_dir):
                 metrics = get_metrics_and_errors(pts)
                 for k, v in metrics.items():
                     metrics_per_layer[k].append(v)
+                metrics_per_layer["raw"].append(pts)
                 
                 # Compute histogram for distribution heatmap
                 # Safely handle potential NaNs, infs, and tiny variance (peak-to-peak < 1e-7)
@@ -183,7 +184,13 @@ def analyze_jacobians(base_results_dir):
                 metrics_per_layer["hist"].append(h)
                 metrics_per_layer["hist_bins"].append(b)
                     
-            metrics_per_layer = {k: np.array(v) for k, v in metrics_per_layer.items()}
+            metrics_per_layer_converted = {}
+            for k, v in metrics_per_layer.items():
+                if k == "raw":
+                    metrics_per_layer_converted[k] = v
+                else:
+                    metrics_per_layer_converted[k] = np.array(v)
+            metrics_per_layer = metrics_per_layer_converted
             metrics_per_layer["layers"] = layer_arr
             
             analyzed_data["data"][group_key][m_name] = metrics_per_layer

@@ -147,6 +147,75 @@ class JacobianPlotter:
                 plt.savefig(os.path.join(self.plots_dir, f"heatmap_{m_name}_{safe_key}.png"), dpi=300)
                 plt.close()
 
+    def plot_swarm_plots(self):
+        print("Generating Jacobian Swarm/Trajectory Plots...")
+        setups = {}
+        for group_key in self.data.keys():
+            if group_key.endswith("_aggregated"):
+                setup_name = group_key.replace("_aggregated", "")
+                setups[setup_name] = []
+                
+        for group_key in self.data.keys():
+            if not group_key.endswith("_aggregated"):
+                for setup_name in setups.keys():
+                    if group_key.startswith(setup_name):
+                        setups[setup_name].append(group_key)
+                        
+        from matplotlib.lines import Line2D
+        
+        for setup_name, prompt_keys in setups.items():
+            if not prompt_keys: continue
+            
+            for m_name in ["spectral_norms", "lambda_true"]:
+                x_scales = self.plotting_cfg.get("x_scales", ["linear"])
+                y_scales = self.plotting_cfg.get("y_scales", ["linear"])
+                
+                for x_scale in x_scales:
+                    for y_scale in y_scales:
+                        plt.figure(figsize=(10, 6))
+                        
+                        colors = plt.cm.tab20(np.linspace(0, 1, len(prompt_keys)))
+                        
+                        for p_idx, p_key in enumerate(prompt_keys):
+                            p_data = self.data[p_key]
+                            if m_name not in p_data or "raw" not in p_data[m_name]: continue
+                            
+                            layers = p_data[m_name]["layers"]
+                            raw_data = p_data[m_name]["raw"]
+                            medians = p_data[m_name]["median"]
+                            
+                            color = colors[p_idx % len(colors)]
+                            
+                            # Jittered scatter plot per layer
+                            all_x = []
+                            all_y = []
+                            for l_idx, layer_val in enumerate(layers):
+                                tokens_val = raw_data[l_idx]
+                                jitter = np.random.uniform(-0.15, 0.15, size=len(tokens_val))
+                                all_x.extend(layer_val + jitter)
+                                all_y.extend(tokens_val)
+                                
+                            plt.scatter(all_x, all_y, color=color, s=8, alpha=0.3, edgecolors='none')
+                            plt.plot(layers, medians, color=color, linewidth=1.5, alpha=0.8)
+                            
+                        plt.title(f"Jacobian {m_name} Layer-wise Swarm | Setup: {setup_name}", fontsize=14)
+                        plt.xlabel("Layer Index", fontsize=12)
+                        plt.ylabel(f"{m_name} Value", fontsize=12)
+                        plt.xscale(x_scale)
+                        plt.yscale(y_scale)
+                        plt.grid(True, which="both", alpha=0.3)
+                        
+                        legend_elements = [
+                            Line2D([0], [0], marker='o', color='gray', linestyle='none', markersize=5, label='Token Values (individual)'),
+                            Line2D([0], [0], color='gray', linewidth=1.5, label='Prompt Medians')
+                        ]
+                        plt.legend(handles=legend_elements, loc='upper left')
+                        plt.tight_layout()
+                        
+                        filename = f"swarm_{m_name}_{setup_name}_xscale-{x_scale}_yscale-{y_scale}.png"
+                        plt.savefig(os.path.join(self.plots_dir, filename), dpi=300)
+                        plt.close()
+
     def plot_all(self):
         print("--- Generating Jacobian Plots ---")
         for group_key in self.data.keys():
@@ -158,6 +227,8 @@ class JacobianPlotter:
             self._plot_metric_across_layers(group_key, ["S_x_sq_mean", "D_x_sq_mean"], "Activation Densities", "Squared Magnitude", "activation_densities", labels=[r'$S(x)^2$', r'$D(x)^2$'], colors=['teal', 'orange'])
         
         self.plot_distribution_heatmaps()
+        if self.plotting_cfg.get("plot_swarm", False):
+            self.plot_swarm_plots()
         print("-" * 50)
 
 def main():
