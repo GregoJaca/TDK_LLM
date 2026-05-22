@@ -11,7 +11,7 @@ import pickle
 def get_metrics_and_errors(data_array):
     """Calculates all metrics and errors for a flat array of data."""
     if len(data_array) == 0:
-        return {k: 0.0 for k in ["mean", "median", "mode", "std", "var", "min", "max", "p10", "p25", "p75", "p90", "none"]}
+        return {k: 0.0 for k in ["mean", "median", "mode", "harmonic", "std", "var", "harmonic_std", "harmonic_var", "min", "max", "p10", "p25", "p75", "p90", "none"]}
 
     mean_val = np.mean(data_array)
     median_val = np.median(data_array)
@@ -26,6 +26,27 @@ def get_metrics_and_errors(data_array):
     mode_result = stats.mode(rounded, keepdims=False)
     mode_val = float(mode_result.mode)
     
+    # Harmonic mean and propagated error
+    data_positive = data_array[data_array > 0]
+    if len(data_positive) > 0:
+        n_h = len(data_positive)
+        inv_data = 1.0 / data_positive
+        sum_inv = np.sum(inv_data)
+        if sum_inv > 0:
+            harmonic_val = n_h / sum_inv
+            var_x = np.var(data_positive)
+            sum_inv4 = np.sum(inv_data ** 4)
+            harmonic_var = (harmonic_val ** 4 / (n_h ** 2)) * var_x * sum_inv4
+            harmonic_std = np.sqrt(harmonic_var)
+        else:
+            harmonic_val = 0.0
+            harmonic_std = 0.0
+            harmonic_var = 0.0
+    else:
+        harmonic_val = 0.0
+        harmonic_std = 0.0
+        harmonic_var = 0.0
+
     std_val = np.std(data_array)
     var_val = np.var(data_array)
     min_val = np.min(data_array)
@@ -37,8 +58,11 @@ def get_metrics_and_errors(data_array):
         "mean": float(mean_val),
         "median": float(median_val),
         "mode": float(mode_val),
+        "harmonic": float(harmonic_val),
         "std": float(std_val),
         "var": float(var_val),
+        "harmonic_std": float(harmonic_std),
+        "harmonic_var": float(harmonic_var),
         "min": float(min_val),
         "max": float(max_val),
         "p10": float(p10),
@@ -150,7 +174,8 @@ def analyze_perturbations(base_results_dir, distance_metric="L2", eval_tokens="l
             layer_arr = np.array(sorted_layers)
             
             metrics_per_layer = {
-                "mean": [], "median": [], "mode": [], "std": [], "var": [], 
+                "mean": [], "median": [], "mode": [], "harmonic": [], "std": [], "var": [], 
+                "harmonic_std": [], "harmonic_var": [],
                 "min": [], "max": [], "p10": [], "p25": [], "p75": [], "p90": [],
                 "none": [], "hist": [], "hist_bins": []
             }

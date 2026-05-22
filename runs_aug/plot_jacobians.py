@@ -40,51 +40,72 @@ class JacobianPlotter:
         metrics_to_process = [[m] for m in self.metric_list] if self.separate_figure_metrics else [self.metric_list]
         group_data = self.data[group_key]
         
-        for current_metric_list in metrics_to_process:
-            plt.figure(figsize=(10, 6))
-            if colors is None:
-                cmap = plt.cm.tab10(np.linspace(0, 1, max(len(metric_names) * len(current_metric_list), 10)))
-            else:
-                cmap = colors
-                
-            color_idx = 0
-            for m_idx, m_name in enumerate(metric_names):
-                if m_name not in group_data: continue
-                layer_arr = group_data[m_name]["layers"]
-                
-                for stat_metric in current_metric_list:
-                    m_arr = group_data[m_name][stat_metric]
-                    color = cmap[color_idx % len(cmap)] if colors is None else cmap[m_idx % len(cmap)]
-                    color_idx += 1
-                    
-                    base_label = labels[m_idx] if labels else m_name
-                    line_label = f"{base_label} ({stat_metric.capitalize()})" if len(current_metric_list) > 1 else base_label
-                    plt.plot(layer_arr, m_arr, marker='o', color=color, label=line_label, linewidth=2, markersize=4)
-                    
-                    # Fan Shading / Error Bars
-                    if self.error_bars == "fan" or self.error_bars == "percentiles":
-                        if "p10" in group_data[m_name] and "p90" in group_data[m_name]:
-                            plt.fill_between(layer_arr, group_data[m_name]["p10"], group_data[m_name]["p90"], color=color, alpha=0.1)
-                        if "p25" in group_data[m_name] and "p75" in group_data[m_name]:
-                            plt.fill_between(layer_arr, group_data[m_name]["p25"], group_data[m_name]["p75"], color=color, alpha=0.2)
-                    elif self.error_bars in group_data[m_name]:
-                        e_arr = group_data[m_name][self.error_bars]
-                        lower = np.maximum(0, m_arr - e_arr) if self.error_bars in ["std", "var"] else m_arr - e_arr
-                        plt.fill_between(layer_arr, lower, m_arr + e_arr, color=color, alpha=0.2)
+        x_scales = self.plotting_cfg.get("x_scales", self.plotting_cfg.get("x_scale", ["linear"]))
+        y_scales = self.plotting_cfg.get("y_scales", self.plotting_cfg.get("y_scale", ["linear"]))
+        if isinstance(x_scales, str):
+            x_scales = [x_scales]
+        if isinstance(y_scales, str):
+            y_scales = [y_scales]
             
-            if hlines:
-                for h in hlines:
-                    plt.axhline(y=h['y'], color=h.get('color', 'black'), linestyle=h.get('linestyle', '--'), label=h.get('label', ''))
+        for x_scale in x_scales:
+            for y_scale in y_scales:
+                for current_metric_list in metrics_to_process:
+                    plt.figure(figsize=(10, 6))
+                    if colors is None:
+                        cmap = plt.cm.tab10(np.linspace(0, 1, max(len(metric_names) * len(current_metric_list), 10)))
+                    else:
+                        cmap = colors
+                        
+                    color_idx = 0
+                    for m_idx, m_name in enumerate(metric_names):
+                        if m_name not in group_data: continue
+                        layer_arr = group_data[m_name]["layers"]
+                        
+                        for stat_metric in current_metric_list:
+                            m_arr = group_data[m_name][stat_metric]
+                            color = cmap[color_idx % len(cmap)] if colors is None else cmap[m_idx % len(cmap)]
+                            color_idx += 1
+                            
+                            base_label = labels[m_idx] if labels else m_name
+                            line_label = f"{base_label} ({stat_metric.capitalize()})" if len(current_metric_list) > 1 else base_label
+                            plt.plot(layer_arr, m_arr, marker='o', color=color, label=line_label, linewidth=2, markersize=4)
+                            
+                            # Fan Shading / Error Bars
+                            if self.error_bars == "fan" or self.error_bars == "percentiles":
+                                if "p10" in group_data[m_name] and "p90" in group_data[m_name]:
+                                    plt.fill_between(layer_arr, group_data[m_name]["p10"], group_data[m_name]["p90"], color=color, alpha=0.1)
+                                if "p25" in group_data[m_name] and "p75" in group_data[m_name]:
+                                    plt.fill_between(layer_arr, group_data[m_name]["p25"], group_data[m_name]["p75"], color=color, alpha=0.2)
+                            else:
+                                err_key = f"{stat_metric}_{self.error_bars}"
+                                if err_key in group_data[m_name]:
+                                    e_arr = group_data[m_name][err_key]
+                                elif self.error_bars in group_data[m_name]:
+                                    e_arr = group_data[m_name][self.error_bars]
+                                else:
+                                    e_arr = None
+                                    
+                                if e_arr is not None:
+                                    lower = np.maximum(0, m_arr - e_arr) if self.error_bars in ["std", "var"] else m_arr - e_arr
+                                    if y_scale == "log":
+                                        lower = np.maximum(1e-12, lower)
+                                    plt.fill_between(layer_arr, lower, m_arr + e_arr, color=color, alpha=0.2)
                     
-            title = f"{title_prefix} | {self.group_titles[group_key]}"
-            plt.title(title, fontsize=14); plt.xlabel("Layer Index", fontsize=12); plt.ylabel(ylabel, fontsize=12)
-            plt.grid(True, alpha=0.3); plt.legend(title="Metric", loc='upper left', bbox_to_anchor=(1, 1))
-            plt.tight_layout()
-            
-            safe_key = group_key.replace(" ", "_").replace("/", "-")
-            metric_str = "-".join(current_metric_list)
-            plt.savefig(os.path.join(self.plots_dir, f"{filename_prefix}_{safe_key}_{metric_str}.png"), dpi=300)
-            plt.close()
+                    if hlines:
+                        for h in hlines:
+                            plt.axhline(y=h['y'], color=h.get('color', 'black'), linestyle=h.get('linestyle', '--'), label=h.get('label', ''))
+                            
+                    title = f"{title_prefix} | {self.group_titles[group_key]}"
+                    plt.title(title, fontsize=14); plt.xlabel("Layer Index", fontsize=12); plt.ylabel(ylabel, fontsize=12)
+                    plt.xscale(x_scale)
+                    plt.yscale(y_scale)
+                    plt.grid(True, alpha=0.3); plt.legend(title="Metric", loc='upper left', bbox_to_anchor=(1, 1))
+                    plt.tight_layout()
+                    
+                    safe_key = group_key.replace(" ", "_").replace("/", "-")
+                    metric_str = "-".join(current_metric_list)
+                    plt.savefig(os.path.join(self.plots_dir, f"{filename_prefix}_{safe_key}_{metric_str}_xscale-{x_scale}_yscale-{y_scale}.png"), dpi=300)
+                    plt.close()
 
     def plot_distribution_heatmaps(self):
         print("Generating Jacobian Distribution Heatmaps...")

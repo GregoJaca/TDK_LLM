@@ -30,116 +30,143 @@ def plot_perturbations(base_results_dir, plotting_cfg):
     separate_figure_metrics = plotting_cfg.get("separate_figure_metrics", False)
     plot_magnitude_together = plotting_cfg.get("plot_magnitude_together", True)
     plot_magnitude_separated = plotting_cfg.get("plot_magnitude_separated", True)
-    y_scale = plotting_cfg.get("y_scale", "linear")
+    x_scales = plotting_cfg.get("x_scales", plotting_cfg.get("x_scale", ["linear"]))
+    y_scales = plotting_cfg.get("y_scales", plotting_cfg.get("y_scale", ["linear"]))
+    if isinstance(x_scales, str):
+        x_scales = [x_scales]
+    if isinstance(y_scales, str):
+        y_scales = [y_scales]
     
     # 1. Standard Divergence Plots with Fan Shading
     metrics_to_process = [[m] for m in metric_list] if separate_figure_metrics else [metric_list]
     
-    for current_metric_list in metrics_to_process:
-        for group_key, radii_data in data.items():
-            if group_key.endswith("_aggregated") and not plot_prompt_together:
-                continue
-            if not group_key.endswith("_aggregated") and not plot_prompt_separated:
-                continue
-                
-            sorted_radii = sorted(radii_data.keys())
-            
-            # --- Option A: Plot all magnitudes together ---
-            if plot_magnitude_together:
-                plt.figure(figsize=(10, 6))
-                combinations = []
-                for r in sorted_radii:
-                    for m in current_metric_list:
-                        combinations.append((r, m))
+    for x_scale in x_scales:
+        for y_scale in y_scales:
+            for current_metric_list in metrics_to_process:
+                for group_key, radii_data in data.items():
+                    if group_key.endswith("_aggregated") and not plot_prompt_together:
+                        continue
+                    if not group_key.endswith("_aggregated") and not plot_prompt_separated:
+                        continue
                         
-                colors = plt.cm.tab10(np.linspace(0, 1, max(len(combinations), 10)))
-                
-                for i, (radius, current_metric) in enumerate(combinations):
-                    color = colors[i % len(colors)]
-                    metrics_dict = radii_data[radius]
+                    sorted_radii = sorted(radii_data.keys())
                     
-                    layer_arr = metrics_dict["layers"]
-                    m_arr = metrics_dict[current_metric]
-                    
-                    line_label = f"R={radius} | {current_metric.capitalize()}" if len(current_metric_list) > 1 else f"{radius}"
-                    plt.plot(layer_arr, m_arr, marker='o', color=color, label=line_label, linewidth=2, markersize=4)
-                    
-                    # Fan Shading based on percentiles if available
-                    if error_bars == "fan" or error_bars == "percentiles":
-                        if "p10" in metrics_dict and "p90" in metrics_dict:
-                            plt.fill_between(layer_arr, metrics_dict["p10"], metrics_dict["p90"], color=color, alpha=0.1, label='_nolegend_')
-                        if "p25" in metrics_dict and "p75" in metrics_dict:
-                            plt.fill_between(layer_arr, metrics_dict["p25"], metrics_dict["p75"], color=color, alpha=0.2, label='_nolegend_')
-                    elif error_bars in metrics_dict:
-                        e_arr = metrics_dict[error_bars]
-                        # Handle std/var clipping for positive metrics
-                        lower = np.maximum(0, m_arr - e_arr) if error_bars in ["std", "var"] else m_arr - e_arr
-                        plt.fill_between(layer_arr, lower, m_arr + e_arr, color=color, alpha=0.2, label='_nolegend_')
+                    # --- Option A: Plot all magnitudes together ---
+                    if plot_magnitude_together:
+                        plt.figure(figsize=(10, 6))
+                        combinations = []
+                        for r in sorted_radii:
+                            for m in current_metric_list:
+                                combinations.append((r, m))
+                                
+                        colors = plt.cm.tab10(np.linspace(0, 1, max(len(combinations), 10)))
                         
-                title = group_titles[group_key]
-                if separate_figure_metrics and len(current_metric_list) == 1:
-                    title += f" ({current_metric_list[0].capitalize()})"
-                    
-                plt.title(f"Divergence over Layers | {title}", fontsize=14)
-                plt.xlabel("Layer Index", fontsize=12)
-                plt.ylabel("Distance", fontsize=12)
-                plt.yscale(y_scale)
-                plt.grid(True, alpha=0.3)
-                plt.legend(title="Magnitude", loc='upper left', bbox_to_anchor=(1, 1))
-                plt.tight_layout()
-                
-                safe_key = group_key.replace(" ", "_").replace("/", "-")
-                metric_str = "-".join(current_metric_list)
-                plot_filename = f"{safe_key}_metric-{metric_str}_err-{error_bars}.png"
-                plt.savefig(os.path.join(plots_dir, plot_filename), dpi=300)
-                plt.close()
-
-            # --- Option B: Plot each magnitude separately ---
-            if plot_magnitude_separated:
-                for radius in sorted_radii:
-                    plt.figure(figsize=(10, 6))
-                    colors = plt.cm.tab10(np.linspace(0, 1, max(len(current_metric_list), 10)))
-                    
-                    for i, current_metric in enumerate(current_metric_list):
-                        color = colors[i % len(colors)]
-                        metrics_dict = radii_data[radius]
-                        
-                        layer_arr = metrics_dict["layers"]
-                        m_arr = metrics_dict[current_metric]
-                        
-                        line_label = f"{current_metric.capitalize()}"
-                        plt.plot(layer_arr, m_arr, marker='o', color=color, label=line_label, linewidth=2, markersize=4)
-                        
-                        # Fan Shading based on percentiles if available
-                        if error_bars == "fan" or error_bars == "percentiles":
-                            if "p10" in metrics_dict and "p90" in metrics_dict:
-                                plt.fill_between(layer_arr, metrics_dict["p10"], metrics_dict["p90"], color=color, alpha=0.1, label='_nolegend_')
-                            if "p25" in metrics_dict and "p75" in metrics_dict:
-                                plt.fill_between(layer_arr, metrics_dict["p25"], metrics_dict["p75"], color=color, alpha=0.2, label='_nolegend_')
-                        elif error_bars in metrics_dict:
-                            e_arr = metrics_dict[error_bars]
-                            # Handle std/var clipping for positive metrics
-                            lower = np.maximum(0, m_arr - e_arr) if error_bars in ["std", "var"] else m_arr - e_arr
-                            plt.fill_between(layer_arr, lower, m_arr + e_arr, color=color, alpha=0.2, label='_nolegend_')
+                        for i, (radius, current_metric) in enumerate(combinations):
+                            color = colors[i % len(colors)]
+                            metrics_dict = radii_data[radius]
                             
-                    title = f"{group_titles[group_key]} | R={radius}"
-                    if separate_figure_metrics and len(current_metric_list) == 1:
-                        title += f" ({current_metric_list[0].capitalize()})"
+                            layer_arr = metrics_dict["layers"]
+                            m_arr = metrics_dict[current_metric]
+                            
+                            line_label = f"R={radius} | {current_metric.capitalize()}" if len(current_metric_list) > 1 else f"{radius}"
+                            plt.plot(layer_arr, m_arr, marker='o', color=color, label=line_label, linewidth=2, markersize=4)
+                            
+                            # Fan Shading based on percentiles if available
+                            if error_bars == "fan" or error_bars == "percentiles":
+                                if "p10" in metrics_dict and "p90" in metrics_dict:
+                                    plt.fill_between(layer_arr, metrics_dict["p10"], metrics_dict["p90"], color=color, alpha=0.1, label='_nolegend_')
+                                if "p25" in metrics_dict and "p75" in metrics_dict:
+                                    plt.fill_between(layer_arr, metrics_dict["p25"], metrics_dict["p75"], color=color, alpha=0.2, label='_nolegend_')
+                            else:
+                                err_key = f"{current_metric}_{error_bars}"
+                                if err_key in metrics_dict:
+                                    e_arr = metrics_dict[err_key]
+                                elif error_bars in metrics_dict:
+                                    e_arr = metrics_dict[error_bars]
+                                else:
+                                    e_arr = None
+                                    
+                                if e_arr is not None:
+                                    lower = np.maximum(0, m_arr - e_arr) if error_bars in ["std", "var"] else m_arr - e_arr
+                                    if y_scale == "log":
+                                        lower = np.maximum(1e-12, lower)
+                                    plt.fill_between(layer_arr, lower, m_arr + e_arr, color=color, alpha=0.2, label='_nolegend_')
+                                
+                        title = group_titles[group_key]
+                        if separate_figure_metrics and len(current_metric_list) == 1:
+                            title += f" ({current_metric_list[0].capitalize()})"
+                            
+                        plt.title(f"Divergence over Layers | {title}", fontsize=14)
+                        plt.xlabel("Layer Index", fontsize=12)
+                        plt.ylabel("Distance", fontsize=12)
+                        plt.xscale(x_scale)
+                        plt.yscale(y_scale)
+                        plt.grid(True, alpha=0.3)
+                        plt.legend(title="Magnitude", loc='upper left', bbox_to_anchor=(1, 1))
+                        plt.tight_layout()
                         
-                    plt.title(f"Divergence over Layers | {title}", fontsize=14)
-                    plt.xlabel("Layer Index", fontsize=12)
-                    plt.ylabel("Distance", fontsize=12)
-                    plt.yscale(y_scale)
-                    plt.grid(True, alpha=0.3)
-                    if len(current_metric_list) > 1:
-                        plt.legend(title="Metric", loc='upper left', bbox_to_anchor=(1, 1))
-                    plt.tight_layout()
-                    
-                    safe_key = group_key.replace(" ", "_").replace("/", "-")
-                    metric_str = "-".join(current_metric_list)
-                    plot_filename = f"{safe_key}_R{radius}_metric-{metric_str}_err-{error_bars}.png"
-                    plt.savefig(os.path.join(plots_dir, plot_filename), dpi=300)
-                    plt.close()
+                        safe_key = group_key.replace(" ", "_").replace("/", "-")
+                        metric_str = "-".join(current_metric_list)
+                        plot_filename = f"{safe_key}_metric-{metric_str}_err-{error_bars}_xscale-{x_scale}_yscale-{y_scale}.png"
+                        plt.savefig(os.path.join(plots_dir, plot_filename), dpi=300)
+                        plt.close()
+        
+                    # --- Option B: Plot each magnitude separately ---
+                    if plot_magnitude_separated:
+                        for radius in sorted_radii:
+                            plt.figure(figsize=(10, 6))
+                            colors = plt.cm.tab10(np.linspace(0, 1, max(len(current_metric_list), 10)))
+                            
+                            for i, current_metric in enumerate(current_metric_list):
+                                color = colors[i % len(colors)]
+                                metrics_dict = radii_data[radius]
+                                
+                                layer_arr = metrics_dict["layers"]
+                                m_arr = metrics_dict[current_metric]
+                                
+                                line_label = f"{current_metric.capitalize()}"
+                                plt.plot(layer_arr, m_arr, marker='o', color=color, label=line_label, linewidth=2, markersize=4)
+                                
+                                # Fan Shading based on percentiles if available
+                                if error_bars == "fan" or error_bars == "percentiles":
+                                    if "p10" in metrics_dict and "p90" in metrics_dict:
+                                        plt.fill_between(layer_arr, metrics_dict["p10"], metrics_dict["p90"], color=color, alpha=0.1, label='_nolegend_')
+                                    if "p25" in metrics_dict and "p75" in metrics_dict:
+                                        plt.fill_between(layer_arr, metrics_dict["p25"], metrics_dict["p75"], color=color, alpha=0.2, label='_nolegend_')
+                                else:
+                                    err_key = f"{current_metric}_{error_bars}"
+                                    if err_key in metrics_dict:
+                                        e_arr = metrics_dict[err_key]
+                                    elif error_bars in metrics_dict:
+                                        e_arr = metrics_dict[error_bars]
+                                    else:
+                                        e_arr = None
+                                        
+                                    if e_arr is not None:
+                                        lower = np.maximum(0, m_arr - e_arr) if error_bars in ["std", "var"] else m_arr - e_arr
+                                        if y_scale == "log":
+                                            lower = np.maximum(1e-12, lower)
+                                        plt.fill_between(layer_arr, lower, m_arr + e_arr, color=color, alpha=0.2, label='_nolegend_')
+                                    
+                            title = f"{group_titles[group_key]} | R={radius}"
+                            if separate_figure_metrics and len(current_metric_list) == 1:
+                                title += f" ({current_metric_list[0].capitalize()})"
+                                
+                            plt.title(f"Divergence over Layers | {title}", fontsize=14)
+                            plt.xlabel("Layer Index", fontsize=12)
+                            plt.ylabel("Distance", fontsize=12)
+                            plt.xscale(x_scale)
+                            plt.yscale(y_scale)
+                            plt.grid(True, alpha=0.3)
+                            if len(current_metric_list) > 1:
+                                plt.legend(title="Metric", loc='upper left', bbox_to_anchor=(1, 1))
+                            plt.tight_layout()
+                            
+                            safe_key = group_key.replace(" ", "_").replace("/", "-")
+                            metric_str = "-".join(current_metric_list)
+                            plot_filename = f"{safe_key}_R{radius}_metric-{metric_str}_err-{error_bars}_xscale-{x_scale}_yscale-{y_scale}.png"
+                            plt.savefig(os.path.join(plots_dir, plot_filename), dpi=300)
+                            plt.close()
 
     # 2. Distribution Heatmaps (One per Radius per Group)
     for group_key, radii_data in data.items():
@@ -189,64 +216,69 @@ def plot_perturbations(base_results_dir, plotting_cfg):
             plt.savefig(os.path.join(plots_dir, plot_filename), dpi=300)
             plt.close()
 
-    # 3. Average over Layers 2-25 vs Perturbation Magnitude Plot (unchanged but using robust error)
-    for current_metric in metric_list:
-        for group_key, radii_data in data.items():
-            if group_key.endswith("_aggregated") and not plot_prompt_together:
-                continue
-            if not group_key.endswith("_aggregated") and not plot_prompt_separated:
-                continue
-
-            sorted_radii = sorted(radii_data.keys())
-            x_radii = []
-            y_avg = []
-            y_err_up = []
-            y_err_low = []
-
-            for radius in sorted_radii:
-                metrics_dict = radii_data[radius]
-                layer_arr = metrics_dict["layers"]
-                m_arr = metrics_dict[current_metric]
-                mask = (layer_arr >= 2) & (layer_arr <= 25)
-                if not np.any(mask): continue
-                    
-                selected_vals = m_arr[mask]
-                x_radii.append(radius)
-                y_avg.append(np.mean(selected_vals))
-                
-                if error_bars in ["std", "var"]:
-                    var_arr = metrics_dict["var"]
-                    overall_var = np.mean(var_arr[mask]) + np.var(selected_vals)
-                    err = np.sqrt(overall_var) if error_bars == "std" else overall_var
-                    y_err_low.append(err)
-                    y_err_up.append(err)
-                elif error_bars == "fan" or error_bars == "percentiles":
-                    # Use p10-p90 spread as error bounds
-                    low_spread = np.mean(metrics_dict["p10"][mask])
-                    high_spread = np.mean(metrics_dict["p90"][mask])
-                    y_err_low.append(np.mean(selected_vals) - low_spread)
-                    y_err_up.append(high_spread - np.mean(selected_vals))
-                else:
-                    y_err_low.append(0); y_err_up.append(0)
-
-            if not x_radii: continue
-
-            plt.figure(figsize=(8, 6))
-            if any(y_err_up):
-                # Prevent log(negative)
-                low_err = np.clip(y_err_low, 0, np.array(y_avg) * 0.99)
-                plt.errorbar(x_radii, y_avg, yerr=[low_err, y_err_up], marker='o', capsize=5, color='b')
-            else:
-                plt.plot(x_radii, y_avg, marker='o', color='b')
-
-            plt.xscale('log'); plt.yscale('log')
-            plt.title(f"Scaling Law (L2-25) | {group_titles[group_key]}", fontsize=12)
-            plt.xlabel("Radius", fontsize=12); plt.ylabel(f"Avg {current_metric.capitalize()}", fontsize=12)
-            plt.grid(True, alpha=0.3, which="both")
-            plt.tight_layout()
-            safe_key = group_key.replace(" ", "_").replace("/", "-")
-            plt.savefig(os.path.join(plots_dir, f"{safe_key}_scaling_{current_metric}.png"), dpi=300)
-            plt.close()
+    # 3. Average over Layers 2-25 vs Perturbation Magnitude Plot (using robust error and config scales)
+    for x_scale in x_scales:
+        for y_scale in y_scales:
+            for current_metric in metric_list:
+                for group_key, radii_data in data.items():
+                    if group_key.endswith("_aggregated") and not plot_prompt_together:
+                        continue
+                    if not group_key.endswith("_aggregated") and not plot_prompt_separated:
+                        continue
+        
+                    sorted_radii = sorted(radii_data.keys())
+                    x_radii = []
+                    y_avg = []
+                    y_err_up = []
+                    y_err_low = []
+        
+                    for radius in sorted_radii:
+                        metrics_dict = radii_data[radius]
+                        layer_arr = metrics_dict["layers"]
+                        m_arr = metrics_dict[current_metric]
+                        mask = (layer_arr >= 2) & (layer_arr <= 25)
+                        if not np.any(mask): continue
+                            
+                        selected_vals = m_arr[mask]
+                        x_radii.append(radius)
+                        y_avg.append(np.mean(selected_vals))
+                        
+                        metric_var_key = f"{current_metric}_var" if f"{current_metric}_var" in metrics_dict else "var"
+                        
+                        if error_bars in ["std", "var"]:
+                            var_arr = metrics_dict[metric_var_key]
+                            overall_var = np.mean(var_arr[mask]) + np.var(selected_vals)
+                            err = np.sqrt(overall_var) if error_bars == "std" else overall_var
+                            y_err_low.append(err)
+                            y_err_up.append(err)
+                        elif error_bars == "fan" or error_bars == "percentiles":
+                            # Use p10-p90 spread as error bounds
+                            low_spread = np.mean(metrics_dict["p10"][mask])
+                            high_spread = np.mean(metrics_dict["p90"][mask])
+                            y_err_low.append(np.mean(selected_vals) - low_spread)
+                            y_err_up.append(high_spread - np.mean(selected_vals))
+                        else:
+                            y_err_low.append(0); y_err_up.append(0)
+        
+                    if not x_radii: continue
+        
+                    plt.figure(figsize=(8, 6))
+                    if any(y_err_up):
+                        # Prevent log(negative)
+                        low_err = np.clip(y_err_low, 0, np.array(y_avg) * 0.99)
+                        plt.errorbar(x_radii, y_avg, yerr=[low_err, y_err_up], marker='o', capsize=5, color='b')
+                    else:
+                        plt.plot(x_radii, y_avg, marker='o', color='b')
+        
+                    plt.xscale(x_scale)
+                    plt.yscale(y_scale)
+                    plt.title(f"Scaling Law (L2-25) | {group_titles[group_key]}", fontsize=12)
+                    plt.xlabel("Radius", fontsize=12); plt.ylabel(f"Avg {current_metric.capitalize()}", fontsize=12)
+                    plt.grid(True, alpha=0.3, which="both")
+                    plt.tight_layout()
+                    safe_key = group_key.replace(" ", "_").replace("/", "-")
+                    plt.savefig(os.path.join(plots_dir, f"{safe_key}_scaling_{current_metric}_xscale-{x_scale}_yscale-{y_scale}.png"), dpi=300)
+                    plt.close()
 
 def main():
     config_path = "config.yaml"

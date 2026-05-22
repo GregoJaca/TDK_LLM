@@ -71,12 +71,14 @@ experiment:
       prompt_id: "long_prompts"
 
 analysis:
-  metric: ["mean", "median", "p10", "p25", "p75", "p90", "min", "max"]
+  metric: ["mean", "median", "harmonic", "p10", "p25", "p75", "p90", "min", "max"]
   error_bars: "fan"    # Options: none, std, var, fan
 
 plotting:
-  metric: ["mean", "median"]  # Options: mean, median, mode
+  metric: ["mean", "median", "harmonic"]  # Options: mean, median, mode, harmonic
   error_bars: "fan"    # "none" "var" "std" "fan"
   plot_prompt_together: true
   plot_prompt_separated: false
   separate_figure_metrics: true
+  x_scales: ["linear"]
+  y_scales: ["linear", "log"]
