@@ -149,3 +149,278 @@ def compute_mlp_jacobian_metrics(model, x_norm, layer_idx):
             "W_down_max_SVD": svd_down
         }
     }
+
+
+def extract_attn_weights(self_attn, config):
+    # Try to find q_proj, k_proj, v_proj
+    q_proj = getattr(self_attn, "q_proj", None)
+    k_proj = getattr(self_attn, "k_proj", None)
+    v_proj = getattr(self_attn, "v_proj", None)
+    o_proj = getattr(self_attn, "o_proj", None)
+    
+    num_heads = getattr(config, "num_attention_heads", None)
+    num_kv_heads = getattr(config, "num_key_value_heads", num_heads)
+    d_model = getattr(config, "hidden_size", None)
+    d_head = getattr(self_attn, "head_dim", None)
+    if d_head is None and num_heads is not None and d_model is not None:
+        d_head = d_model // num_heads
+        
+    if q_proj is not None and k_proj is not None and v_proj is not None:
+        W_Q = q_proj.weight.data
+        W_K = k_proj.weight.data
+        W_V = v_proj.weight.data
+    else:
+        # Check for fused QKV projection
+        qkv_proj = getattr(self_attn, "qkv_proj", None)
+        if qkv_proj is None:
+            # Fallback: look for any linear layers with 'qkv' in the name
+            for name, module in self_attn.named_children():
+                if "qkv" in name.lower() and isinstance(module, torch.nn.Linear):
+                    qkv_proj = module
+                    break
+        if qkv_proj is not None:
+            W_QKV = qkv_proj.weight.data
+            q_dim = num_heads * d_head
+            kv_dim = num_kv_heads * d_head
+            W_Q = W_QKV[:q_dim, :]
+            W_K = W_QKV[q_dim : q_dim + kv_dim, :]
+            W_V = W_QKV[q_dim + kv_dim :, :]
+        else:
+            raise AttributeError("Could not find QKV projection layers in attention module")
+            
+    if o_proj is None:
+        # Look for any linear layers with 'o' or 'out' in the name
+        for name, module in self_attn.named_children():
+            if ("o_proj" in name or "out_proj" in name or name.lower() == "o" or name.lower() == "out") and isinstance(module, torch.nn.Linear):
+                o_proj = module
+                break
+    if o_proj is not None:
+        W_O = o_proj.weight.data
+    else:
+        raise AttributeError("Could not find output projection layer in attention module")
+        
+    return W_Q, W_K, W_V, W_O, num_heads, num_kv_heads, d_head
+
+
+def slice_tensor(v, n, M):
+    if not isinstance(v, torch.Tensor):
+        return v
+    shape = v.shape
+    if len(shape) == 2:
+        return v[:, :n]
+    elif len(shape) == 3:
+        return v[:, :n]
+    elif len(shape) == 4:
+        if shape[3] == M:
+            return v[:, :, :n, :n]
+        else:
+            return v[:, :, :n, :]
+    return v
+
+
+def slice_arg(v, n, M):
+    if isinstance(v, torch.Tensor):
+        return slice_tensor(v, n, M)
+    elif isinstance(v, tuple):
+        return tuple(slice_arg(x, n, M) for x in v)
+    elif isinstance(v, list):
+        return [slice_arg(x, n, M) for x in v]
+    elif isinstance(v, dict):
+        return {k: slice_arg(val, n, M) for k, val in v.items()}
+    return v
+
+
+def to_float32(v):
+    if isinstance(v, torch.Tensor):
+        if torch.is_floating_point(v):
+            return v.to(torch.float32)
+        return v
+    elif isinstance(v, tuple):
+        return tuple(to_float32(x) for x in v)
+    elif isinstance(v, list):
+        return [to_float32(x) for x in v]
+    elif isinstance(v, dict):
+        return {k: to_float32(val) for k, val in v.items()}
+    return v
+
+
+def to_device(v, device):
+    if isinstance(v, torch.Tensor):
+        return v.to(device)
+    elif isinstance(v, tuple):
+        return tuple(to_device(x, device) for x in v)
+    elif isinstance(v, list):
+        return [to_device(x, device) for x in v]
+    elif isinstance(v, dict):
+        return {k: to_device(val, device) for k, val in v.items()}
+    return v
+
+
+def compute_attn_jacobian_metrics(model, layer_idx, captured_args, captured_kwargs, N_list, K, device):
+    """
+    Computes exact global spectral norm of attention block's Jacobian (Algorithm A),
+    static weight amplifiers (Algorithm B), dynamic attention entropy (Algorithm C),
+    spectral gap of attention matrix (Algorithm D), and token-wise sensitivity (Algorithm E).
+    """
+    import numpy as np
+    from torch.func import jvp, vjp
+    
+    attn = model.model.layers[layer_idx].self_attn
+    config = model.config
+    
+    # Extract weights
+    W_Q, W_K, W_V, W_O, num_heads, num_kv_heads, d_head = extract_attn_weights(attn, config)
+    d_model = config.hidden_size
+    
+    # Cast weights to float32 for computation
+    W_Q_32 = W_Q.to(torch.float32)
+    W_K_32 = W_K.to(torch.float32)
+    W_V_32 = W_V.to(torch.float32)
+    W_O_32 = W_O.to(torch.float32)
+    
+    # Reshape Q, K, V, O to heads
+    W_Q_heads = W_Q_32.view(num_heads, d_head, d_model)
+    W_K_heads = W_K_32.view(num_kv_heads, d_head, d_model)
+    W_V_heads = W_V_32.view(num_kv_heads, d_head, d_model)
+    W_O_heads = W_O_32.T.reshape(num_heads, d_head, d_model)
+    
+    group_size = num_heads // num_kv_heads
+    
+    # Algorithm B1: Routing Amplifier
+    routing_norms = []
+    for h in range(num_heads):
+        h_kv = h // group_size
+        prod = torch.matmul(W_Q_heads[h], W_K_heads[h_kv].T) # [d_head, d_head]
+        norm = torch.linalg.matrix_norm(prod, ord=2).item()
+        routing_norms.append(norm)
+    mean_routing_norm = float(np.mean(routing_norms))
+    
+    # Algorithm B2: Mixing Amplifier
+    mixing_norms = []
+    for h in range(num_heads):
+        h_kv = h // group_size
+        prod = torch.matmul(W_V_heads[h_kv], W_O_heads[h].T) # [d_head, d_head]
+        norm = torch.linalg.matrix_norm(prod, ord=2).item()
+        mixing_norms.append(norm)
+    mean_mixing_norm = float(np.mean(mixing_norms))
+    
+    # Setup for functional evaluation
+    # Switch layer to float32
+    original_dtype = next(attn.parameters()).dtype
+    attn.to(torch.float32)
+    
+    # Extract sequence length from captured_args[0]
+    # captured_args[0] has shape [1, M, d_model]
+    M = captured_args[0].shape[1]
+    x_norm_full = captured_args[0].squeeze(0).to(torch.float32) # [M, d_model]
+    
+    results_per_N = {}
+    
+    for n in N_list:
+        if n > M:
+            continue
+            
+        x_norm_n = x_norm_full[:n, :].to(device)
+        
+        # Define functional wrapper attn_func(x) for Jacobian VJP/JVP
+        def attn_func(x):
+            # x: [n, d_model]
+            sliced_args = [x.unsqueeze(0)]
+            for arg in captured_args[1:]:
+                sliced_args.append(to_device(to_float32(slice_arg(arg, n, M)), device))
+                
+            sliced_kwargs = {}
+            for k, v in captured_kwargs.items():
+                sliced_kwargs[k] = to_device(to_float32(slice_arg(v, n, M)), device)
+                
+            # Call self_attn
+            out_tuple = attn(*sliced_args, **sliced_kwargs)
+            return out_tuple[0].squeeze(0)
+            
+        # Algorithm A: Exact Global Spectral Norm via Power Iteration
+        v = torch.randn(n, d_model, device=device, dtype=torch.float32)
+        v = v / torch.norm(v)
+        
+        for _ in range(K):
+            # Compute pushforward
+            _, u = jvp(attn_func, (x_norm_n,), (v,))
+            # Compute pullback setup
+            _, vjp_func = vjp(attn_func, x_norm_n)
+            # Compute pullback vector
+            w = vjp_func(u)[0]
+            # Rayleigh quotient
+            sigma_sq = torch.sum(w * v) / torch.sum(v * v)
+            # Normalize
+            v = w / torch.norm(w)
+            
+        attn_spectral_norm = float(torch.sqrt(torch.clamp(sigma_sq, min=0.0)).item())
+        
+        # Algorithm E: Token-Wise Sensitivity
+        token_sensitivity = torch.norm(v, dim=-1) # [n]
+        token_sensitivity_sum = token_sensitivity.sum()
+        if token_sensitivity_sum > 0:
+            token_sensitivity = token_sensitivity / token_sensitivity_sum
+        token_sensitivity_profile = token_sensitivity.cpu().numpy().tolist()
+        
+        # Algorithm C & D: Extract Attention weights and compute Entropy / Spectral Gap
+        with torch.no_grad():
+            sliced_args = [x_norm_n.unsqueeze(0)]
+            for arg in captured_args[1:]:
+                sliced_args.append(to_device(to_float32(slice_arg(arg, n, M)), device))
+                
+            sliced_kwargs = {}
+            for k, v in captured_kwargs.items():
+                sliced_kwargs[k] = to_device(to_float32(slice_arg(v, n, M)), device)
+            sliced_kwargs["output_attentions"] = True
+            
+            out_tuple = attn(*sliced_args, **sliced_kwargs)
+            attn_weights = out_tuple[1]
+            
+        if attn_weights is not None:
+            # Squeeze batch dimension -> [num_heads, n, n]
+            A = attn_weights.squeeze(0).to(torch.float32)
+            
+            # Algorithm C: Shannon Entropy
+            epsilon = 1e-12
+            A_clamped = torch.clamp(A, min=0.0)
+            entropy_matrix = - A_clamped * torch.log2(A_clamped + epsilon)
+            # Mask lower triangular part (causal mask)
+            mask = torch.tril(torch.ones(n, n, device=device))
+            entropy_matrix = entropy_matrix * mask
+            row_entropy = entropy_matrix.sum(dim=-1) # [num_heads, n]
+            mean_attention_entropy = float(row_entropy.mean().item())
+            
+            # Algorithm D: Spectral Gap
+            svd_vals = torch.linalg.svdvals(A) # [num_heads, n]
+            if n >= 2:
+                sigma_2 = svd_vals[:, 1] # [num_heads]
+                spectral_gap = 1.0 - sigma_2
+                mean_spectral_gap = float(spectral_gap.mean().item())
+            else:
+                mean_spectral_gap = 1.0 # default for n < 2
+        else:
+            mean_attention_entropy = 0.0
+            mean_spectral_gap = 1.0
+            
+        results_per_N[n] = {
+            "attn_spectral_norm": attn_spectral_norm,
+            "mean_attn_entropy": mean_attention_entropy,
+            "mean_spectral_gap": mean_spectral_gap,
+            "token_sensitivity_profile": token_sensitivity_profile
+        }
+        
+        # Free GPU memory
+        del x_norm_n, v, w, u, vjp_func
+        if attn_weights is not None:
+            del attn_weights, A
+        torch.cuda.empty_cache()
+        
+    # Restore original dtype
+    attn.to(original_dtype)
+    
+    return {
+        "routing_weight_norm": mean_routing_norm,
+        "mixing_weight_norm": mean_mixing_norm,
+        "seq_lengths": results_per_N
+    }
+
