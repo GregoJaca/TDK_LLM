@@ -127,12 +127,17 @@ def main():
                 "layers": {}
             }
             
+            dynamics_results = {}
+            for n in N_list:
+                dynamics_results[str(n)] = {}
+            
             # Create a dedicated directory naming indicating the sequence lengths N
             run_name = f"{setup['name']}_N-{'-'.join(map(str, N_list))}_{prompt_hash}"
             setup_dir = os.path.join(base_results_dir, run_name)
             ensure_dir(setup_dir)
             
             output_file = os.path.join(setup_dir, f"attn_jacobian_measurements.json")
+            dynamics_output_file = os.path.join(setup_dir, "attention_dynamics_results.json")
             
             for layer_idx in range(num_layers):
                 captured_args, captured_kwargs = layer_captures[layer_idx]
@@ -152,9 +157,30 @@ def main():
                 
                 results["layers"][layer_idx] = metrics
                 
+                # Store in the dynamics results hierarchical structure
+                for n in N_list:
+                    if n in metrics["seq_lengths"]:
+                        n_met = metrics["seq_lengths"][n]
+                        dynamics_results[str(n)][str(layer_idx)] = {
+                            "attn_spectral_norm": n_met["attn_spectral_norm"],
+                            "mean_attn_entropy": n_met["mean_attn_entropy"],
+                            "min_attn_entropy": n_met["min_attn_entropy"],
+                            "max_attn_entropy": n_met["max_attn_entropy"],
+                            "entropy_ratio": n_met["entropy_ratio"],
+                            "mean_max_weight": n_met["mean_max_weight"],
+                            "x_norm_mean": n_met["x_norm_mean"],
+                            "mean_spectral_gap": n_met["mean_spectral_gap"],
+                            "routing_weight_norm": metrics["routing_weight_norm"],
+                            "mixing_weight_norm": metrics["mixing_weight_norm"],
+                            "token_sensitivity_profile": n_met["token_sensitivity_profile"]
+                        }
+                
                 # Incrementally save results after each layer
                 with open(output_file, "w") as f:
                     json.dump(results, f, indent=4)
+                
+                with open(dynamics_output_file, "w") as f:
+                    json.dump(dynamics_results, f, indent=4)
                 
                 # Clear memory
                 del captured_args, captured_kwargs
@@ -175,6 +201,7 @@ def main():
                 json.dump(metadata, f, indent=4)
                 
             print(f"Measurements saved successfully to {setup_dir}", flush=True)
+            print(f"Dynamics results exported to JSON at: {dynamics_output_file}", flush=True)
 
 if __name__ == "__main__":
     main()

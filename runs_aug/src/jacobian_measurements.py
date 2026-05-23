@@ -362,6 +362,8 @@ def compute_attn_jacobian_metrics(model, layer_idx, captured_args, captured_kwar
             token_sensitivity = token_sensitivity / token_sensitivity_sum
         token_sensitivity_profile = token_sensitivity.cpu().numpy().tolist()
         
+        x_norm_mean = torch.norm(x_norm_n.float(), dim=-1).mean().item()
+        
         # Algorithm C & D: Extract Attention weights and compute Entropy / Spectral Gap
         with torch.no_grad():
             sliced_args = [x_norm_n.unsqueeze(0)]
@@ -389,6 +391,9 @@ def compute_attn_jacobian_metrics(model, layer_idx, captured_args, captured_kwar
             entropy_matrix = entropy_matrix * mask
             row_entropy = entropy_matrix.sum(dim=-1) # [num_heads, n]
             mean_attention_entropy = float(row_entropy.mean().item())
+            min_attn_entropy = float(row_entropy.min().item())
+            max_attn_entropy = float(row_entropy.max().item())
+            mean_max_weight = float(A.max(dim=-1)[0].mean().item())
             
             # Algorithm D: Spectral Gap
             svd_vals = torch.linalg.svdvals(A) # [num_heads, n]
@@ -400,11 +405,23 @@ def compute_attn_jacobian_metrics(model, layer_idx, captured_args, captured_kwar
                 mean_spectral_gap = 1.0 # default for n < 2
         else:
             mean_attention_entropy = 0.0
+            min_attn_entropy = 0.0
+            max_attn_entropy = 0.0
+            mean_max_weight = 0.0
             mean_spectral_gap = 1.0
+            
+        h_max = torch.log2(torch.tensor(n, dtype=torch.float32))
+        entropy_ratio = mean_attention_entropy / h_max.item() if h_max.item() > 0.0 else 0.0
+        print(f"[Layer {layer_idx} | N={n}] Diffuse Assumption Test: {'PASSED (Uniform)' if entropy_ratio > 0.7 else 'FAILED (Peaked)'} | Ratio: {entropy_ratio:.3f}", flush=True)
             
         results_per_N[n] = {
             "attn_spectral_norm": attn_spectral_norm,
             "mean_attn_entropy": mean_attention_entropy,
+            "min_attn_entropy": min_attn_entropy,
+            "max_attn_entropy": max_attn_entropy,
+            "entropy_ratio": entropy_ratio,
+            "mean_max_weight": mean_max_weight,
+            "x_norm_mean": x_norm_mean,
             "mean_spectral_gap": mean_spectral_gap,
             "token_sensitivity_profile": token_sensitivity_profile
         }
