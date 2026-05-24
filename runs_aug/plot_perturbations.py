@@ -115,9 +115,15 @@ def plot_perturbations(base_results_dir, plotting_cfg):
                             # Fan Shading based on percentiles if available
                             if error_bars == "fan" or error_bars == "percentiles":
                                 if "p10" in metrics_dict and "p90" in metrics_dict:
-                                    plt.fill_between(layer_arr, metrics_dict["p10"], metrics_dict["p90"], color=color, alpha=0.1, label='_nolegend_')
+                                    lower_p10 = metrics_dict["p10"]
+                                    if y_scale == "log":
+                                        lower_p10 = np.maximum(1e-12, lower_p10)
+                                    plt.fill_between(layer_arr, lower_p10, metrics_dict["p90"], color=color, alpha=0.1, label='_nolegend_')
                                 if "p25" in metrics_dict and "p75" in metrics_dict:
-                                    plt.fill_between(layer_arr, metrics_dict["p25"], metrics_dict["p75"], color=color, alpha=0.2, label='_nolegend_')
+                                    lower_p25 = metrics_dict["p25"]
+                                    if y_scale == "log":
+                                        lower_p25 = np.maximum(1e-12, lower_p25)
+                                    plt.fill_between(layer_arr, lower_p25, metrics_dict["p75"], color=color, alpha=0.2, label='_nolegend_')
                             else:
                                 err_key = f"{current_metric}_{error_bars}"
                                 if err_key in metrics_dict:
@@ -145,9 +151,9 @@ def plot_perturbations(base_results_dir, plotting_cfg):
                         plt.yscale(y_scale)
                         plt.grid(True, alpha=0.3)
                         
-                        # Hide legend if only a single curve is plotted
+                        # Replace the label "Magnitude" with "Perturbation"
                         if len(combinations) > 1:
-                            plt.legend(title="Magnitude", loc='upper left', bbox_to_anchor=(1, 1))
+                            plt.legend(title="Perturbation", loc='upper left', bbox_to_anchor=(1, 1))
                         plt.tight_layout()
                         
                         metric_str = "-".join(current_metric_list)
@@ -174,9 +180,15 @@ def plot_perturbations(base_results_dir, plotting_cfg):
                                 # Fan Shading based on percentiles if available
                                 if error_bars == "fan" or error_bars == "percentiles":
                                     if "p10" in metrics_dict and "p90" in metrics_dict:
-                                        plt.fill_between(layer_arr, metrics_dict["p10"], metrics_dict["p90"], color=color, alpha=0.1, label='_nolegend_')
+                                        lower_p10 = metrics_dict["p10"]
+                                        if y_scale == "log":
+                                            lower_p10 = np.maximum(1e-12, lower_p10)
+                                        plt.fill_between(layer_arr, lower_p10, metrics_dict["p90"], color=color, alpha=0.1, label='_nolegend_')
                                     if "p25" in metrics_dict and "p75" in metrics_dict:
-                                        plt.fill_between(layer_arr, metrics_dict["p25"], metrics_dict["p75"], color=color, alpha=0.2, label='_nolegend_')
+                                        lower_p25 = metrics_dict["p25"]
+                                        if y_scale == "log":
+                                            lower_p25 = np.maximum(1e-12, lower_p25)
+                                        plt.fill_between(layer_arr, lower_p25, metrics_dict["p75"], color=color, alpha=0.2, label='_nolegend_')
                                 else:
                                     err_key = f"{current_metric}_{error_bars}"
                                     if err_key in metrics_dict:
@@ -204,7 +216,6 @@ def plot_perturbations(base_results_dir, plotting_cfg):
                             plt.yscale(y_scale)
                             plt.grid(True, alpha=0.3)
                             
-                            # Hide legend if only a single curve is plotted
                             if len(current_metric_list) > 1:
                                 plt.legend(title="Metric", loc='upper left', bbox_to_anchor=(1, 1))
                             plt.tight_layout()
@@ -231,25 +242,21 @@ def plot_perturbations(base_results_dir, plotting_cfg):
                 hists = metrics_dict["hist"]
                 bins = metrics_dict["hist_bins"]
                 
-                # Combine histograms into a 2D array
-                # Safely handle potential NaNs/infs and verify bounds for LogNorm
                 all_hists = np.stack(hists, axis=1) # [bins, layers]
                 all_hists = np.nan_to_num(all_hists, nan=0.0, posinf=0.0, neginf=0.0)
                 
                 vmax = float(all_hists.max())
                 vmin = 1e-3
                 if not np.isfinite(vmax) or vmax <= vmin:
-                    vmax = vmin * 10.0  # Ensure vmax is strictly greater than vmin
+                    vmax = vmin * 10.0
                 
                 plt.figure(figsize=(12, 8))
-                # Use the first bin edges for Y axis
                 y_bins = bins[0]
                 extent = [layers[0], layers[-1], y_bins[0], y_bins[-1]]
                 
                 plt.imshow(all_hists, aspect='auto', origin='lower', extent=extent, cmap='magma', norm=LogNorm(vmin=vmin, vmax=vmax))
                 plt.colorbar(label='Density')
                 
-                # Overlay median line
                 plt.plot(layers, metrics_dict["median"], color='cyan', linewidth=2, label='Median')
                 plt.plot(layers, metrics_dict["p10"], color='cyan', linestyle='--', alpha=0.5, label='10th/90th P')
                 plt.plot(layers, metrics_dict["p90"], color='cyan', linestyle='--', alpha=0.5)
@@ -301,7 +308,6 @@ def plot_perturbations(base_results_dir, plotting_cfg):
                                 y_err_low.append(err)
                                 y_err_up.append(err)
                             elif error_bars == "fan" or error_bars == "percentiles":
-                                # Use p10-p90 spread as error bounds
                                 low_spread = np.mean(metrics_dict["p10"][mask])
                                 high_spread = np.mean(metrics_dict["p90"][mask])
                                 y_err_low.append(np.mean(selected_vals) - low_spread)
@@ -312,9 +318,9 @@ def plot_perturbations(base_results_dir, plotting_cfg):
                         if not x_radii: continue
                         info_key = get_safe_filename_info(group_key, group_titles)
             
+                        # --- Regular Scaling Law Plot ---
                         plt.figure(figsize=(8, 6))
                         if any(y_err_up):
-                            # Prevent log(negative)
                             low_err = np.clip(y_err_low, 0, np.array(y_avg) * 0.99)
                             plt.errorbar(x_radii, y_avg, yerr=[low_err, y_err_up], marker='o', capsize=5, color='b')
                         else:
@@ -324,12 +330,62 @@ def plot_perturbations(base_results_dir, plotting_cfg):
                         plt.yscale(y_scale)
                         if plotting_cfg.get("show_title", False):
                             plt.title(f"Scaling Law (L2-25) | {group_titles[group_key]}")
-                        plt.xlabel("Radius")
+                        plt.xlabel("Perturbation")
                         plt.ylabel("Average Distance")
                         plt.grid(True, alpha=0.3, which="both")
                         plt.tight_layout()
                         plt.savefig(os.path.join(plots_dir, f"{info_key}_scaling_{current_metric}_xscale-{x_scale}_yscale-{y_scale}.png"), dpi=dpi)
                         plt.close()
+
+                        # --- Rainbow Scaling Law Plot (Individual Prompt Trajectories) ---
+                        if plotting_cfg.get("scaling_prompts_separate", False) and group_key.endswith("_aggregated"):
+                            setup_name = group_key.replace("_aggregated", "")
+                            prompt_keys = [k for k in data.keys() if k.startswith(setup_name) and not k.endswith("_aggregated")]
+                            
+                            if prompt_keys:
+                                plt.figure(figsize=(8, 6))
+                                cmap = plt.cm.rainbow(np.linspace(0, 1, len(prompt_keys)))
+                                
+                                for p_idx, p_key in enumerate(prompt_keys):
+                                    p_radii_data = data[p_key]
+                                    p_sorted_radii = sorted(p_radii_data.keys())
+                                    px_radii = []
+                                    py_avg = []
+                                    
+                                    for radius in p_sorted_radii:
+                                        p_metrics_dict = p_radii_data[radius]
+                                        p_layer_arr = p_metrics_dict["layers"]
+                                        p_m_arr = p_metrics_dict[current_metric]
+                                        p_mask = (p_layer_arr >= 2) & (p_layer_arr <= 25)
+                                        if not np.any(p_mask): continue
+                                        
+                                        px_radii.append(radius)
+                                        py_avg.append(np.mean(p_m_arr[p_mask]))
+                                        
+                                    if px_radii:
+                                        plt.plot(px_radii, py_avg, color=cmap[p_idx], alpha=0.3, linewidth=1.5, linestyle='-')
+                                
+                                # Overlay aggregated mean
+                                plt.plot(x_radii, y_avg, marker='o', color='black', linewidth=3, markersize=6)
+                                
+                                plt.xscale(x_scale)
+                                plt.yscale(y_scale)
+                                if plotting_cfg.get("show_title", False):
+                                    plt.title(f"Scaling Law with Prompt Trajectories | {group_titles[group_key]}")
+                                plt.xlabel("Perturbation")
+                                plt.ylabel("Average Distance")
+                                plt.grid(True, alpha=0.3, which="both")
+                                
+                                from matplotlib.lines import Line2D
+                                legend_elements = [
+                                    Line2D([0], [0], color='black', linewidth=3, marker='o', label='Aggregated Mean'),
+                                    Line2D([0], [0], color='gray', linewidth=1.5, alpha=0.5, label='Individual Prompts')
+                                ]
+                                plt.legend(handles=legend_elements, loc='upper left')
+                                plt.tight_layout()
+                                
+                                plt.savefig(os.path.join(plots_dir, f"{info_key}_scaling_rainbow_{current_metric}_xscale-{x_scale}_yscale-{y_scale}.png"), dpi=dpi)
+                                plt.close()
 
 def main():
     config_path = "config.yaml"

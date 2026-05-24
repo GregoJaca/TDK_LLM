@@ -70,6 +70,7 @@ plotting:
   y_scales: ["linear", "log"]
   plot_heatmap: false
   plot_scaling_law: true
+  scaling_prompts_separate: true
   show_title: false
   font_size: 16
   label_size: 18
