@@ -630,92 +630,91 @@ class AttentionJacobianPlotter:
         """Plot 9: Token Sensitivity Heatmap (Layer vs Token)"""
         group_data = self.data[group_key]
         info_key = get_safe_filename_info(group_key, self.group_titles)
-        stat_metric = self.metric_list[0] if self.metric_list[0] in ["mean", "median"] else "mean"
+        metrics_to_process = [[m] for m in self.metric_list] if self.separate_figure_metrics else [self.metric_list]
         
-        for n in self.found_N_list:
-            m_name = f"token_sensitivity_profile_N-{n}"
-            if m_name not in group_data:
-                continue
+        for stat_metrics in metrics_to_process:
+            stat_metric = stat_metrics[0] # Heatmap only shows 1 metric at a time
+            for n in self.found_N_list:
+                m_name = f"token_sensitivity_profile_N-{n}"
+                if m_name not in group_data:
+                    continue
+                    
+                layers = group_data[m_name]["layers"]
+                # Shape is (num_layers, n)
+                profile_matrix = np.array(group_data[m_name][stat_metric])
                 
-            layers = group_data[m_name]["layers"]
-            # Shape is (num_layers, n)
-            profile_matrix = np.array(group_data[m_name][stat_metric])
-            
-            plt.figure(figsize=(12, 8))
-            extent = [-0.5, n - 0.5, layers[-1] + 0.5, layers[0] - 0.5]
-            
-            im = plt.imshow(profile_matrix, aspect='auto', cmap='magma', extent=extent, interpolation='nearest')
-            plt.colorbar(im, label=f"Sensitivity ({stat_metric.capitalize()})")
-            
-            if self.plotting_cfg.get("show_title", False):
-                plt.title(f"Token Sensitivity Heatmap N={n}\n{self.group_titles[group_key]}")
+                plt.figure(figsize=(12, 8))
+                extent = [-0.5, n - 0.5, layers[-1] + 0.5, layers[0] - 0.5]
                 
-            plt.xlabel("Token Index")
-            plt.ylabel("Layer")
-            plt.gca().invert_yaxis()
-            
-            plt.tight_layout()
-            filename = f"attn_token_sensitivity_heatmap_{info_key}_N-{n}_{stat_metric}.png"
-            plt.savefig(os.path.join(self.plots_dir, filename), dpi=self.dpi)
-            plt.close()
+                im = plt.imshow(profile_matrix, aspect='auto', cmap='magma', extent=extent, interpolation='nearest')
+                plt.colorbar(im, label=f"Sensitivity ({stat_metric.capitalize()})")
+                
+                if self.plotting_cfg.get("show_title", False):
+                    plt.title(f"Token Sensitivity Heatmap N={n}\n{self.group_titles[group_key]}")
+                    
+                plt.xlabel("Token Index")
+                plt.ylabel("Layer")
+                plt.gca().invert_yaxis()
+                
+                plt.tight_layout()
+                metric_str = "-".join(stat_metrics)
+                filename = f"attn_token_sensitivity_heatmap_{info_key}_N-{n}_{metric_str}.png"
+                plt.savefig(os.path.join(self.plots_dir, filename), dpi=self.dpi)
+                plt.close()
 
     def plot_token_sensitivity_swarm(self, group_key):
         """Plot 10: Swarm Plot of Token Sensitivities per Layer"""
-        try:
-            import seaborn as sns
-            import pandas as pd
-        except ImportError:
-            print("Seaborn or pandas not installed. Skipping swarm plot.")
-            return
-
         group_data = self.data[group_key]
-        info_key = get_safe_filename_info(group_key, self.group_titles)
-        stat_metric = self.metric_list[0] if self.metric_list[0] in ["mean", "median"] else "mean"
+        x_scales = self.plotting_cfg.get("x_scales", ["linear"])
+        y_scales = self.plotting_cfg.get("y_scales", ["log"])
         
-        for n in self.found_N_list:
-            m_name = f"token_sensitivity_profile_N-{n}"
-            if m_name not in group_data or "raw" not in group_data[m_name]:
-                continue
-                
-            layers = group_data[m_name]["layers"]
-            raw_data = group_data[m_name]["raw"] # List of shape (P, n) arrays
-            profile_matrix = np.array(group_data[m_name][stat_metric]) # For mean line
-            
-            df_list = []
-            for i, layer in enumerate(layers):
-                layer_data = raw_data[i] # shape (P, n)
-                flat_data = layer_data.flatten()
-                
-                # Subsample if too many points to avoid incredibly slow plots
-                if len(flat_data) > 5000:
-                    flat_data = np.random.choice(flat_data, 5000, replace=False)
-                    
-                for val in flat_data:
-                    df_list.append({
-                        "Layer": layer,
-                        "Sensitivity": max(float(val), 1e-8)
-                    })
-            df = pd.DataFrame(df_list)
-            
-            plt.figure(figsize=(12, 6))
-            sns.stripplot(data=df, x="Layer", y="Sensitivity", jitter=True, size=2.5, alpha=0.5, palette="viridis")
-            
-            # Overlay a median/mean line
-            layer_means = profile_matrix.mean(axis=1) if profile_matrix.ndim == 2 else profile_matrix
-            plt.plot(np.arange(len(layers)), layer_means, color='red', marker='D', markersize=5, linestyle='-', linewidth=2, label=f"{stat_metric.capitalize()} Sensitivity", zorder=10)
-            
-            if self.plotting_cfg.get("show_title", False):
-                plt.title(f"Token Sensitivity Distribution N={n}\n{self.group_titles[group_key]}")
-            plt.xlabel("Layer")
-            plt.ylabel(f"Sensitivity")
-            plt.yscale("log")
-            plt.grid(True, alpha=0.3, axis='y')
-            plt.legend()
-            
-            plt.tight_layout()
-            filename = f"attn_token_sensitivity_swarm_{info_key}_N-{n}_{stat_metric}.png"
-            plt.savefig(os.path.join(self.plots_dir, filename), dpi=self.dpi)
-            plt.close()
+        metrics_to_process = [[m] for m in self.metric_list] if self.separate_figure_metrics else [self.metric_list]
+        info_key = get_safe_filename_info(group_key, self.group_titles)
+        
+        for x_scale in x_scales:
+            for y_scale in y_scales:
+                for stat_metrics in metrics_to_process:
+                    stat_metric = stat_metrics[0]
+                    for n in self.found_N_list:
+                        m_name = f"token_sensitivity_profile_N-{n}"
+                        if m_name not in group_data or "raw" not in group_data[m_name]:
+                            continue
+                            
+                        layers = group_data[m_name]["layers"]
+                        raw_data = group_data[m_name]["raw"] # List of shape (P, n) arrays
+                        profile_matrix = np.array(group_data[m_name][stat_metric])
+                        layer_means = profile_matrix.mean(axis=1) if profile_matrix.ndim == 2 else profile_matrix
+                        
+                        plt.figure(figsize=(12, 6))
+                        
+                        for i, layer in enumerate(layers):
+                            layer_data = raw_data[i].flatten()
+                            
+                            # Subsample if too many points to avoid incredibly slow plots
+                            if len(layer_data) > 5000:
+                                layer_data = np.random.choice(layer_data, 5000, replace=False)
+                                
+                            layer_data = np.maximum(layer_data, 1e-8)
+                            x_jitter = layer + np.random.uniform(-0.25, 0.25, size=len(layer_data))
+                            
+                            plt.scatter(x_jitter, layer_data, s=2.5, alpha=0.5, color='teal')
+                        
+                        plt.plot(layers, layer_means, color='red', marker='D', markersize=5, linestyle='-', linewidth=2, label=f"{stat_metric.capitalize()} Sensitivity", zorder=10)
+                        
+                        if self.plotting_cfg.get("show_title", False):
+                            plt.title(f"Token Sensitivity Distribution N={n}\n{self.group_titles[group_key]}")
+                        plt.xlabel("Layer")
+                        plt.ylabel("Sensitivity")
+                        plt.xscale(x_scale)
+                        plt.yscale(y_scale)
+                        plt.grid(True, alpha=0.3, axis='y')
+                        plt.legend()
+                        
+                        plt.tight_layout()
+                        metric_str = "-".join(stat_metrics)
+                        filename = f"attn_token_sensitivity_swarm_{info_key}_N-{n}_{metric_str}_xscale-{x_scale}_yscale-{y_scale}.png"
+                        plt.savefig(os.path.join(self.plots_dir, filename), dpi=self.dpi)
+                        plt.close()
 
     def plot_all(self):
         print("--- Generating Attention Jacobian Plots ---")
