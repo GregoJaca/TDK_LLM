@@ -5083,7 +5083,7 @@ experiment:
         
   setups:
     - name: "jacobian_base"
-      prompt_id: "long_prompts"
+      prompt_id: "internet_long_prompts"
 
 analysis:
   metric: ["median", "harmonic", "p10", "p25", "p75", "p90", "min", "max"]
