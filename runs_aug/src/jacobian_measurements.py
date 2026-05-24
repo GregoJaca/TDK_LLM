@@ -309,10 +309,30 @@ def compute_attn_jacobian_metrics(model, layer_idx, captured_args, captured_kwar
     original_dtype = next(attn.parameters()).dtype
     attn.to(torch.float32)
     
-    # Extract sequence length from captured_args[0]
-    # captured_args[0] has shape [1, M, d_model]
-    M = captured_args[0].shape[1]
-    x_norm_full = captured_args[0].squeeze(0).to(torch.float32) # [M, d_model]
+    # Locate the hidden states tensor in the captured arguments
+    hs_loc = None
+    if "hidden_states" in captured_kwargs:
+        hs_loc = ("kwargs", "hidden_states")
+        x_norm_full_raw = captured_kwargs["hidden_states"]
+    else:
+        for idx, arg in enumerate(captured_args):
+            if isinstance(arg, torch.Tensor) and arg.ndim == 3:
+                hs_loc = ("args", idx)
+                x_norm_full_raw = arg
+                break
+        else:
+            # Fallback to search kwargs for a 3D tensor
+            for k, v in captured_kwargs.items():
+                if isinstance(v, torch.Tensor) and v.ndim == 3:
+                    hs_loc = ("kwargs", k)
+                    x_norm_full_raw = v
+                    break
+                    
+    if hs_loc is None:
+        raise ValueError(f"Could not locate hidden_states tensor in captured arguments. args types: {[type(a) for a in captured_args]}, kwargs keys: {list(captured_kwargs.keys())}")
+        
+    M = x_norm_full_raw.shape[1]
+    x_norm_full = x_norm_full_raw.squeeze(0).to(torch.float32) # [M, d_model]
     
     results_per_N = {}
     
@@ -325,14 +345,24 @@ def compute_attn_jacobian_metrics(model, layer_idx, captured_args, captured_kwar
         # Define functional wrapper attn_func(x) for Jacobian VJP/JVP
         def attn_func(x):
             # x: [n, d_model]
-            sliced_args = [x.unsqueeze(0)]
-            for arg in captured_args[1:]:
-                sliced_args.append(to_device(to_float32(slice_arg(arg, n, M)), device))
-                
+            x_3d = x.unsqueeze(0)
+            
+            # Slice and prepare args
+            sliced_args = []
+            for idx, arg in enumerate(captured_args):
+                if hs_loc[0] == "args" and hs_loc[1] == idx:
+                    sliced_args.append(x_3d)
+                else:
+                    sliced_args.append(to_device(to_float32(slice_arg(arg, n, M)), device))
+                    
+            # Slice and prepare kwargs
             sliced_kwargs = {}
             for k, v in captured_kwargs.items():
-                sliced_kwargs[k] = to_device(to_float32(slice_arg(v, n, M)), device)
-                
+                if hs_loc[0] == "kwargs" and hs_loc[1] == k:
+                    sliced_kwargs[k] = x_3d
+                else:
+                    sliced_kwargs[k] = to_device(to_float32(slice_arg(v, n, M)), device)
+                    
             # Call self_attn
             out_tuple = attn(*sliced_args, **sliced_kwargs)
             return out_tuple[0].squeeze(0)
@@ -366,13 +396,21 @@ def compute_attn_jacobian_metrics(model, layer_idx, captured_args, captured_kwar
         
         # Algorithm C & D: Extract Attention weights and compute Entropy / Spectral Gap
         with torch.no_grad():
-            sliced_args = [x_norm_n.unsqueeze(0)]
-            for arg in captured_args[1:]:
-                sliced_args.append(to_device(to_float32(slice_arg(arg, n, M)), device))
-                
+            x_3d = x_norm_n.unsqueeze(0)
+            
+            sliced_args = []
+            for idx, arg in enumerate(captured_args):
+                if hs_loc[0] == "args" and hs_loc[1] == idx:
+                    sliced_args.append(x_3d)
+                else:
+                    sliced_args.append(to_device(to_float32(slice_arg(arg, n, M)), device))
+                    
             sliced_kwargs = {}
             for k, v in captured_kwargs.items():
-                sliced_kwargs[k] = to_device(to_float32(slice_arg(v, n, M)), device)
+                if hs_loc[0] == "kwargs" and hs_loc[1] == k:
+                    sliced_kwargs[k] = x_3d
+                else:
+                    sliced_kwargs[k] = to_device(to_float32(slice_arg(v, n, M)), device)
             sliced_kwargs["output_attentions"] = True
             
             out_tuple = attn(*sliced_args, **sliced_kwargs)
