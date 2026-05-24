@@ -169,7 +169,7 @@ def main():
                 summary_str = f"Layer {layer_idx:02d} | W_Q_K^T: {metrics['routing_weight_norm']:.4f} | W_V_O^T: {metrics['mixing_weight_norm']:.4f} | "
                 len_summaries = []
                 for n_val, n_met in metrics["seq_lengths"].items():
-                    len_summaries.append(f"N={n_val} ||J||_2={n_met['attn_spectral_norm']:.3f}")
+                    len_summaries.append(f"N={n_val} ||J||_2={n_met['attn_spectral_norm']:.3f} (ratio: {n_met['entropy_ratio']:.3f})")
                 summary_str += " | ".join(len_summaries)
                 print(summary_str, flush=True)
                 

@@ -395,7 +395,8 @@ class AttentionJacobianPlotter:
                 ax.text(0.5, 0.5, f"Metric {prof_metric} not found", ha='center', va='center')
                 continue
                 
-            profile_mean = group_data[prof_metric][stat_metric][peak_idx]
+            prof_stat_metric = stat_metric if stat_metric in ["mean", "median"] else "mean"
+            profile_mean = group_data[prof_metric][prof_stat_metric][peak_idx]
             color = self._get_color_for_N(n)
             
             x_vals = np.arange(n)
@@ -412,7 +413,7 @@ class AttentionJacobianPlotter:
                     p75_prof = group_data[prof_metric]["p75"][peak_idx]
                     ax.fill_between(x_vals, p25_prof, p75_prof, color=color, alpha=0.2)
             else:
-                err_key = f"{stat_metric}_{self.error_bars}"
+                err_key = f"{prof_stat_metric}_{self.error_bars}"
                 if err_key in group_data[prof_metric]:
                     err_prof = group_data[prof_metric][err_key][peak_idx]
                     ax.fill_between(x_vals, np.maximum(0, profile_mean - err_prof), profile_mean + err_prof, color=color, alpha=0.2)

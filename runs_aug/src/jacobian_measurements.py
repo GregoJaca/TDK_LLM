@@ -461,7 +461,6 @@ def compute_attn_jacobian_metrics(model, layer_idx, captured_args, captured_kwar
             
         h_max = torch.log2(torch.tensor(n, dtype=torch.float32))
         entropy_ratio = mean_attention_entropy / h_max.item() if h_max.item() > 0.0 else 0.0
-        print(f"[Layer {layer_idx} | N={n}] Diffuse Assumption Test: {'PASSED (Uniform)' if entropy_ratio > 0.7 else 'FAILED (Peaked)'} | Ratio: {entropy_ratio:.3f}", flush=True)
             
         results_per_N[n] = {
             "attn_spectral_norm": attn_spectral_norm,
