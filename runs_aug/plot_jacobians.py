@@ -1,5 +1,6 @@
 import os
 import re
+import csv
 import yaml
 import pickle
 import numpy as np
@@ -171,7 +172,7 @@ class JacobianPlotter:
         
         metric_names = ["spectral_norms", "lambda_true"]
         pretty_labels = {
-            "spectral_norms": r"$\|J\|_2$",
+            "spectral_norms": r"$\| J \|_2$",
             "lambda_true": r"$\bar{\lambda}_{true}$"
         }
         colors = {
@@ -256,6 +257,39 @@ class JacobianPlotter:
         
         y_predicted = w_down * ((w_gate * mean_D) + (w_up * mean_S))
         
+        # Propagate token-by-token error distribution
+        y_pred_p10 = []
+        y_pred_p25 = []
+        y_pred_p75 = []
+        y_pred_p90 = []
+        
+        has_raw = ("raw" in group_data["S_x_sq_mean"] and "raw" in group_data["D_x_sq_mean"])
+        if has_raw:
+            for idx in range(len(layers)):
+                s_raw = group_data["S_x_sq_mean"]["raw"][idx]
+                d_raw = group_data["D_x_sq_mean"]["raw"][idx]
+                
+                min_len = min(len(s_raw), len(d_raw))
+                s_raw = s_raw[:min_len]
+                d_raw = d_raw[:min_len]
+                
+                w_g = w_gate[idx]
+                w_u = w_up[idx]
+                w_d = w_down[idx]
+                
+                pred_raw = w_d * (w_g * d_raw + w_u * s_raw)
+                p10, p25, p75, p90 = np.percentile(pred_raw, [10, 25, 75, 90])
+                
+                y_pred_p10.append(p10)
+                y_pred_p25.append(p25)
+                y_pred_p75.append(p75)
+                y_pred_p90.append(p90)
+                
+            y_pred_p10 = np.array(y_pred_p10)
+            y_pred_p25 = np.array(y_pred_p25)
+            y_pred_p75 = np.array(y_pred_p75)
+            y_pred_p90 = np.array(y_pred_p90)
+            
         x_scales = self.plotting_cfg.get("x_scales", self.plotting_cfg.get("x_scale", ["linear"]))
         y_scales = self.plotting_cfg.get("y_scales", self.plotting_cfg.get("y_scale", ["linear"]))
         if isinstance(x_scales, str):
@@ -269,8 +303,39 @@ class JacobianPlotter:
             for y_scale in y_scales:
                 plt.figure(figsize=(10, 6))
                 
-                plt.plot(layers, y_true, marker='o', linestyle='-', color='b', label='Empirical (Autograd SVD)', linewidth=2, markersize=5)
-                plt.plot(layers, y_predicted, marker='s', linestyle='--', color='r', label='Theoretical (SwiGLU MFT)', linewidth=2, markersize=5)
+                # Empirical curve
+                plt.plot(layers, y_true, marker='o', linestyle='-', color='b', label='Empirical', linewidth=2, markersize=5)
+                
+                # MFT curve
+                plt.plot(layers, y_predicted, marker='s', linestyle='--', color='r', label='Mean Field', linewidth=2, markersize=5)
+                
+                # Fan shading
+                if self.error_bars == "fan" or self.error_bars == "percentiles":
+                    p10_emp = group_data["lambda_true"]["p10"]
+                    p25_emp = group_data["lambda_true"]["p25"]
+                    p75_emp = group_data["lambda_true"]["p75"]
+                    p90_emp = group_data["lambda_true"]["p90"]
+                    
+                    p10_mft = y_pred_p10
+                    p25_mft = y_pred_p25
+                    p75_mft = y_pred_p75
+                    p90_mft = y_pred_p90
+                    
+                    if y_scale == "log":
+                        p10_emp = np.maximum(1e-12, p10_emp)
+                        p25_emp = np.maximum(1e-12, p25_emp)
+                        if has_raw:
+                            p10_mft = np.maximum(1e-12, p10_mft)
+                            p25_mft = np.maximum(1e-12, p25_mft)
+                            
+                    # Empirical Shading
+                    plt.fill_between(layers, p10_emp, p90_emp, color='b', alpha=0.08)
+                    plt.fill_between(layers, p25_emp, p75_emp, color='b', alpha=0.15)
+                    
+                    # MFT Shading
+                    if has_raw:
+                        plt.fill_between(layers, p10_mft, p90_mft, color='r', alpha=0.08)
+                        plt.fill_between(layers, p25_mft, p75_mft, color='r', alpha=0.15)
                 
                 plt.axhline(y=1.0, color='black', linestyle=':', linewidth=1.5, label='Neutral Boundary')
                 
@@ -289,6 +354,38 @@ class JacobianPlotter:
                 filename = f"mft_comparison_{info_key}_xscale-{x_scale}_yscale-{y_scale}.png"
                 plt.savefig(os.path.join(self.plots_dir, filename), dpi=self.dpi)
                 plt.close()
+
+    def _save_weight_averages(self, group_key):
+        group_data = self.data[group_key]
+        metrics = {
+            "W_gate_max_SVD": "W_gate_SVD",
+            "W_up_max_SVD": "W_up_SVD",
+            "W_down_max_SVD": "W_down_SVD",
+            "W_gate_scaled_F2": "W_gate_Frobenius",
+            "W_up_scaled_F2": "W_up_Frobenius",
+            "W_down_scaled_F2": "W_down_Frobenius"
+        }
+        
+        results = {}
+        for metric_name, pretty_name in metrics.items():
+            if metric_name in group_data:
+                arr = group_data[metric_name]["mean"]
+                results[pretty_name] = float(np.mean(arr))
+                
+        if not results:
+            return
+            
+        info_key = get_safe_filename_info(group_key, self.group_titles)
+        out_csv = os.path.join(self.plots_dir, f"weight_averages_{info_key}.csv")
+        
+        with open(out_csv, mode="w", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerow(["Matrix", "SVD", "Frobenius"])
+            writer.writerow(["W_gate", results.get("W_gate_SVD"), results.get("W_gate_Frobenius")])
+            writer.writerow(["W_up", results.get("W_up_SVD"), results.get("W_up_Frobenius")])
+            writer.writerow(["W_down", results.get("W_down_SVD"), results.get("W_down_Frobenius")])
+            
+        print(f"Saved weight averages CSV to {out_csv}")
 
     def plot_distribution_heatmaps(self):
         print("Generating Jacobian Distribution Heatmaps...")
@@ -434,6 +531,9 @@ class JacobianPlotter:
         print("--- Generating Jacobian Plots ---")
         for group_key in self.data.keys():
             if not self._should_plot(group_key): continue
+            
+            # Save weight averages CSV directly inside the plots directory
+            self._save_weight_averages(group_key)
             
             # Individual plots
             if self.plotting_cfg.get("plot_spectral_norms", True):
