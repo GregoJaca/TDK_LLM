@@ -377,10 +377,12 @@ def compute_attn_jacobian_metrics(model, layer_idx, captured_args, captured_kwar
         for _ in range(K):
             # Compute pushforward
             _, u = jvp(attn_func, (x_norm_n,), (v,))
+            u = u.detach()
             # Compute pullback setup
             _, vjp_func = vjp(attn_func, x_norm_n)
             # Compute pullback vector
             w = vjp_func(u)[0]
+            w = w.detach()
             # Rayleigh quotient
             sigma_sq = torch.sum(w * v) / torch.sum(v * v)
             # Normalize
