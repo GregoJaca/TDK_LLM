@@ -43,7 +43,8 @@ def main():
     model = AutoModelForCausalLM.from_pretrained(
         model_name, 
         torch_dtype=torch.float16,
-        cache_dir=local_dir
+        cache_dir=local_dir,
+        attn_implementation="eager"
     )
     model.to(device)
     model.eval()
