@@ -1,9 +1,31 @@
 import os
+import re
 import yaml
 import pickle
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
+
+def get_safe_filename_info(group_key, group_titles):
+    title = group_titles.get(group_key, group_key)
+    setup_match = re.search(r"Setup:\s*([^|]+)", title)
+    prompt_match = re.search(r"Prompt:\s*'([^']+)'", title)
+    
+    setup_name = setup_match.group(1).strip() if setup_match else group_key
+    prompt_val = prompt_match.group(1).strip() if prompt_match else ""
+    
+    setup_clean = re.sub(r'[^a-zA-Z0-9_-]', '_', setup_name).strip('_')
+    setup_clean = re.sub(r'_+', '_', setup_clean)
+    
+    if "Aggregated" in title:
+        return f"{setup_clean}_aggregated"
+        
+    if prompt_val:
+        prompt_clean = re.sub(r'[^a-zA-Z0-9_-]', '_', prompt_val).strip('_')
+        prompt_clean = re.sub(r'_+', '_', prompt_clean)[:30].strip('_')
+        return f"{setup_clean}_{prompt_clean}"
+        
+    return re.sub(r'[^a-zA-Z0-9_-]', '_', group_key).strip('_')
 
 class AttentionJacobianPlotter:
     def __init__(self, analyzed_data_path, plotting_cfg):
@@ -20,6 +42,24 @@ class AttentionJacobianPlotter:
         base_dir = os.path.dirname(analyzed_data_path)
         self.plots_dir = os.path.join(base_dir, "aggregated_plots_attn")
         os.makedirs(self.plots_dir, exist_ok=True)
+        
+        # Expose and apply global styling configuration
+        self.dpi = self.plotting_cfg.get("dpi", 300)
+        font_size = self.plotting_cfg.get("font_size", 14)
+        label_size = self.plotting_cfg.get("label_size", 14)
+        tick_size = self.plotting_cfg.get("tick_size", 12)
+        legend_size = self.plotting_cfg.get("legend_size", 11)
+        
+        plt.rcParams.update({
+            "figure.dpi": self.dpi,
+            "savefig.dpi": self.dpi,
+            "font.size": font_size,
+            "axes.labelsize": label_size,
+            "xtick.labelsize": tick_size,
+            "ytick.labelsize": tick_size,
+            "legend.fontsize": legend_size,
+            "font.family": "DejaVu Serif",
+        })
         
         self.metric_list = self.plotting_cfg.get("metric", ["mean"])
         if isinstance(self.metric_list, str):
@@ -38,7 +78,6 @@ class AttentionJacobianPlotter:
         return True
         
     def _get_color_for_N(self, n):
-        # Standards: 20 -> Blue, 100 -> Orange, 1000 -> Green
         if n == 20:
             return "#1f77b4" # Blue
         elif n == 100:
@@ -46,7 +85,6 @@ class AttentionJacobianPlotter:
         elif n == 1000:
             return "#2ca02c" # Green
         else:
-            # Fallback to standard colormap for other values
             return plt.cm.tab10(self.found_N_list.index(n) % 10)
             
     def plot_spectral_norms(self, group_key):
@@ -56,6 +94,7 @@ class AttentionJacobianPlotter:
         y_scales = self.plotting_cfg.get("y_scales", ["linear"])
         
         metrics_to_process = [[m] for m in self.metric_list] if self.separate_figure_metrics else [self.metric_list]
+        info_key = get_safe_filename_info(group_key, self.group_titles)
         
         for x_scale in x_scales:
             for y_scale in y_scales:
@@ -99,19 +138,22 @@ class AttentionJacobianPlotter:
                     # Critical Baseline y = 1.0
                     plt.axhline(y=1.0, color='red', linestyle='--', linewidth=1.5, label='Chaotic Boundary (y=1.0)')
                     
-                    plt.title(r"Attention Jacobian Global Spectral Norm $\|J_{attn}\|_2$" + f"\n{self.group_titles[group_key]}", fontsize=12)
-                    plt.xlabel("Layer Index", fontsize=11)
-                    plt.ylabel(r"$\|J_{attn}\|_2$", fontsize=11)
+                    if self.plotting_cfg.get("show_title", False):
+                        plt.title(r"Attention Jacobian Global Spectral Norm $\|J_{attn}\|_2$" + f"\n{self.group_titles[group_key]}")
+                    plt.xlabel("Layer")
+                    plt.ylabel(r"$\|J_{attn}\|_2$")
                     plt.xscale(x_scale)
                     plt.yscale(y_scale)
                     plt.grid(True, alpha=0.3)
-                    plt.legend(loc='best')
+                    
+                    # Suppress legend if a single curve is plotted
+                    if len(self.found_N_list) * len(stat_metrics) > 1:
+                        plt.legend(loc='best')
                     plt.tight_layout()
                     
-                    safe_key = group_key.replace(" ", "_").replace("/", "-")
                     metric_str = "-".join(stat_metrics)
-                    filename = f"attn_spectral_norms_{safe_key}_{metric_str}_xscale-{x_scale}_yscale-{y_scale}.png"
-                    plt.savefig(os.path.join(self.plots_dir, filename), dpi=300)
+                    filename = f"attn_spectral_norms_{info_key}_{metric_str}_xscale-{x_scale}_yscale-{y_scale}.png"
+                    plt.savefig(os.path.join(self.plots_dir, filename), dpi=self.dpi)
                     plt.close()
 
     def plot_attention_entropy(self, group_key):
@@ -121,6 +163,7 @@ class AttentionJacobianPlotter:
         y_scales = self.plotting_cfg.get("y_scales", ["linear"])
         
         metrics_to_process = [[m] for m in self.metric_list] if self.separate_figure_metrics else [self.metric_list]
+        info_key = get_safe_filename_info(group_key, self.group_titles)
         
         for x_scale in x_scales:
             for y_scale in y_scales:
@@ -163,19 +206,22 @@ class AttentionJacobianPlotter:
                         max_ent = np.log2(n / 2.0)
                         plt.axhline(y=max_ent, color=color, linestyle='--', alpha=0.5, label=f"Max H (N={n}): {max_ent:.2f}")
                         
-                    plt.title(f"Dynamic Attention Entropy (Shannon)\n{self.group_titles[group_key]}", fontsize=12)
-                    plt.xlabel("Layer Index", fontsize=11)
-                    plt.ylabel("Entropy (bits)", fontsize=11)
+                    if self.plotting_cfg.get("show_title", False):
+                        plt.title(f"Dynamic Attention Entropy (Shannon)\n{self.group_titles[group_key]}")
+                    plt.xlabel("Layer")
+                    plt.ylabel("Entropy (bits)")
                     plt.xscale(x_scale)
                     plt.yscale(y_scale)
                     plt.grid(True, alpha=0.3)
-                    plt.legend(loc='best')
+                    
+                    # Suppress legend if a single curve is plotted
+                    if len(self.found_N_list) * len(stat_metrics) > 1:
+                        plt.legend(loc='best')
                     plt.tight_layout()
                     
-                    safe_key = group_key.replace(" ", "_").replace("/", "-")
                     metric_str = "-".join(stat_metrics)
-                    filename = f"attn_entropy_{safe_key}_{metric_str}_xscale-{x_scale}_yscale-{y_scale}.png"
-                    plt.savefig(os.path.join(self.plots_dir, filename), dpi=300)
+                    filename = f"attn_entropy_{info_key}_{metric_str}_xscale-{x_scale}_yscale-{y_scale}.png"
+                    plt.savefig(os.path.join(self.plots_dir, filename), dpi=self.dpi)
                     plt.close()
 
     def plot_static_weights(self, group_key):
@@ -185,6 +231,7 @@ class AttentionJacobianPlotter:
         y_scales = self.plotting_cfg.get("y_scales", ["linear"])
         
         metrics_to_process = [[m] for m in self.metric_list] if self.separate_figure_metrics else [self.metric_list]
+        info_key = get_safe_filename_info(group_key, self.group_titles)
         
         for x_scale in x_scales:
             for y_scale in y_scales:
@@ -232,19 +279,23 @@ class AttentionJacobianPlotter:
                     # Critical Baseline y = 1.0
                     plt.axhline(y=1.0, color='red', linestyle='--', linewidth=1.5, label='Neutral Boundary (y=1.0)')
                     
-                    plt.title(f"Static Weight Amplifiers\n{self.group_titles[group_key]}", fontsize=12)
-                    plt.xlabel("Layer Index", fontsize=11)
-                    plt.ylabel("Spectral Norm (mean across heads)", fontsize=11)
+                    if self.plotting_cfg.get("show_title", False):
+                        plt.title(f"Static Weight Amplifiers\n{self.group_titles[group_key]}")
+                    plt.xlabel("Layer")
+                    plt.ylabel("Weight Spectral Norm")
                     plt.xscale(x_scale)
                     plt.yscale(y_scale)
                     plt.grid(True, alpha=0.3)
-                    plt.legend(loc='best')
+                    
+                    # Suppress legend if a single curve is plotted
+                    total_curves = (1 if m_routing in group_data else 0) + (1 if m_mixing in group_data else 0)
+                    if total_curves * len(stat_metrics) > 1:
+                        plt.legend(loc='best')
                     plt.tight_layout()
                     
-                    safe_key = group_key.replace(" ", "_").replace("/", "-")
                     metric_str = "-".join(stat_metrics)
-                    filename = f"attn_static_weights_{safe_key}_{metric_str}_xscale-{x_scale}_yscale-{y_scale}.png"
-                    plt.savefig(os.path.join(self.plots_dir, filename), dpi=300)
+                    filename = f"attn_static_weights_{info_key}_{metric_str}_xscale-{x_scale}_yscale-{y_scale}.png"
+                    plt.savefig(os.path.join(self.plots_dir, filename), dpi=self.dpi)
                     plt.close()
 
     def plot_spectral_gaps(self, group_key):
@@ -254,6 +305,7 @@ class AttentionJacobianPlotter:
         y_scales = self.plotting_cfg.get("y_scales", ["linear"])
         
         metrics_to_process = [[m] for m in self.metric_list] if self.separate_figure_metrics else [self.metric_list]
+        info_key = get_safe_filename_info(group_key, self.group_titles)
         
         for x_scale in x_scales:
             for y_scale in y_scales:
@@ -292,19 +344,22 @@ class AttentionJacobianPlotter:
                                     lower = np.maximum(0, m_arr - e_arr)
                                     plt.fill_between(layer_arr, lower, m_arr + e_arr, color=color, alpha=0.2)
                                     
-                    plt.title(f"Spectral Gap of Attention Matrix ($1 - \\sigma_2$)\n{self.group_titles[group_key]}", fontsize=12)
-                    plt.xlabel("Layer Index", fontsize=11)
-                    plt.ylabel("Mean Spectral Gap", fontsize=11)
+                    if self.plotting_cfg.get("show_title", False):
+                        plt.title(f"Spectral Gap of Attention Matrix ($1 - \\sigma_2$)\n{self.group_titles[group_key]}")
+                    plt.xlabel("Layer")
+                    plt.ylabel("Spectral Gap")
                     plt.xscale(x_scale)
                     plt.yscale(y_scale)
                     plt.grid(True, alpha=0.3)
-                    plt.legend(loc='best')
+                    
+                    # Suppress legend if a single curve is plotted
+                    if len(self.found_N_list) * len(stat_metrics) > 1:
+                        plt.legend(loc='best')
                     plt.tight_layout()
                     
-                    safe_key = group_key.replace(" ", "_").replace("/", "-")
                     metric_str = "-".join(stat_metrics)
-                    filename = f"attn_spectral_gaps_{safe_key}_{metric_str}_xscale-{x_scale}_yscale-{y_scale}.png"
-                    plt.savefig(os.path.join(self.plots_dir, filename), dpi=300)
+                    filename = f"attn_spectral_gaps_{info_key}_{metric_str}_xscale-{x_scale}_yscale-{y_scale}.png"
+                    plt.savefig(os.path.join(self.plots_dir, filename), dpi=self.dpi)
                     plt.close()
 
     def plot_token_sensitivity(self, group_key):
@@ -320,7 +375,6 @@ class AttentionJacobianPlotter:
             return
             
         layers = group_data[norm_metric]["layers"]
-        # Use primary stat metric to find peak (e.g. mean)
         stat_metric = self.metric_list[0]
         norm_vals = group_data[norm_metric][stat_metric]
         peak_idx = int(np.argmax(norm_vals))
@@ -340,8 +394,6 @@ class AttentionJacobianPlotter:
                 ax.text(0.5, 0.5, f"Metric {prof_metric} not found", ha='center', va='center')
                 continue
                 
-            # Extract profile for the peak layer
-            # group_data[prof_metric][stat_metric] has shape [num_layers, n]
             profile_mean = group_data[prof_metric][stat_metric][peak_idx]
             color = self._get_color_for_N(n)
             
@@ -364,18 +416,19 @@ class AttentionJacobianPlotter:
                     err_prof = group_data[prof_metric][err_key][peak_idx]
                     ax.fill_between(x_vals, np.maximum(0, profile_mean - err_prof), profile_mean + err_prof, color=color, alpha=0.2)
                     
-            ax.set_title(f"Sensitivity Profile for N = {n}", fontsize=10)
-            ax.set_ylabel("Relative Sensitivity", fontsize=9)
+            if self.plotting_cfg.get("show_title", False):
+                ax.set_title(f"Sensitivity Profile for N = {n}")
+            ax.set_ylabel("Sensitivity")
             ax.grid(True, alpha=0.3)
-            ax.legend(loc='upper right')
             
-        axes[-1].set_xlabel("Token Sequence Index", fontsize=11)
-        fig.suptitle(f"Token-Wise Spatial Sensitivity Profile at Peak Layer {peak_layer}\n{self.group_titles[group_key]}", fontsize=12)
+        axes[-1].set_xlabel("Token")
+        if self.plotting_cfg.get("show_title", False):
+            fig.suptitle(f"Token-Wise Spatial Sensitivity Profile at Peak Layer {peak_layer}\n{self.group_titles[group_key]}")
         plt.tight_layout()
         
-        safe_key = group_key.replace(" ", "_").replace("/", "-")
+        safe_key = get_safe_filename_info(group_key, self.group_titles)
         filename = f"attn_token_sensitivity_profile_layer-{peak_layer}_{safe_key}.png"
-        plt.savefig(os.path.join(self.plots_dir, filename), dpi=300)
+        plt.savefig(os.path.join(self.plots_dir, filename), dpi=self.dpi)
         plt.close()
 
     def plot_all(self):

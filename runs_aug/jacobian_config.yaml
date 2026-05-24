@@ -88,3 +88,9 @@ plotting:
   x_scales: ["linear"]
   y_scales: ["linear", "log"]
   plot_swarm: true
+  show_title: false
+  font_size: 14
+  label_size: 14
+  tick_size: 12
+  legend_size: 11
+  dpi: 300

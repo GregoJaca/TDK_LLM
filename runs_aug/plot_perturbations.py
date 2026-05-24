@@ -1,9 +1,31 @@
 import os
+import re
 import yaml
 import pickle
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
+
+def get_safe_filename_info(group_key, group_titles):
+    title = group_titles.get(group_key, group_key)
+    setup_match = re.search(r"Setup:\s*([^|]+)", title)
+    prompt_match = re.search(r"Prompt:\s*'([^']+)'", title)
+    
+    setup_name = setup_match.group(1).strip() if setup_match else group_key
+    prompt_val = prompt_match.group(1).strip() if prompt_match else ""
+    
+    setup_clean = re.sub(r'[^a-zA-Z0-9_-]', '_', setup_name).strip('_')
+    setup_clean = re.sub(r'_+', '_', setup_clean)
+    
+    if "Aggregated" in title:
+        return f"{setup_clean}_aggregated"
+        
+    if prompt_val:
+        prompt_clean = re.sub(r'[^a-zA-Z0-9_-]', '_', prompt_val).strip('_')
+        prompt_clean = re.sub(r'_+', '_', prompt_clean)[:30].strip('_')
+        return f"{setup_clean}_{prompt_clean}"
+        
+    return re.sub(r'[^a-zA-Z0-9_-]', '_', group_key).strip('_')
 
 def plot_perturbations(base_results_dir, plotting_cfg):
     data_path = os.path.join(base_results_dir, "analyzed_data.pkl")
@@ -19,6 +41,24 @@ def plot_perturbations(base_results_dir, plotting_cfg):
     
     plots_dir = os.path.join(base_results_dir, "aggregated_plots")
     os.makedirs(plots_dir, exist_ok=True)
+    
+    # Expose and apply global styling configuration
+    dpi = plotting_cfg.get("dpi", 300)
+    font_size = plotting_cfg.get("font_size", 14)
+    label_size = plotting_cfg.get("label_size", 14)
+    tick_size = plotting_cfg.get("tick_size", 12)
+    legend_size = plotting_cfg.get("legend_size", 11)
+    
+    plt.rcParams.update({
+        "figure.dpi": dpi,
+        "savefig.dpi": dpi,
+        "font.size": font_size,
+        "axes.labelsize": label_size,
+        "xtick.labelsize": tick_size,
+        "ytick.labelsize": tick_size,
+        "legend.fontsize": legend_size,
+        "font.family": "DejaVu Serif",
+    })
     
     metric_list = plotting_cfg.get("metric", ["mean"])
     if isinstance(metric_list, str):
@@ -50,6 +90,7 @@ def plot_perturbations(base_results_dir, plotting_cfg):
                         continue
                         
                     sorted_radii = sorted(radii_data.keys())
+                    info_key = get_safe_filename_info(group_key, group_titles)
                     
                     # --- Option A: Plot all magnitudes together ---
                     if plot_magnitude_together:
@@ -92,23 +133,26 @@ def plot_perturbations(base_results_dir, plotting_cfg):
                                         lower = np.maximum(1e-12, lower)
                                     plt.fill_between(layer_arr, lower, m_arr + e_arr, color=color, alpha=0.2, label='_nolegend_')
                                 
-                        title = group_titles[group_key]
-                        if separate_figure_metrics and len(current_metric_list) == 1:
-                            title += f" ({current_metric_list[0].capitalize()})"
+                        if plotting_cfg.get("show_title", False):
+                            title = group_titles[group_key]
+                            if separate_figure_metrics and len(current_metric_list) == 1:
+                                title += f" ({current_metric_list[0].capitalize()})"
+                            plt.title(f"Divergence over Layers | {title}")
                             
-                        plt.title(f"Divergence over Layers | {title}", fontsize=14)
-                        plt.xlabel("Layer Index", fontsize=12)
-                        plt.ylabel("Distance", fontsize=12)
+                        plt.xlabel("Layer")
+                        plt.ylabel("Distance")
                         plt.xscale(x_scale)
                         plt.yscale(y_scale)
                         plt.grid(True, alpha=0.3)
-                        plt.legend(title="Magnitude", loc='upper left', bbox_to_anchor=(1, 1))
+                        
+                        # Hide legend if only a single curve is plotted
+                        if len(combinations) > 1:
+                            plt.legend(title="Magnitude", loc='upper left', bbox_to_anchor=(1, 1))
                         plt.tight_layout()
                         
-                        safe_key = group_key.replace(" ", "_").replace("/", "-")
                         metric_str = "-".join(current_metric_list)
-                        plot_filename = f"{safe_key}_metric-{metric_str}_err-{error_bars}_xscale-{x_scale}_yscale-{y_scale}.png"
-                        plt.savefig(os.path.join(plots_dir, plot_filename), dpi=300)
+                        plot_filename = f"{info_key}_metric-{metric_str}_err-{error_bars}_xscale-{x_scale}_yscale-{y_scale}.png"
+                        plt.savefig(os.path.join(plots_dir, plot_filename), dpi=dpi)
                         plt.close()
         
                     # --- Option B: Plot each magnitude separately ---
@@ -148,26 +192,28 @@ def plot_perturbations(base_results_dir, plotting_cfg):
                                             lower = np.maximum(1e-12, lower)
                                         plt.fill_between(layer_arr, lower, m_arr + e_arr, color=color, alpha=0.2, label='_nolegend_')
                                     
-                            title = f"{group_titles[group_key]} | R={radius}"
-                            if separate_figure_metrics and len(current_metric_list) == 1:
-                                title += f" ({current_metric_list[0].capitalize()})"
+                            if plotting_cfg.get("show_title", False):
+                                title = f"{group_titles[group_key]} | R={radius}"
+                                if separate_figure_metrics and len(current_metric_list) == 1:
+                                    title += f" ({current_metric_list[0].capitalize()})"
+                                plt.title(f"Divergence over Layers | {title}")
                                 
-                            plt.title(f"Divergence over Layers | {title}", fontsize=14)
-                            plt.xlabel("Layer Index", fontsize=12)
-                            plt.ylabel("Distance", fontsize=12)
+                            plt.xlabel("Layer")
+                            plt.ylabel("Distance")
                             plt.xscale(x_scale)
                             plt.yscale(y_scale)
                             plt.grid(True, alpha=0.3)
+                            
+                            # Hide legend if only a single curve is plotted
                             if len(current_metric_list) > 1:
                                 plt.legend(title="Metric", loc='upper left', bbox_to_anchor=(1, 1))
                             plt.tight_layout()
                             
-                            safe_key = group_key.replace(" ", "_").replace("/", "-")
                             metric_str = "-".join(current_metric_list)
-                            plot_filename = f"{safe_key}_R{radius}_metric-{metric_str}_err-{error_bars}_xscale-{x_scale}_yscale-{y_scale}.png"
-                            plt.savefig(os.path.join(plots_dir, plot_filename), dpi=300)
+                            plot_filename = f"{info_key}_R{radius}_metric-{metric_str}_err-{error_bars}_xscale-{x_scale}_yscale-{y_scale}.png"
+                            plt.savefig(os.path.join(plots_dir, plot_filename), dpi=dpi)
                             plt.close()
-
+ 
     # 2. Distribution Heatmaps (One per Radius per Group)
     for group_key, radii_data in data.items():
         if group_key.endswith("_aggregated") and not plot_prompt_together:
@@ -175,6 +221,7 @@ def plot_perturbations(base_results_dir, plotting_cfg):
         if not group_key.endswith("_aggregated") and not plot_prompt_separated:
             continue
             
+        info_key = get_safe_filename_info(group_key, group_titles)
         for radius, metrics_dict in radii_data.items():
             if "hist" not in metrics_dict:
                 continue
@@ -206,16 +253,16 @@ def plot_perturbations(base_results_dir, plotting_cfg):
             plt.plot(layers, metrics_dict["p10"], color='cyan', linestyle='--', alpha=0.5, label='10th/90th P')
             plt.plot(layers, metrics_dict["p90"], color='cyan', linestyle='--', alpha=0.5)
             
-            plt.title(f"Distribution Evolution | {group_titles[group_key]} | R={radius}", fontsize=14)
-            plt.xlabel("Layer Index", fontsize=12)
-            plt.ylabel("Distance Value", fontsize=12)
+            if plotting_cfg.get("show_title", False):
+                plt.title(f"Distribution Evolution | {group_titles[group_key]} | R={radius}")
+            plt.xlabel("Layer")
+            plt.ylabel("Distance")
             plt.legend()
             
-            safe_key = group_key.replace(" ", "_").replace("/", "-")
-            plot_filename = f"{safe_key}_heatmap_R{radius}.png"
-            plt.savefig(os.path.join(plots_dir, plot_filename), dpi=300)
+            plot_filename = f"{info_key}_heatmap_R{radius}.png"
+            plt.savefig(os.path.join(plots_dir, plot_filename), dpi=dpi)
             plt.close()
-
+ 
     # 3. Average over Layers 2-25 vs Perturbation Magnitude Plot (using robust error and config scales)
     for x_scale in x_scales:
         for y_scale in y_scales:
@@ -261,6 +308,7 @@ def plot_perturbations(base_results_dir, plotting_cfg):
                             y_err_low.append(0); y_err_up.append(0)
         
                     if not x_radii: continue
+                    info_key = get_safe_filename_info(group_key, group_titles)
         
                     plt.figure(figsize=(8, 6))
                     if any(y_err_up):
@@ -272,12 +320,13 @@ def plot_perturbations(base_results_dir, plotting_cfg):
         
                     plt.xscale(x_scale)
                     plt.yscale(y_scale)
-                    plt.title(f"Scaling Law (L2-25) | {group_titles[group_key]}", fontsize=12)
-                    plt.xlabel("Radius", fontsize=12); plt.ylabel(f"Avg {current_metric.capitalize()}", fontsize=12)
+                    if plotting_cfg.get("show_title", False):
+                        plt.title(f"Scaling Law (L2-25) | {group_titles[group_key]}")
+                    plt.xlabel("Radius")
+                    plt.ylabel("Average Distance")
                     plt.grid(True, alpha=0.3, which="both")
                     plt.tight_layout()
-                    safe_key = group_key.replace(" ", "_").replace("/", "-")
-                    plt.savefig(os.path.join(plots_dir, f"{safe_key}_scaling_{current_metric}_xscale-{x_scale}_yscale-{y_scale}.png"), dpi=300)
+                    plt.savefig(os.path.join(plots_dir, f"{info_key}_scaling_{current_metric}_xscale-{x_scale}_yscale-{y_scale}.png"), dpi=dpi)
                     plt.close()
 
 def main():

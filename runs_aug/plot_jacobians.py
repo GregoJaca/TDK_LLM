@@ -1,9 +1,31 @@
 import os
+import re
 import yaml
 import pickle
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
+
+def get_safe_filename_info(group_key, group_titles):
+    title = group_titles.get(group_key, group_key)
+    setup_match = re.search(r"Setup:\s*([^|]+)", title)
+    prompt_match = re.search(r"Prompt:\s*'([^']+)'", title)
+    
+    setup_name = setup_match.group(1).strip() if setup_match else group_key
+    prompt_val = prompt_match.group(1).strip() if prompt_match else ""
+    
+    setup_clean = re.sub(r'[^a-zA-Z0-9_-]', '_', setup_name).strip('_')
+    setup_clean = re.sub(r'_+', '_', setup_clean)
+    
+    if "Aggregated" in title:
+        return f"{setup_clean}_aggregated"
+        
+    if prompt_val:
+        prompt_clean = re.sub(r'[^a-zA-Z0-9_-]', '_', prompt_val).strip('_')
+        prompt_clean = re.sub(r'_+', '_', prompt_clean)[:30].strip('_')
+        return f"{setup_clean}_{prompt_clean}"
+        
+    return re.sub(r'[^a-zA-Z0-9_-]', '_', group_key).strip('_')
 
 class JacobianPlotter:
     def __init__(self, analyzed_data_path, plotting_cfg):
@@ -19,6 +41,24 @@ class JacobianPlotter:
         base_dir = os.path.dirname(analyzed_data_path)
         self.plots_dir = os.path.join(base_dir, "aggregated_plots")
         os.makedirs(self.plots_dir, exist_ok=True)
+        
+        # Expose and apply global styling configuration
+        self.dpi = self.plotting_cfg.get("dpi", 300)
+        font_size = self.plotting_cfg.get("font_size", 14)
+        label_size = self.plotting_cfg.get("label_size", 14)
+        tick_size = self.plotting_cfg.get("tick_size", 12)
+        legend_size = self.plotting_cfg.get("legend_size", 11)
+        
+        plt.rcParams.update({
+            "figure.dpi": self.dpi,
+            "savefig.dpi": self.dpi,
+            "font.size": font_size,
+            "axes.labelsize": label_size,
+            "xtick.labelsize": tick_size,
+            "ytick.labelsize": tick_size,
+            "legend.fontsize": legend_size,
+            "font.family": "DejaVu Serif",
+        })
         
         self.metric_list = self.plotting_cfg.get("metric", ["mean"])
         if isinstance(self.metric_list, str):
@@ -47,12 +87,15 @@ class JacobianPlotter:
         if isinstance(y_scales, str):
             y_scales = [y_scales]
             
+        info_key = get_safe_filename_info(group_key, self.group_titles)
+        total_curves = len(metric_names)
+            
         for x_scale in x_scales:
             for y_scale in y_scales:
                 for current_metric_list in metrics_to_process:
                     plt.figure(figsize=(10, 6))
                     if colors is None:
-                        cmap = plt.cm.tab10(np.linspace(0, 1, max(len(metric_names) * len(current_metric_list), 10)))
+                        cmap = plt.cm.tab10(np.linspace(0, 1, max(total_curves * len(current_metric_list), 10)))
                     else:
                         cmap = colors
                         
@@ -95,16 +138,22 @@ class JacobianPlotter:
                         for h in hlines:
                             plt.axhline(y=h['y'], color=h.get('color', 'black'), linestyle=h.get('linestyle', '--'), label=h.get('label', ''))
                             
-                    title = f"{title_prefix} | {self.group_titles[group_key]}"
-                    plt.title(title, fontsize=14); plt.xlabel("Layer Index", fontsize=12); plt.ylabel(ylabel, fontsize=12)
+                    if self.plotting_cfg.get("show_title", False):
+                        title = f"{title_prefix} | {self.group_titles[group_key]}"
+                        plt.title(title)
+                    plt.xlabel("Layer")
+                    plt.ylabel(ylabel)
                     plt.xscale(x_scale)
                     plt.yscale(y_scale)
-                    plt.grid(True, alpha=0.3); plt.legend(title="Metric", loc='upper left', bbox_to_anchor=(1, 1))
+                    plt.grid(True, alpha=0.3)
+                    
+                    # Suppress legend if a single curve is plotted
+                    if total_curves * len(current_metric_list) > 1:
+                        plt.legend(title="Metric", loc='upper left', bbox_to_anchor=(1, 1))
                     plt.tight_layout()
                     
-                    safe_key = group_key.replace(" ", "_").replace("/", "-")
                     metric_str = "-".join(current_metric_list)
-                    plt.savefig(os.path.join(self.plots_dir, f"{filename_prefix}_{safe_key}_{metric_str}_xscale-{x_scale}_yscale-{y_scale}.png"), dpi=300)
+                    plt.savefig(os.path.join(self.plots_dir, f"{filename_prefix}_{info_key}_{metric_str}_xscale-{x_scale}_yscale-{y_scale}.png"), dpi=self.dpi)
                     plt.close()
 
     def plot_distribution_heatmaps(self):
@@ -114,6 +163,7 @@ class JacobianPlotter:
         for group_key in self.data.keys():
             if not self._should_plot(group_key): continue
             group_data = self.data[group_key]
+            info_key = get_safe_filename_info(group_key, self.group_titles)
             
             for m_name in token_metrics:
                 if m_name not in group_data or "hist" not in group_data[m_name]: continue
@@ -139,12 +189,22 @@ class JacobianPlotter:
                 plt.plot(layers, metrics_dict["p10"], color='cyan', linestyle='--', alpha=0.5, label='10th/90th P')
                 plt.plot(layers, metrics_dict["p90"], color='cyan', linestyle='--', alpha=0.5)
                 
-                plt.title(f"Jacobian Distribution: {m_name} | {self.group_titles[group_key]}", fontsize=14)
-                plt.xlabel("Layer Index", fontsize=12); plt.ylabel(f"{m_name} Value", fontsize=12)
+                if self.plotting_cfg.get("show_title", False):
+                    plt.title(f"Jacobian Distribution: {m_name} | {self.group_titles[group_key]}")
+                plt.xlabel("Layer")
+                
+                # Clean up heatmap y axis label
+                if m_name == "spectral_norms":
+                    simple_ylabel = r"$\|J\|_2$"
+                elif m_name == "lambda_true":
+                    simple_ylabel = r"$\bar{\lambda}_{true}$"
+                else:
+                    simple_ylabel = m_name.replace("_", " ").title()
+                plt.ylabel(simple_ylabel)
+                
                 plt.legend(); plt.tight_layout()
                 
-                safe_key = group_key.replace(" ", "_").replace("/", "-")
-                plt.savefig(os.path.join(self.plots_dir, f"heatmap_{m_name}_{safe_key}.png"), dpi=300)
+                plt.savefig(os.path.join(self.plots_dir, f"heatmap_{m_name}_{info_key}.png"), dpi=self.dpi)
                 plt.close()
 
     def plot_swarm_plots(self):
@@ -198,9 +258,18 @@ class JacobianPlotter:
                             plt.scatter(all_x, all_y, color=color, s=8, alpha=0.3, edgecolors='none')
                             plt.plot(layers, medians, color=color, linewidth=1.5, alpha=0.8)
                             
-                        plt.title(f"Jacobian {m_name} Layer-wise Swarm | Setup: {setup_name}", fontsize=14)
-                        plt.xlabel("Layer Index", fontsize=12)
-                        plt.ylabel(f"{m_name} Value", fontsize=12)
+                        if self.plotting_cfg.get("show_title", False):
+                            plt.title(f"Jacobian {m_name} Layer-wise Swarm | Setup: {setup_name}")
+                        plt.xlabel("Layer")
+                        
+                        if m_name == "spectral_norms":
+                            simple_ylabel = r"$\|J\|_2$"
+                        elif m_name == "lambda_true":
+                            simple_ylabel = r"$\bar{\lambda}_{true}$"
+                        else:
+                            simple_ylabel = m_name.replace("_", " ").title()
+                        plt.ylabel(simple_ylabel)
+                        
                         plt.xscale(x_scale)
                         plt.yscale(y_scale)
                         plt.grid(True, which="both", alpha=0.3)
@@ -213,7 +282,7 @@ class JacobianPlotter:
                         plt.tight_layout()
                         
                         filename = f"swarm_{m_name}_{setup_name}_xscale-{x_scale}_yscale-{y_scale}.png"
-                        plt.savefig(os.path.join(self.plots_dir, filename), dpi=300)
+                        plt.savefig(os.path.join(self.plots_dir, filename), dpi=self.dpi)
                         plt.close()
 
     def plot_all(self):
@@ -222,9 +291,9 @@ class JacobianPlotter:
             if not self._should_plot(group_key): continue
             self._plot_metric_across_layers(group_key, ["spectral_norms"], r"Jacobian Spectral Norm $\|J_{MLP}\|_2$", r"$\|J\|_2$", "spectral_norms", labels=["Spectral Norm"], colors=['darkred'], hlines=[{'y': 1.0, 'label': 'Neutral Boundary'}])
             self._plot_metric_across_layers(group_key, ["lambda_true"], r"Mean Squared Singular Value $\bar{\lambda}_{true}$", r"$\bar{\lambda}_{true}$", "lambda_true", labels=[r"$\bar{\lambda}_{true}$"], colors=['navy'], hlines=[{'y': 1.0, 'label': 'Neutral Boundary'}])
-            self._plot_metric_across_layers(group_key, ["W_gate_max_SVD", "W_up_max_SVD", "W_down_max_SVD"], "Weight Matrix Spectral Norms", "Max Singular Value", "weight_svds", labels=[r'$W_{gate}$', r'$W_{up}$', r'$W_{down}$'], hlines=[{'y': 1.0, 'label': 'Neutral Boundary'}])
-            self._plot_metric_across_layers(group_key, ["W_gate_scaled_F2", "W_up_scaled_F2", "W_down_scaled_F2"], "Scaled Frobenius Norms", "Scaled $\| \cdot \|_F^2$", "scaled_frobenius", labels=[r'$W_{gate}$', r'$W_{up}$', r'$W_{down}$'], hlines=[{'y': 1.0, 'label': 'Neutral Boundary'}])
-            self._plot_metric_across_layers(group_key, ["S_x_sq_mean", "D_x_sq_mean"], "Activation Densities", "Squared Magnitude", "activation_densities", labels=[r'$S(x)^2$', r'$D(x)^2$'], colors=['teal', 'orange'])
+            self._plot_metric_across_layers(group_key, ["W_gate_max_SVD", "W_up_max_SVD", "W_down_max_SVD"], "Weight Matrix Spectral Norms", "Weight Spectral Norm", "weight_svds", labels=[r'$W_{gate}$', r'$W_{up}$', r'$W_{down}$'], hlines=[{'y': 1.0, 'label': 'Neutral Boundary'}])
+            self._plot_metric_across_layers(group_key, ["W_gate_scaled_F2", "W_up_scaled_F2", "W_down_scaled_F2"], "Scaled Frobenius Norms", "Scaled Frobenius Norm", "scaled_frobenius", labels=[r'$W_{gate}$', r'$W_{up}$', r'$W_{down}$'], hlines=[{'y': 1.0, 'label': 'Neutral Boundary'}])
+            self._plot_metric_across_layers(group_key, ["S_x_sq_mean", "D_x_sq_mean"], "Activation Densities", "Activation Density", "activation_densities", labels=[r'$S(x)^2$', r'$D(x)^2$'], colors=['teal', 'orange'])
         
         self.plot_distribution_heatmaps()
         if self.plotting_cfg.get("plot_swarm", False):

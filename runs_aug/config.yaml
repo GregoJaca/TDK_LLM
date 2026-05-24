@@ -68,5 +68,11 @@ plotting:
   plot_magnitude_separated: true
   x_scales: ["linear"]
   y_scales: ["linear", "log"]
+  show_title: false
+  font_size: 14
+  label_size: 14
+  tick_size: 12
+  legend_size: 11
+  dpi: 300
 
 
