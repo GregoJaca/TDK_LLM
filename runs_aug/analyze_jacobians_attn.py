@@ -166,6 +166,14 @@ def analyze_jacobians_attn(base_results_dir):
                 metrics_data[group_key_sep][f"token_sensitivity_profile_N-{n_int}"][l_idx].append(n_data["token_sensitivity_profile"])
                 metrics_data[group_key_tog][f"token_sensitivity_profile_N-{n_int}"][l_idx].append(n_data["token_sensitivity_profile"])
                 
+                if "weight_alignment_index" in n_data:
+                    metrics_data[group_key_sep][f"weight_alignment_index_N-{n_int}"][l_idx].append(n_data["weight_alignment_index"])
+                    metrics_data[group_key_tog][f"weight_alignment_index_N-{n_int}"][l_idx].append(n_data["weight_alignment_index"])
+                
+                if "entropy_ratio" in n_data:
+                    metrics_data[group_key_sep][f"entropy_ratio_N-{n_int}"][l_idx].append(n_data["entropy_ratio"])
+                    metrics_data[group_key_tog][f"entropy_ratio_N-{n_int}"][l_idx].append(n_data["entropy_ratio"])
+                
     print("Computing metrics and aggregating data...")
     
     analyzed_data = {

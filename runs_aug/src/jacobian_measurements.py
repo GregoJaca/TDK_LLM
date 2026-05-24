@@ -336,6 +336,13 @@ def compute_attn_jacobian_metrics(model, layer_idx, captured_args, captured_kwar
     
     if torch.isnan(x_norm_full).any():
         print(f"[Layer {layer_idx}] WARNING: Captured input hidden states contain NaN! The forward pass has likely overflowed.", flush=True)
+        
+    # Calculate static routing matrix W_QK and its dominant singular vector (Algorithm F / Weight Alignment)
+    # W_K_heads is [num_kv_heads, d_head, d_model]
+    W_K_expanded = torch.cat([W_K_heads[h // group_size] for h in range(num_heads)], dim=0) # [num_heads * d_head, d_model]
+    W_QK = torch.matmul(W_Q_32.T, W_K_expanded) # [d_model, d_model]
+    _, _, V_T = torch.linalg.svd(W_QK, full_matrices=False)
+    u_route = V_T[0, :] # [d_model]
     
     results_per_N = {}
     
@@ -400,6 +407,11 @@ def compute_attn_jacobian_metrics(model, layer_idx, captured_args, captured_kwar
             token_sensitivity = token_sensitivity / token_sensitivity_sum
         token_sensitivity_profile = token_sensitivity.cpu().numpy().tolist()
         
+        # Singular Vector-Weight Alignment Index (\alpha_\ell)
+        v_peak = v[0, :] # Token 0 is empirically the peak sensitivity index
+        alignment = torch.abs(torch.dot(v_peak.float(), u_route.float())) / (torch.norm(v_peak.float()) * torch.norm(u_route.float()))
+        weight_alignment_index = float(alignment.item())
+        
         x_norm_mean = torch.norm(x_norm_n.float(), dim=-1).mean().item()
         
         # Algorithm C & D: Extract Attention weights and compute Entropy / Spectral Gap
@@ -459,8 +471,10 @@ def compute_attn_jacobian_metrics(model, layer_idx, captured_args, captured_kwar
             mean_max_weight = 0.0
             mean_spectral_gap = 1.0
             
-        h_max = torch.log2(torch.tensor(n, dtype=torch.float32))
-        entropy_ratio = mean_attention_entropy / h_max.item() if h_max.item() > 0.0 else 0.0
+        # Calculate exact theoretical mean max entropy for causal attention
+        # Row i (from 1 to n) has maximum entropy log2(i)
+        exact_h_max = torch.mean(torch.log2(torch.arange(1, n + 1, dtype=torch.float32, device=device)))
+        entropy_ratio = mean_attention_entropy / exact_h_max.item() if exact_h_max.item() > 0.0 else 0.0
             
         results_per_N[n] = {
             "attn_spectral_norm": attn_spectral_norm,
@@ -471,7 +485,8 @@ def compute_attn_jacobian_metrics(model, layer_idx, captured_args, captured_kwar
             "mean_max_weight": mean_max_weight,
             "x_norm_mean": x_norm_mean,
             "mean_spectral_gap": mean_spectral_gap,
-            "token_sensitivity_profile": token_sensitivity_profile
+            "token_sensitivity_profile": token_sensitivity_profile,
+            "weight_alignment_index": weight_alignment_index
         }
         
         # Free GPU memory

@@ -190,7 +190,8 @@ def main():
                             "mean_spectral_gap": n_met["mean_spectral_gap"],
                             "routing_weight_norm": metrics["routing_weight_norm"],
                             "mixing_weight_norm": metrics["mixing_weight_norm"],
-                            "token_sensitivity_profile": n_met["token_sensitivity_profile"]
+                            "token_sensitivity_profile": n_met["token_sensitivity_profile"],
+                            "weight_alignment_index": n_met["weight_alignment_index"]
                         }
                 
                 # Incrementally save results after each layer

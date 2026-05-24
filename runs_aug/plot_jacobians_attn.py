@@ -202,9 +202,9 @@ class AttentionJacobianPlotter:
                                     lower = np.maximum(0, m_arr - e_arr)
                                     plt.fill_between(layer_arr, lower, m_arr + e_arr, color=color, alpha=0.2)
                                     
-                        # Draw theoretical max entropy line for this N
-                        max_ent = np.log2(n / 2.0)
-                        plt.axhline(y=max_ent, color=color, linestyle='--', alpha=0.5, label=f"Max H (N={n}): {max_ent:.2f}")
+                        # Draw exact theoretical max entropy line for causal attention
+                        max_ent = np.mean(np.log2(np.arange(1, n + 1)))
+                        plt.axhline(y=max_ent, color=color, linestyle='--', alpha=0.5, label=f"Max Causal H (N={n}): {max_ent:.2f}")
                         
                     if self.plotting_cfg.get("show_title", False):
                         plt.title(f"Dynamic Attention Entropy (Shannon)\n{self.group_titles[group_key]}")
@@ -433,6 +433,136 @@ class AttentionJacobianPlotter:
         plt.savefig(os.path.join(self.plots_dir, filename), dpi=self.dpi)
         plt.close()
 
+    def plot_weight_alignment(self, group_key):
+        """Plot 6: Singular Vector-Weight Alignment Index"""
+        group_data = self.data[group_key]
+        x_scales = self.plotting_cfg.get("x_scales", ["linear"])
+        y_scales = ["linear"] # Correlation/Cosine similarity is bounded [0, 1]
+        
+        metrics_to_process = [[m] for m in self.metric_list] if self.separate_figure_metrics else [self.metric_list]
+        info_key = get_safe_filename_info(group_key, self.group_titles)
+        
+        for x_scale in x_scales:
+            for y_scale in y_scales:
+                for stat_metrics in metrics_to_process:
+                    plt.figure(figsize=(10, 6))
+                    
+                    for n in self.found_N_list:
+                        m_name = f"weight_alignment_index_N-{n}"
+                        if m_name not in group_data:
+                            continue
+                            
+                        layer_arr = group_data[m_name]["layers"]
+                        color = self._get_color_for_N(n)
+                        
+                        for stat_metric in stat_metrics:
+                            m_arr = group_data[m_name][stat_metric]
+                            line_label = f"N = {n}" if len(stat_metrics) == 1 else f"N = {n} ({stat_metric.capitalize()})"
+                            plt.plot(layer_arr, m_arr, marker='o', color=color, label=line_label, linewidth=2, markersize=4)
+                            
+                            # Error Shading
+                            if self.error_bars == "fan" or self.error_bars == "percentiles":
+                                if "p10" in group_data[m_name] and "p90" in group_data[m_name]:
+                                    plt.fill_between(layer_arr, group_data[m_name]["p10"], group_data[m_name]["p90"], color=color, alpha=0.1)
+                                if "p25" in group_data[m_name] and "p75" in group_data[m_name]:
+                                    plt.fill_between(layer_arr, group_data[m_name]["p25"], group_data[m_name]["p75"], color=color, alpha=0.2)
+                            else:
+                                err_key = f"{stat_metric}_{self.error_bars}"
+                                if err_key in group_data[m_name]:
+                                    e_arr = group_data[m_name][err_key]
+                                elif self.error_bars in group_data[m_name]:
+                                    e_arr = group_data[m_name][self.error_bars]
+                                else:
+                                    e_arr = None
+                                    
+                                if e_arr is not None:
+                                    lower = np.maximum(0, m_arr - e_arr)
+                                    upper = np.minimum(1.0, m_arr + e_arr)
+                                    plt.fill_between(layer_arr, lower, upper, color=color, alpha=0.2)
+                                    
+                    if self.plotting_cfg.get("show_title", False):
+                        plt.title(f"Singular Vector-Weight Alignment ($\\alpha_\\ell$)\n{self.group_titles[group_key]}")
+                    plt.xlabel("Layer")
+                    plt.ylabel(r"Alignment Index ($\alpha_\ell$)")
+                    plt.ylim(0, 1.05)
+                    plt.xscale(x_scale)
+                    plt.yscale(y_scale)
+                    plt.grid(True, alpha=0.3)
+                    
+                    if len(self.found_N_list) * len(stat_metrics) > 1:
+                        plt.legend(loc='best')
+                    plt.tight_layout()
+                    
+                    metric_str = "-".join(stat_metrics)
+                    filename = f"attn_weight_alignment_{info_key}_{metric_str}_xscale-{x_scale}_yscale-{y_scale}.png"
+                    plt.savefig(os.path.join(self.plots_dir, filename), dpi=self.dpi)
+                    plt.close()
+
+    def plot_attention_entropy_ratio(self, group_key):
+        """Plot 7: Dynamic Attention Entropy Ratio"""
+        group_data = self.data[group_key]
+        x_scales = self.plotting_cfg.get("x_scales", ["linear"])
+        y_scales = ["linear"] # Ratio is [0, 1] bounded
+        
+        metrics_to_process = [[m] for m in self.metric_list] if self.separate_figure_metrics else [self.metric_list]
+        info_key = get_safe_filename_info(group_key, self.group_titles)
+        
+        for x_scale in x_scales:
+            for y_scale in y_scales:
+                for stat_metrics in metrics_to_process:
+                    plt.figure(figsize=(10, 6))
+                    
+                    for n in self.found_N_list:
+                        m_name = f"entropy_ratio_N-{n}"
+                        if m_name not in group_data:
+                            continue
+                            
+                        layer_arr = group_data[m_name]["layers"]
+                        color = self._get_color_for_N(n)
+                        
+                        for stat_metric in stat_metrics:
+                            m_arr = group_data[m_name][stat_metric]
+                            line_label = f"N = {n}" if len(stat_metrics) == 1 else f"N = {n} ({stat_metric.capitalize()})"
+                            plt.plot(layer_arr, m_arr, marker='o', color=color, label=line_label, linewidth=2, markersize=4)
+                            
+                            # Error Shading
+                            if self.error_bars == "fan" or self.error_bars == "percentiles":
+                                if "p10" in group_data[m_name] and "p90" in group_data[m_name]:
+                                    plt.fill_between(layer_arr, group_data[m_name]["p10"], group_data[m_name]["p90"], color=color, alpha=0.1)
+                                if "p25" in group_data[m_name] and "p75" in group_data[m_name]:
+                                    plt.fill_between(layer_arr, group_data[m_name]["p25"], group_data[m_name]["p75"], color=color, alpha=0.2)
+                            else:
+                                err_key = f"{stat_metric}_{self.error_bars}"
+                                if err_key in group_data[m_name]:
+                                    e_arr = group_data[m_name][err_key]
+                                elif self.error_bars in group_data[m_name]:
+                                    e_arr = group_data[m_name][self.error_bars]
+                                else:
+                                    e_arr = None
+                                    
+                                if e_arr is not None:
+                                    lower = np.maximum(0, m_arr - e_arr)
+                                    upper = np.minimum(1.0, m_arr + e_arr)
+                                    plt.fill_between(layer_arr, lower, upper, color=color, alpha=0.2)
+                                    
+                    if self.plotting_cfg.get("show_title", False):
+                        plt.title(f"Dynamic Attention Entropy Ratio\n{self.group_titles[group_key]}")
+                    plt.xlabel("Layer")
+                    plt.ylabel(r"Entropy Ratio ($H / H_{max}$)")
+                    plt.ylim(0, 1.05)
+                    plt.xscale(x_scale)
+                    plt.yscale(y_scale)
+                    plt.grid(True, alpha=0.3)
+                    
+                    if len(self.found_N_list) * len(stat_metrics) > 1:
+                        plt.legend(loc='best')
+                    plt.tight_layout()
+                    
+                    metric_str = "-".join(stat_metrics)
+                    filename = f"attn_entropy_ratio_{info_key}_{metric_str}_xscale-{x_scale}_yscale-{y_scale}.png"
+                    plt.savefig(os.path.join(self.plots_dir, filename), dpi=self.dpi)
+                    plt.close()
+
     def plot_all(self):
         print("--- Generating Attention Jacobian Plots ---")
         for group_key in self.data.keys():
@@ -443,12 +573,16 @@ class AttentionJacobianPlotter:
                 self.plot_spectral_norms(group_key)
             if self.plotting_cfg.get("plot_attention_entropy", True):
                 self.plot_attention_entropy(group_key)
+            if self.plotting_cfg.get("plot_attention_entropy_ratio", False):
+                self.plot_attention_entropy_ratio(group_key)
             if self.plotting_cfg.get("plot_static_weights", True):
                 self.plot_static_weights(group_key)
             if self.plotting_cfg.get("plot_spectral_gaps", True):
                 self.plot_spectral_gaps(group_key)
             if self.plotting_cfg.get("plot_token_sensitivity", True):
                 self.plot_token_sensitivity(group_key)
+            if self.plotting_cfg.get("plot_weight_alignment", True):
+                self.plot_weight_alignment(group_key)
         print("-" * 50)
 
 def main():
