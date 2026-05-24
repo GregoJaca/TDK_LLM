@@ -66,7 +66,7 @@ plotting:
   separate_figure_metrics: true
   plot_magnitude_together: true
   plot_magnitude_separated: false
-  x_scales: ["linear, log"]
+  x_scales: ["linear" ,"log"]
   y_scales: ["linear", "log"]
   plot_heatmap: false
   plot_scaling_law: true
