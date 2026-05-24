@@ -5,7 +5,7 @@ model:
   local_dir: "../../"
 
 experiment:
-  results_dir: "./results_jacobians_microsoft"
+  results_dir: "./results_jacobians"
   attn_seq_lengths: [20, 100, 1000]
   attn_power_iterations: 20
   
