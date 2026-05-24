@@ -3,6 +3,7 @@ model:
   # local_dir: "."
   # name: "microsoft/Phi-4-mini-instruct" # Qwen/Qwen2.5-3B-Instruct
   local_dir: "../../"
+  torch_dtype: "bfloat16" # options: "auto", "bfloat16", "float16", "float32" (use bfloat16/float32 for eager attention stability)
 
 experiment:
   results_dir: "./results_jacobians_microsoft"

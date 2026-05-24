@@ -334,6 +334,9 @@ def compute_attn_jacobian_metrics(model, layer_idx, captured_args, captured_kwar
     M = x_norm_full_raw.shape[1]
     x_norm_full = x_norm_full_raw.squeeze(0).to(torch.float32) # [M, d_model]
     
+    if torch.isnan(x_norm_full).any():
+        print(f"[Layer {layer_idx}] WARNING: Captured input hidden states contain NaN! The forward pass has likely overflowed.", flush=True)
+    
     results_per_N = {}
     
     for n in N_list:

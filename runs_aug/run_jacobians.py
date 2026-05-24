@@ -34,9 +34,20 @@ def main():
     print(f"Loading model: {model_name} on {device}")
     tokenizer = AutoTokenizer.from_pretrained(model_name, cache_dir=local_dir)
     
+    # Retrieve dtype configuration
+    dtype_str = model_config.get("torch_dtype", "auto")
+    if dtype_str == "float32":
+        torch_dtype = torch.float32
+    elif dtype_str == "bfloat16":
+        torch_dtype = torch.bfloat16
+    elif dtype_str == "float16":
+        torch_dtype = torch.float16
+    else:
+        torch_dtype = "auto"
+
     model = AutoModelForCausalLM.from_pretrained(
         model_name, 
-        torch_dtype=torch.float16,
+        torch_dtype=torch.float32 if torch_dtype == "float32" else (torch.bfloat16 if torch_dtype == "bfloat16" else (torch.float16 if torch_dtype == "float16" else "auto")),
         cache_dir=local_dir
     )
     model.to(device)
