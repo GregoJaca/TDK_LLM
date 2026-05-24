@@ -7,7 +7,7 @@ model:
 
 experiment:
   results_dir: "./results_jacobians_microsoft"
-  attn_seq_lengths: [10, 50, 100, 500, 1000, 3000]
+  attn_seq_lengths: [10, 50, 100, 500, 1000, 2500]
   attn_power_iterations: 30
   
   prompts:
