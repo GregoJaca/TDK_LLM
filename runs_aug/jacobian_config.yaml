@@ -87,7 +87,7 @@ plotting:
   separate_figure_metrics: true
   x_scales: ["linear"]
   y_scales: ["log"]
-  
+
   plot_heatmap: false
   plot_swarm: true
   plot_spectral_norms: true
@@ -100,7 +100,7 @@ plotting:
   plot_spectral_gaps: true
   plot_token_sensitivity: true
   show_title: false
-  font_size: 16
+  font_size: 20
   label_size: 14
   tick_size: 12
   legend_size: 11
