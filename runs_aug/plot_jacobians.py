@@ -426,7 +426,7 @@ class JacobianPlotter:
                 
                 # Clean up heatmap y axis label
                 if m_name == "spectral_norms":
-                    simple_ylabel = r"$\|J\|_2$"
+                    simple_ylabel = r"$\| J \|_2$"
                 elif m_name == "lambda_true":
                     simple_ylabel = r"$\bar{\lambda}_{true}$"
                 else:
@@ -498,7 +498,7 @@ class JacobianPlotter:
                         plt.xlabel("Layer")
                         
                         if m_name == "spectral_norms":
-                            simple_ylabel = r"$\|J\|_2$"
+                            simple_ylabel = r"$\| J \|_2$"
                         elif m_name == "lambda_true":
                             simple_ylabel = r"$\bar{\lambda}_{true}$"
                         elif m_name == "S_x_sq_mean":

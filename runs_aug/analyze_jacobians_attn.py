@@ -44,14 +44,32 @@ def get_metrics_and_errors(data_array, axis=0):
         data_positive = data_array[data_array > 0]
         if len(data_positive) > 0:
             n_h = len(data_positive)
-            inv_data = 1.0 / data_positive
-            sum_inv = np.sum(inv_data)
-            if sum_inv > 0:
-                harmonic_val = n_h / sum_inv
-                var_x = np.var(data_positive)
-                sum_inv4 = np.sum(inv_data ** 4)
-                harmonic_var = (harmonic_val ** 4 / (n_h ** 2)) * var_x * sum_inv4
-                harmonic_std = np.sqrt(harmonic_var)
+            with np.errstate(divide='ignore', over='ignore', invalid='ignore'):
+                inv_data = 1.0 / data_positive
+                sum_inv = np.sum(inv_data)
+                if sum_inv > 0 and np.isfinite(sum_inv):
+                    harmonic_val = n_h / sum_inv
+                    var_x = np.var(data_positive)
+                    inv_data_4 = inv_data ** 4
+                    sum_inv4 = np.sum(inv_data_4)
+                    if np.isfinite(sum_inv4):
+                        harmonic_var = (harmonic_val ** 4 / (n_h ** 2)) * var_x * sum_inv4
+                        if np.isfinite(harmonic_var) and harmonic_var >= 0:
+                            harmonic_std = np.sqrt(harmonic_var)
+                        else:
+                            harmonic_var = 0.0
+                            harmonic_std = 0.0
+                    else:
+                        harmonic_var = 0.0
+                        harmonic_std = 0.0
+                else:
+                    harmonic_val = 0.0
+                    harmonic_std = 0.0
+                    harmonic_var = 0.0
+        else:
+            harmonic_val = 0.0
+            harmonic_std = 0.0
+            harmonic_var = 0.0
                 
     return {
         "mean": mean_val,
