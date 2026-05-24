@@ -86,7 +86,7 @@ plotting:
   plot_prompt_separated: true
   separate_figure_metrics: true
   x_scales: ["linear"]
-  y_scales: ["linear", "log"]
+  y_scales: ["log"]
   plot_heatmap: false
   plot_swarm: true
   plot_spectral_norms: true
