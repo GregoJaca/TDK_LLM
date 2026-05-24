@@ -156,6 +156,140 @@ class JacobianPlotter:
                     plt.savefig(os.path.join(self.plots_dir, f"{filename_prefix}_{info_key}_{metric_str}_xscale-{x_scale}_yscale-{y_scale}.png"), dpi=self.dpi)
                     plt.close()
 
+    def _plot_spectral_norm_lambda_true_together(self, group_key):
+        metrics_to_process = [[m] for m in self.metric_list] if self.separate_figure_metrics else [self.metric_list]
+        group_data = self.data[group_key]
+        
+        x_scales = self.plotting_cfg.get("x_scales", self.plotting_cfg.get("x_scale", ["linear"]))
+        y_scales = self.plotting_cfg.get("y_scales", self.plotting_cfg.get("y_scale", ["linear"]))
+        if isinstance(x_scales, str):
+            x_scales = [x_scales]
+        if isinstance(y_scales, str):
+            y_scales = [y_scales]
+            
+        info_key = get_safe_filename_info(group_key, self.group_titles)
+        
+        metric_names = ["spectral_norms", "lambda_true"]
+        pretty_labels = {
+            "spectral_norms": r"$\|J\|_2$",
+            "lambda_true": r"$\bar{\lambda}_{true}$"
+        }
+        colors = {
+            "spectral_norms": "darkred",
+            "lambda_true": "navy"
+        }
+        
+        for x_scale in x_scales:
+            for y_scale in y_scales:
+                for current_metric_list in metrics_to_process:
+                    plt.figure(figsize=(10, 6))
+                    
+                    for m_name in metric_names:
+                        if m_name not in group_data: continue
+                        layer_arr = group_data[m_name]["layers"]
+                        color = colors[m_name]
+                        
+                        for stat_metric in current_metric_list:
+                            m_arr = group_data[m_name][stat_metric]
+                            
+                            base_label = pretty_labels[m_name]
+                            line_label = f"{base_label} ({stat_metric.capitalize()})" if len(current_metric_list) > 1 else base_label
+                            plt.plot(layer_arr, m_arr, marker='o', color=color, label=line_label, linewidth=2, markersize=4)
+                            
+                            # Fan Shading / Error Bars
+                            if self.error_bars == "fan" or self.error_bars == "percentiles":
+                                if "p10" in group_data[m_name] and "p90" in group_data[m_name]:
+                                    plt.fill_between(layer_arr, group_data[m_name]["p10"], group_data[m_name]["p90"], color=color, alpha=0.1)
+                                if "p25" in group_data[m_name] and "p75" in group_data[m_name]:
+                                    plt.fill_between(layer_arr, group_data[m_name]["p25"], group_data[m_name]["p75"], color=color, alpha=0.2)
+                            else:
+                                err_key = f"{stat_metric}_{self.error_bars}"
+                                if err_key in group_data[m_name]:
+                                    e_arr = group_data[m_name][err_key]
+                                elif self.error_bars in group_data[m_name]:
+                                    e_arr = group_data[m_name][self.error_bars]
+                                else:
+                                    e_arr = None
+                                    
+                                if e_arr is not None:
+                                    lower = np.maximum(0, m_arr - e_arr) if self.error_bars in ["std", "var"] else m_arr - e_arr
+                                    if y_scale == "log":
+                                        lower = np.maximum(1e-12, lower)
+                                    plt.fill_between(layer_arr, lower, m_arr + e_arr, color=color, alpha=0.2)
+                                    
+                    # Critical Baseline y = 1.0
+                    plt.axhline(y=1.0, color='black', linestyle='--', linewidth=1.5, label='Neutral Boundary')
+                    
+                    if self.plotting_cfg.get("show_title", False):
+                        plt.title(f"Jacobian Spectral Norm & Lambda True | {self.group_titles[group_key]}")
+                    plt.xlabel("Layer")
+                    plt.ylabel("Value")
+                    plt.xscale(x_scale)
+                    plt.yscale(y_scale)
+                    plt.grid(True, alpha=0.3)
+                    
+                    plt.legend(loc='upper left', bbox_to_anchor=(1, 1))
+                    plt.tight_layout()
+                    
+                    metric_str = "-".join(current_metric_list)
+                    filename = f"jacobian_together_{info_key}_{metric_str}_xscale-{x_scale}_yscale-{y_scale}.png"
+                    plt.savefig(os.path.join(self.plots_dir, filename), dpi=self.dpi)
+                    plt.close()
+
+    def _plot_mft_comparison(self, group_key):
+        group_data = self.data[group_key]
+        
+        required = ["lambda_true", "W_gate_scaled_F2", "W_up_scaled_F2", "W_down_scaled_F2", "S_x_sq_mean", "D_x_sq_mean"]
+        for req in required:
+            if req not in group_data:
+                print(f"Skipping MFT comparison for {group_key} because {req} is missing.")
+                return
+                
+        layers = group_data["lambda_true"]["layers"]
+        
+        y_true = group_data["lambda_true"]["mean"]
+        w_gate = group_data["W_gate_scaled_F2"]["mean"]
+        w_up = group_data["W_up_scaled_F2"]["mean"]
+        w_down = group_data["W_down_scaled_F2"]["mean"]
+        mean_S = group_data["S_x_sq_mean"]["mean"]
+        mean_D = group_data["D_x_sq_mean"]["mean"]
+        
+        y_predicted = w_down * ((w_gate * mean_D) + (w_up * mean_S))
+        
+        x_scales = self.plotting_cfg.get("x_scales", self.plotting_cfg.get("x_scale", ["linear"]))
+        y_scales = self.plotting_cfg.get("y_scales", self.plotting_cfg.get("y_scale", ["linear"]))
+        if isinstance(x_scales, str):
+            x_scales = [x_scales]
+        if isinstance(y_scales, str):
+            y_scales = [y_scales]
+            
+        info_key = get_safe_filename_info(group_key, self.group_titles)
+        
+        for x_scale in x_scales:
+            for y_scale in y_scales:
+                plt.figure(figsize=(10, 6))
+                
+                plt.plot(layers, y_true, marker='o', linestyle='-', color='b', label='Empirical (Autograd SVD)', linewidth=2, markersize=5)
+                plt.plot(layers, y_predicted, marker='s', linestyle='--', color='r', label='Theoretical (SwiGLU MFT)', linewidth=2, markersize=5)
+                
+                plt.axhline(y=1.0, color='black', linestyle=':', linewidth=1.5, label='Neutral Boundary')
+                
+                if self.plotting_cfg.get("show_title", False):
+                    plt.title(f"MFT Stretching Factor Comparison | {self.group_titles[group_key]}")
+                plt.xlabel("Layer")
+                plt.ylabel(r"Mean Squared Singular Value ($\bar{\lambda}$)")
+                
+                plt.xscale(x_scale)
+                plt.yscale(y_scale)
+                plt.grid(True, which="both", alpha=0.3)
+                
+                plt.legend(loc='upper left', bbox_to_anchor=(1, 1))
+                plt.tight_layout()
+                
+                filename = f"mft_comparison_{info_key}_xscale-{x_scale}_yscale-{y_scale}.png"
+                plt.savefig(os.path.join(self.plots_dir, filename), dpi=self.dpi)
+                plt.close()
+
     def plot_distribution_heatmaps(self):
         print("Generating Jacobian Distribution Heatmaps...")
         # Only for token metrics (which have distributions)
@@ -300,10 +434,21 @@ class JacobianPlotter:
         print("--- Generating Jacobian Plots ---")
         for group_key in self.data.keys():
             if not self._should_plot(group_key): continue
+            
+            # Individual plots
             if self.plotting_cfg.get("plot_spectral_norms", True):
                 self._plot_metric_across_layers(group_key, ["spectral_norms"], r"Jacobian Spectral Norm $\|J_{MLP}\|_2$", r"$\|J\|_2$", "spectral_norms", labels=["Spectral Norm"], colors=['darkred'], hlines=[{'y': 1.0, 'label': 'Neutral Boundary'}])
             if self.plotting_cfg.get("plot_lambda_true", True):
                 self._plot_metric_across_layers(group_key, ["lambda_true"], r"Mean Squared Singular Value $\bar{\lambda}_{true}$", r"$\bar{\lambda}_{true}$", "lambda_true", labels=[r"$\bar{\lambda}_{true}$"], colors=['navy'], hlines=[{'y': 1.0, 'label': 'Neutral Boundary'}])
+            
+            # Joint plot
+            if self.plotting_cfg.get("spectral_norm_lambda_true_together", False):
+                self._plot_spectral_norm_lambda_true_together(group_key)
+                
+            # MFT Comparison Plot
+            if self.plotting_cfg.get("plot_mft_comparison", False):
+                self._plot_mft_comparison(group_key)
+                
             if self.plotting_cfg.get("plot_weight_svds", True):
                 self._plot_metric_across_layers(group_key, ["W_gate_max_SVD", "W_up_max_SVD", "W_down_max_SVD"], "Weight Matrix Spectral Norms", "Weight Spectral Norm", "weight_svds", labels=[r'$W_{gate}$', r'$W_{up}$', r'$W_{down}$'], hlines=[{'y': 1.0, 'label': 'Neutral Boundary'}])
             if self.plotting_cfg.get("plot_scaled_frobenius", True):

@@ -54,25 +54,25 @@ experiment:
 
 analysis:
   distance_metric: "L2"  # Options: "L2", "cos"
-  metric: ["mean", "median", "harmonic"]  # Now supporting percentiles and extremum and harmonic
-  error_bars: "std"    # Options: none, std, var, fan, percentiles
+  metric: ["median", "harmonic"]  # Now supporting percentiles and extremum and harmonic
+  error_bars: "std, fan"    # Options: none, std, var, fan, percentiles
   eval_tokens: "last"  # Options: "last" (only measure last token), "all" (flatten sequence)
 
 plotting:
-  metric: ["mean", "median", "harmonic"]  # Options: mean, median, mode, p50, harmonic, etc.
-  error_bars: "none"    # Use 'fan' for multi-layered percentile shading
+  metric: ["median", "harmonic"]  # Options: mean, median, mode, p50, harmonic, etc.
+  error_bars: "fan"    # Use 'fan' for multi-layered percentile shading
   plot_prompt_together: true
   plot_prompt_separated: false
   separate_figure_metrics: true
   plot_magnitude_together: true
-  plot_magnitude_separated: true
-  x_scales: ["linear"]
+  plot_magnitude_separated: false
+  x_scales: ["linear, log"]
   y_scales: ["linear", "log"]
   plot_heatmap: false
   plot_scaling_law: true
   show_title: false
-  font_size: 14
-  label_size: 14
+  font_size: 16
+  label_size: 18
   tick_size: 12
   legend_size: 11
   dpi: 300

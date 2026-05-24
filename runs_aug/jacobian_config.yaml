@@ -99,6 +99,8 @@ plotting:
   plot_static_weights: true
   plot_spectral_gaps: true
   plot_token_sensitivity: true
+  spectral_norm_lambda_true_together: true
+  plot_mft_comparison: true
   show_title: false
   font_size: 16
   label_size: 18
