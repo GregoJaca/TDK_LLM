@@ -77,7 +77,23 @@ experiment:
         #   Microsoft Corporation is an American multinational technology company headquartered in Redmond, Washington. The company became influential in the rise of personal computers through software like Windows and has since expanded into areas such as Internet services, cloud computing, artificial intelligence, video gaming, software, and more. A Big Tech company, Microsoft is the largest software company by revenue, one of the most valuable public companies, and one of the most valuable brands globally.
         # - >
         #   William Henry Gates III (born October 28, 1955) is an American businessman and philanthropist. A pioneer of the microcomputer revolution of the 1970s and 1980s, he co-founded the software company Microsoft in 1975 with his childhood friend Paul Allen. Following Microsoft's initial public offering in 1986 and the subsequent increase in its stock price, Gates became the world's then-youngest billionaire in 1987, at age 31. Forbes magazine ranked him as the world's wealthiest person for 18 out of 24 years between 1995 and 2017, including 13 years consecutively from 1995 to 2007. Gates became the first centibillionaire in 1999, when his net worth briefly surpassed US$100 billion. According to Forbes, as of February 2026, his net worth stood at US$107.7 billion, making him the 18th-wealthiest individual in the world.[1][2]
+        - >
+         Whether you’re a student, a teacher, or a parent, I think you’ll appreciate this story of how one teacher can completely and permanently change someone’s life in only a few lessons. 
+         I was seventeen and about to start my first year at Berklee College of Music.
+         I called a local recording studio with a random question about music typesetting.When the studio owner heard I was going to Berklee, he said, “I graduated from Berklee and taught there, too. I’ll bet I can teach you two years of theory and arranging in only a few lessons. I suspect you can graduate in two years if you understand there’s no speed limit. Come by my studio at 9:00 tomorrow for your first lesson, if you’re interested. No charge.”
+         Graduate college in two years? Awesome! I liked his style. That was Kimo Williams.
+         I showed up at his studio at 8:40 the next morning, super excited, though I waited outside before ringing his bell at 8:59.
+         He opened the door. A tall man in a Hawaiian shirt and a big hat, with a square scar on his nose, a laid-back demeanor, and a huge smile, sizing me up, nodding.
+         (Recently I heard him tell the story from his perspective. He said, “My doorbell rang at 8:59 one morning and I had no idea why. I run across kids all the time who say they want to be a great musician. I tell them I can help, and tell them to show up at my studio at 9:00 if they’re serious. Nobody ever does. It’s how I weed out the really serious ones from the kids who just talk. But there was Derek, ready to go.”)
+         After a one-minute welcome, we were sitting at the piano, analyzing the sheet music for a jazz standard. He was quickly explaining the chords based on the diatonic scale — how the dissonance of the tri-tone in the 5-chord with the flat-7 is what makes it want to resolve to the 1. Within a minute, he started quizzing me.
+         “If the 5-chord with the flat-7 has that tri-tone, then so does another flat-7 chord. Which one?”
+         “Uh… the flat-2 chord?”
+         “Right! So that’s a substitute chord. Any flat-7 chord can be substituted with the other flat-7 that shares the same tri-tone. So reharmonize all the chords you can in this chart. Go.”
+         The pace was intense, and I loved it. Finally, someone was challenging me — keeping me in over my head — encouraging and expecting me to pull myself up quickly. I was learning so fast, it felt like the adrenaline rush you get while playing a video game. He tossed every fact at me and made me prove that I got it.
+         In our three-hour lesson that morning, he taught me a full semester of Berklee’s harmony courses. In our next four lessons, he taught me the next four semesters of harmony and arranging classes.
 
+
+        
   setups:
     - name: "jacobian_base"
       prompt_id: "long_prompts"
@@ -103,10 +119,13 @@ plotting:
   plot_scaled_frobenius: true
   plot_activation_densities: true
   plot_attention_entropy: true
+  plot_attention_entropy_ratio: true
   plot_static_weights: true
   plot_spectral_gaps: true
   plot_token_sensitivity: true
+  plot_token_sensitivity_heatmap: true
   plot_weight_alignment: true
+  plot_x_norm_mean: true
   spectral_norm_lambda_true_together: true
   plot_mft_comparison: true
   show_title: false

@@ -173,6 +173,10 @@ def analyze_jacobians_attn(base_results_dir):
                 if "entropy_ratio" in n_data:
                     metrics_data[group_key_sep][f"entropy_ratio_N-{n_int}"][l_idx].append(n_data["entropy_ratio"])
                     metrics_data[group_key_tog][f"entropy_ratio_N-{n_int}"][l_idx].append(n_data["entropy_ratio"])
+                    
+                if "x_norm_mean" in n_data:
+                    metrics_data[group_key_sep][f"x_norm_mean_N-{n_int}"][l_idx].append(n_data["x_norm_mean"])
+                    metrics_data[group_key_tog][f"x_norm_mean_N-{n_int}"][l_idx].append(n_data["x_norm_mean"])
                 
     print("Computing metrics and aggregating data...")
     
