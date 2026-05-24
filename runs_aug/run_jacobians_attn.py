@@ -71,12 +71,18 @@ def main():
             seq_len = input_ids.shape[1]
             print(f"Tokenized prompt length: {seq_len} tokens", flush=True)
             
-            # Slice input tensors to the maximum N to optimize prefill pass
-            run_len = min(seq_len, max_N)
-            print(f"Running forward pass for length M = {run_len} tokens...", flush=True)
+            if seq_len < max_N:
+                print(f"WARNING: Prompt token length ({seq_len}) is smaller than the maximum requested sequence length ({max_N}). "
+                      f"Metrics for N > {seq_len} will be skipped.", flush=True)
+                run_len = seq_len
+            else:
+                if seq_len > max_N:
+                    print(f"Trimming prompt token sequence from {seq_len} to max_N = {max_N} tokens before forward pass.", flush=True)
+                run_len = max_N
             
             input_ids_sliced = input_ids[:, :run_len]
             attention_mask_sliced = attention_mask[:, :run_len]
+            print(f"Running forward pass for length M = {run_len} tokens...", flush=True)
             
             # Dictionary to store captured arguments for each layer's self_attn
             layer_captures = {}
