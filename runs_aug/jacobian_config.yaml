@@ -1387,7 +1387,7 @@ plotting:
   y_scales: ["log"]
 
   plot_heatmap: false
-  plot_swarm: true
+  plot_swarm: false
   plot_spectral_norms: true
   plot_lambda_true: true
   plot_weight_svds: true
@@ -1397,10 +1397,13 @@ plotting:
   plot_attention_entropy_ratio: true
   plot_static_weights: true
   plot_spectral_gaps: true
-  plot_token_sensitivity: true
-  plot_token_sensitivity_heatmap: true
+  plot_token_sensitivity: false
+  plot_token_sensitivity_heatmap: false
   plot_weight_alignment: true
   plot_x_norm_mean: true
+  plot_spectral_norm_div_sqrt_n: true
+  plot_spectral_norm_div_static_bound: true
+  plot_spectral_norm_div_entropy_ratio: true
   spectral_norm_lambda_true_together: true
   plot_mft_comparison: true
   show_title: false

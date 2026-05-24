@@ -626,6 +626,221 @@ class AttentionJacobianPlotter:
                     plt.savefig(os.path.join(self.plots_dir, filename), dpi=self.dpi)
                     plt.close()
 
+    def plot_spectral_norm_div_sqrt_n(self, group_key):
+        """Plot Option 1: Sequence Length Normalized Spectral Norm (||J||_2 / sqrt(N))"""
+        group_data = self.data[group_key]
+        x_scales = self.plotting_cfg.get("x_scales", ["linear"])
+        y_scales = self.plotting_cfg.get("y_scales", ["linear"])
+        
+        metrics_to_process = [[m] for m in self.metric_list] if self.separate_figure_metrics else [self.metric_list]
+        info_key = get_safe_filename_info(group_key, self.group_titles)
+        
+        for x_scale in x_scales:
+            for y_scale in y_scales:
+                for stat_metrics in metrics_to_process:
+                    plt.figure(figsize=(10, 6))
+                    
+                    for n in self.found_N_list:
+                        m_name = f"attn_spectral_norm_N-{n}"
+                        if m_name not in group_data:
+                            continue
+                            
+                        layer_arr = group_data[m_name]["layers"]
+                        color = self._get_color_for_N(n)
+                        div_factor = np.sqrt(n)
+                        
+                        for stat_metric in stat_metrics:
+                            m_arr = group_data[m_name][stat_metric] / div_factor
+                            line_label = f"N = {n}" if len(stat_metrics) == 1 else f"N = {n} ({stat_metric.capitalize()})"
+                            plt.plot(layer_arr, m_arr, marker='o', color=color, label=line_label, linewidth=2, markersize=4)
+                            
+                            # Error Shading
+                            if self.error_bars == "fan" or self.error_bars == "percentiles":
+                                if "p10" in group_data[m_name] and "p90" in group_data[m_name]:
+                                    plt.fill_between(layer_arr, group_data[m_name]["p10"] / div_factor, group_data[m_name]["p90"] / div_factor, color=color, alpha=0.1)
+                                if "p25" in group_data[m_name] and "p75" in group_data[m_name]:
+                                    plt.fill_between(layer_arr, group_data[m_name]["p25"] / div_factor, group_data[m_name]["p75"] / div_factor, color=color, alpha=0.2)
+                            else:
+                                err_key = f"{stat_metric}_{self.error_bars}"
+                                if err_key in group_data[m_name]:
+                                    e_arr = group_data[m_name][err_key]
+                                elif self.error_bars in group_data[m_name]:
+                                    e_arr = group_data[m_name][self.error_bars]
+                                else:
+                                    e_arr = None
+                                    
+                                if e_arr is not None:
+                                    lower = np.maximum(0, m_arr - e_arr / div_factor)
+                                    if y_scale == "log":
+                                        lower = np.maximum(1e-12, lower)
+                                    plt.fill_between(layer_arr, lower, m_arr + e_arr / div_factor, color=color, alpha=0.2)
+                                    
+                    if self.plotting_cfg.get("show_title", False):
+                        plt.title(r"Sequence Length Normalized Spectral Norm $\|J_{attn}\|_2 / \sqrt{N}$" + f"\n{self.group_titles[group_key]}")
+                    plt.xlabel("Layer")
+                    plt.ylabel(r"$\|J_{attn}\|_2 / \sqrt{N}$")
+                    plt.xscale(x_scale)
+                    plt.yscale(y_scale)
+                    plt.grid(True, alpha=0.3)
+                    
+                    if len(self.found_N_list) * len(stat_metrics) > 1:
+                        plt.legend(loc='best')
+                    plt.tight_layout()
+                    
+                    metric_str = "-".join(stat_metrics)
+                    filename = f"attn_spectral_norms_div_sqrt_n_{info_key}_{metric_str}_xscale-{x_scale}_yscale-{y_scale}.png"
+                    plt.savefig(os.path.join(self.plots_dir, filename), dpi=self.dpi)
+                    plt.close()
+
+    def plot_spectral_norm_div_static_bound(self, group_key):
+        """Plot Option 2: Static Capacity Normalized Spectral Norm (||J||_2 / J_static)"""
+        group_data = self.data[group_key]
+        x_scales = self.plotting_cfg.get("x_scales", ["linear"])
+        y_scales = self.plotting_cfg.get("y_scales", ["linear"])
+        
+        metrics_to_process = [[m] for m in self.metric_list] if self.separate_figure_metrics else [self.metric_list]
+        info_key = get_safe_filename_info(group_key, self.group_titles)
+        
+        d_head = 128
+        
+        for x_scale in x_scales:
+            for y_scale in y_scales:
+                for stat_metrics in metrics_to_process:
+                    plt.figure(figsize=(10, 6))
+                    
+                    for n in self.found_N_list:
+                        m_name = f"attn_spectral_norm_N-{n}"
+                        x_name = f"x_norm_mean_N-{n}"
+                        if m_name not in group_data or x_name not in group_data:
+                            continue
+                        if "routing_weight_norm" not in group_data or "mixing_weight_norm" not in group_data:
+                            continue
+                            
+                        layer_arr = group_data[m_name]["layers"]
+                        color = self._get_color_for_N(n)
+                        
+                        for stat_metric in stat_metrics:
+                            routing = group_data["routing_weight_norm"][stat_metric]
+                            mixing = group_data["mixing_weight_norm"][stat_metric]
+                            x_norm = group_data[x_name][stat_metric]
+                            
+                            # J_static calculation
+                            j_static = mixing * (1.0 + (2.0 / np.sqrt(d_head)) * routing * (x_norm ** 2))
+                            # Avoid zero division
+                            j_static = np.maximum(j_static, 1e-12)
+                            
+                            m_arr = group_data[m_name][stat_metric] / j_static
+                            line_label = f"N = {n}" if len(stat_metrics) == 1 else f"N = {n} ({stat_metric.capitalize()})"
+                            plt.plot(layer_arr, m_arr, marker='o', color=color, label=line_label, linewidth=2, markersize=4)
+                            
+                            # Error Shading
+                            if self.error_bars == "fan" or self.error_bars == "percentiles":
+                                if "p10" in group_data[m_name] and "p90" in group_data[m_name]:
+                                    plt.fill_between(layer_arr, group_data[m_name]["p10"] / j_static, group_data[m_name]["p90"] / j_static, color=color, alpha=0.1)
+                                if "p25" in group_data[m_name] and "p75" in group_data[m_name]:
+                                    plt.fill_between(layer_arr, group_data[m_name]["p25"] / j_static, group_data[m_name]["p75"] / j_static, color=color, alpha=0.2)
+                            else:
+                                err_key = f"{stat_metric}_{self.error_bars}"
+                                if err_key in group_data[m_name]:
+                                    e_arr = group_data[m_name][err_key]
+                                elif self.error_bars in group_data[m_name]:
+                                    e_arr = group_data[m_name][self.error_bars]
+                                else:
+                                    e_arr = None
+                                    
+                                if e_arr is not None:
+                                    lower = np.maximum(0, m_arr - e_arr / j_static)
+                                    if y_scale == "log":
+                                        lower = np.maximum(1e-12, lower)
+                                    plt.fill_between(layer_arr, lower, m_arr + e_arr / j_static, color=color, alpha=0.2)
+                                    
+                    if self.plotting_cfg.get("show_title", False):
+                        plt.title(r"Static Capacity Normalized Spectral Norm $\|J_{attn}\|_2 / J_{static}$" + f"\n{self.group_titles[group_key]}")
+                    plt.xlabel("Layer")
+                    plt.ylabel(r"$\|J_{attn}\|_2 / J_{static}$")
+                    plt.xscale(x_scale)
+                    plt.yscale(y_scale)
+                    plt.grid(True, alpha=0.3)
+                    
+                    if len(self.found_N_list) * len(stat_metrics) > 1:
+                        plt.legend(loc='best')
+                    plt.tight_layout()
+                    
+                    metric_str = "-".join(stat_metrics)
+                    filename = f"attn_spectral_norms_div_static_bound_{info_key}_{metric_str}_xscale-{x_scale}_yscale-{y_scale}.png"
+                    plt.savefig(os.path.join(self.plots_dir, filename), dpi=self.dpi)
+                    plt.close()
+
+    def plot_spectral_norm_div_entropy_ratio(self, group_key):
+        """Plot Option 3: Entropy Ratio Normalized Spectral Norm (||J||_2 / Entropy Ratio)"""
+        group_data = self.data[group_key]
+        x_scales = self.plotting_cfg.get("x_scales", ["linear"])
+        y_scales = self.plotting_cfg.get("y_scales", ["linear"])
+        
+        metrics_to_process = [[m] for m in self.metric_list] if self.separate_figure_metrics else [self.metric_list]
+        info_key = get_safe_filename_info(group_key, self.group_titles)
+        
+        for x_scale in x_scales:
+            for y_scale in y_scales:
+                for stat_metrics in metrics_to_process:
+                    plt.figure(figsize=(10, 6))
+                    
+                    for n in self.found_N_list:
+                        m_name = f"attn_spectral_norm_N-{n}"
+                        e_name = f"entropy_ratio_N-{n}"
+                        if m_name not in group_data or e_name not in group_data:
+                            continue
+                            
+                        layer_arr = group_data[m_name]["layers"]
+                        color = self._get_color_for_N(n)
+                        
+                        for stat_metric in stat_metrics:
+                            entropy_ratio = group_data[e_name][stat_metric]
+                            # Clamping to avoid division by zero
+                            entropy_ratio = np.maximum(entropy_ratio, 1e-6)
+                            
+                            m_arr = group_data[m_name][stat_metric] / entropy_ratio
+                            line_label = f"N = {n}" if len(stat_metrics) == 1 else f"N = {n} ({stat_metric.capitalize()})"
+                            plt.plot(layer_arr, m_arr, marker='o', color=color, label=line_label, linewidth=2, markersize=4)
+                            
+                            # Error Shading
+                            if self.error_bars == "fan" or self.error_bars == "percentiles":
+                                if "p10" in group_data[m_name] and "p90" in group_data[m_name]:
+                                    plt.fill_between(layer_arr, group_data[m_name]["p10"] / entropy_ratio, group_data[m_name]["p90"] / entropy_ratio, color=color, alpha=0.1)
+                                if "p25" in group_data[m_name] and "p75" in group_data[m_name]:
+                                    plt.fill_between(layer_arr, group_data[m_name]["p25"] / entropy_ratio, group_data[m_name]["p75"] / entropy_ratio, color=color, alpha=0.2)
+                            else:
+                                err_key = f"{stat_metric}_{self.error_bars}"
+                                if err_key in group_data[m_name]:
+                                    e_arr = group_data[m_name][err_key]
+                                elif self.error_bars in group_data[m_name]:
+                                    e_arr = group_data[m_name][self.error_bars]
+                                else:
+                                    e_arr = None
+                                    
+                                if e_arr is not None:
+                                    lower = np.maximum(0, m_arr - e_arr / entropy_ratio)
+                                    if y_scale == "log":
+                                        lower = np.maximum(1e-12, lower)
+                                    plt.fill_between(layer_arr, lower, m_arr + e_arr / entropy_ratio, color=color, alpha=0.2)
+                                    
+                    if self.plotting_cfg.get("show_title", False):
+                        plt.title(r"Entropy Normalized Spectral Norm $\|J_{attn}\|_2 / H_{ratio}$" + f"\n{self.group_titles[group_key]}")
+                    plt.xlabel("Layer")
+                    plt.ylabel(r"$\|J_{attn}\|_2 / H_{ratio}$")
+                    plt.xscale(x_scale)
+                    plt.yscale(y_scale)
+                    plt.grid(True, alpha=0.3)
+                    
+                    if len(self.found_N_list) * len(stat_metrics) > 1:
+                        plt.legend(loc='best')
+                    plt.tight_layout()
+                    
+                    metric_str = "-".join(stat_metrics)
+                    filename = f"attn_spectral_norms_div_entropy_ratio_{info_key}_{metric_str}_xscale-{x_scale}_yscale-{y_scale}.png"
+                    plt.savefig(os.path.join(self.plots_dir, filename), dpi=self.dpi)
+                    plt.close()
+
     def plot_token_sensitivity_heatmap(self, group_key):
         """Plot 9: Token Sensitivity Heatmap (Layer vs Token)"""
         group_data = self.data[group_key]
@@ -751,6 +966,12 @@ class AttentionJacobianPlotter:
                 self.plot_weight_alignment(group_key)
             if self.plotting_cfg.get("plot_x_norm_mean", True):
                 self.plot_x_norm_mean(group_key)
+            if self.plotting_cfg.get("plot_spectral_norm_div_sqrt_n", True):
+                self.plot_spectral_norm_div_sqrt_n(group_key)
+            if self.plotting_cfg.get("plot_spectral_norm_div_static_bound", True):
+                self.plot_spectral_norm_div_static_bound(group_key)
+            if self.plotting_cfg.get("plot_spectral_norm_div_entropy_ratio", True):
+                self.plot_spectral_norm_div_entropy_ratio(group_key)
             if self.plotting_cfg.get("plot_token_sensitivity_heatmap", True):
                 self.plot_token_sensitivity_heatmap(group_key)
             if self.plotting_cfg.get("plot_swarm", True):
