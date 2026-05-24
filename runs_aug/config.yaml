@@ -23,9 +23,6 @@ experiment:
     - id: "singles"
       texts: ["The", "House", "she", " understanding", "id", "sex", "cat", "a", "win", "fly"]
 
-    # - id: "long_prompt"
-    #   text: "This is a longer prompt to test how perturbations propagate across layers in a deep neural network and see the attention mechanism coupling."
-
   # The different setups we want to run
   setups:
     - name: "single_token_perturb_all"
@@ -33,24 +30,6 @@ experiment:
       mode: "all"
       m_tokens: null
       max_new_tokens: 0
-    
-    # - name: "long_prompt_perturb_all"
-    #   prompt_id: "long_prompt"
-    #   mode: "all"
-    #   m_tokens: null
-    #   max_new_tokens: 0
-      
-    # - name: "long_prompt_perturb_first_m"
-    #   prompt_id: "long_prompt"
-    #   mode: "first_m"
-    #   m_tokens: 3
-    #   max_new_tokens: 0
-      
-    # - name: "long_prompt_autoregressive"
-    #   prompt_id: "long_prompt"
-    #   mode: "all"
-    #   m_tokens: null
-    #   max_new_tokens: 10
 
 analysis:
   distance_metric: "L2"  # Options: "L2", "cos"
@@ -66,8 +45,8 @@ plotting:
   separate_figure_metrics: true
   plot_magnitude_together: true
   plot_magnitude_separated: false
-  x_scales: ["linear" ,"log"]
-  y_scales: ["linear", "log"]
+  x_scales: ["linear", "log"]
+  y_scales: ["log"]
   plot_heatmap: false
   plot_scaling_law: true
   scaling_prompts_separate: true
@@ -77,5 +56,3 @@ plotting:
   tick_size: 12
   legend_size: 11
   dpi: 300
-
-

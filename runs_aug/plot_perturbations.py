@@ -1,5 +1,6 @@
 import os
 import re
+import csv
 import yaml
 import pickle
 import numpy as np
@@ -94,6 +95,11 @@ def plot_perturbations(base_results_dir, plotting_cfg):
                     
                     # --- Option A: Plot all magnitudes together ---
                     if plot_magnitude_together:
+                        # STRICT FILTER: Only plot if metric is 'harmonic' and scale is linear-log
+                        # Target plot: single_token_perturb_all_All_Prompts_Aggregated_aggregated_metric-harmonic_err-fan_xscale-linear_yscale-log.png
+                        if "harmonic" not in current_metric_list or x_scale != "linear" or y_scale != "log":
+                            continue
+                            
                         plt.figure(figsize=(10, 6))
                         combinations = []
                         for r in sorted_radii:
@@ -151,7 +157,6 @@ def plot_perturbations(base_results_dir, plotting_cfg):
                         plt.yscale(y_scale)
                         plt.grid(True, alpha=0.3)
                         
-                        # Replace the label "Magnitude" with "Perturbation"
                         if len(combinations) > 1:
                             plt.legend(title="Perturbation", loc='upper left', bbox_to_anchor=(1, 1))
                         plt.tight_layout()
@@ -163,113 +168,12 @@ def plot_perturbations(base_results_dir, plotting_cfg):
         
                     # --- Option B: Plot each magnitude separately ---
                     if plot_magnitude_separated:
-                        for radius in sorted_radii:
-                            plt.figure(figsize=(10, 6))
-                            colors = plt.cm.tab10(np.linspace(0, 1, max(len(current_metric_list), 10)))
-                            
-                            for i, current_metric in enumerate(current_metric_list):
-                                color = colors[i % len(colors)]
-                                metrics_dict = radii_data[radius]
-                                
-                                layer_arr = metrics_dict["layers"]
-                                m_arr = metrics_dict[current_metric]
-                                
-                                line_label = f"{current_metric.capitalize()}"
-                                plt.plot(layer_arr, m_arr, marker='o', color=color, label=line_label, linewidth=2, markersize=4)
-                                
-                                # Fan Shading based on percentiles if available
-                                if error_bars == "fan" or error_bars == "percentiles":
-                                    if "p10" in metrics_dict and "p90" in metrics_dict:
-                                        lower_p10 = metrics_dict["p10"]
-                                        if y_scale == "log":
-                                            lower_p10 = np.maximum(1e-12, lower_p10)
-                                        plt.fill_between(layer_arr, lower_p10, metrics_dict["p90"], color=color, alpha=0.1, label='_nolegend_')
-                                    if "p25" in metrics_dict and "p75" in metrics_dict:
-                                        lower_p25 = metrics_dict["p25"]
-                                        if y_scale == "log":
-                                            lower_p25 = np.maximum(1e-12, lower_p25)
-                                        plt.fill_between(layer_arr, lower_p25, metrics_dict["p75"], color=color, alpha=0.2, label='_nolegend_')
-                                else:
-                                    err_key = f"{current_metric}_{error_bars}"
-                                    if err_key in metrics_dict:
-                                        e_arr = metrics_dict[err_key]
-                                    elif error_bars in metrics_dict:
-                                        e_arr = metrics_dict[error_bars]
-                                    else:
-                                        e_arr = None
-                                        
-                                    if e_arr is not None:
-                                        lower = np.maximum(0, m_arr - e_arr) if error_bars in ["std", "var"] else m_arr - e_arr
-                                        if y_scale == "log":
-                                            lower = np.maximum(1e-12, lower)
-                                        plt.fill_between(layer_arr, lower, m_arr + e_arr, color=color, alpha=0.2, label='_nolegend_')
-                                    
-                            if plotting_cfg.get("show_title", False):
-                                title = f"{group_titles[group_key]} | R={radius}"
-                                if separate_figure_metrics and len(current_metric_list) == 1:
-                                    title += f" ({current_metric_list[0].capitalize()})"
-                                plt.title(f"Divergence over Layers | {title}")
-                                
-                            plt.xlabel("Layer")
-                            plt.ylabel("Distance")
-                            plt.xscale(x_scale)
-                            plt.yscale(y_scale)
-                            plt.grid(True, alpha=0.3)
-                            
-                            if len(current_metric_list) > 1:
-                                plt.legend(title="Metric", loc='upper left', bbox_to_anchor=(1, 1))
-                            plt.tight_layout()
-                            
-                            metric_str = "-".join(current_metric_list)
-                            plot_filename = f"{info_key}_R{radius}_metric-{metric_str}_err-{error_bars}_xscale-{x_scale}_yscale-{y_scale}.png"
-                            plt.savefig(os.path.join(plots_dir, plot_filename), dpi=dpi)
-                            plt.close()
+                        # STRICT FILTER: skip all since plot_magnitude_separated is false
+                        continue
  
     # 2. Distribution Heatmaps (One per Radius per Group)
     if plotting_cfg.get("plot_heatmap", True):
-        for group_key, radii_data in data.items():
-            if group_key.endswith("_aggregated") and not plot_prompt_together:
-                continue
-            if not group_key.endswith("_aggregated") and not plot_prompt_separated:
-                continue
-                
-            info_key = get_safe_filename_info(group_key, group_titles)
-            for radius, metrics_dict in radii_data.items():
-                if "hist" not in metrics_dict:
-                    continue
-                    
-                layers = metrics_dict["layers"]
-                hists = metrics_dict["hist"]
-                bins = metrics_dict["hist_bins"]
-                
-                all_hists = np.stack(hists, axis=1) # [bins, layers]
-                all_hists = np.nan_to_num(all_hists, nan=0.0, posinf=0.0, neginf=0.0)
-                
-                vmax = float(all_hists.max())
-                vmin = 1e-3
-                if not np.isfinite(vmax) or vmax <= vmin:
-                    vmax = vmin * 10.0
-                
-                plt.figure(figsize=(12, 8))
-                y_bins = bins[0]
-                extent = [layers[0], layers[-1], y_bins[0], y_bins[-1]]
-                
-                plt.imshow(all_hists, aspect='auto', origin='lower', extent=extent, cmap='magma', norm=LogNorm(vmin=vmin, vmax=vmax))
-                plt.colorbar(label='Density')
-                
-                plt.plot(layers, metrics_dict["median"], color='cyan', linewidth=2, label='Median')
-                plt.plot(layers, metrics_dict["p10"], color='cyan', linestyle='--', alpha=0.5, label='10th/90th P')
-                plt.plot(layers, metrics_dict["p90"], color='cyan', linestyle='--', alpha=0.5)
-                
-                if plotting_cfg.get("show_title", False):
-                    plt.title(f"Distribution Evolution | {group_titles[group_key]} | R={radius}")
-                plt.xlabel("Layer")
-                plt.ylabel("Distance")
-                plt.legend()
-                
-                plot_filename = f"{info_key}_heatmap_R{radius}.png"
-                plt.savefig(os.path.join(plots_dir, plot_filename), dpi=dpi)
-                plt.close()
+        pass # Skipped by config
  
     # 3. Average over Layers 2-25 vs Perturbation Magnitude Plot (using robust error and config scales)
     if plotting_cfg.get("plot_scaling_law", True):
@@ -319,26 +223,33 @@ def plot_perturbations(base_results_dir, plotting_cfg):
                         info_key = get_safe_filename_info(group_key, group_titles)
             
                         # --- Regular Scaling Law Plot ---
-                        plt.figure(figsize=(8, 6))
-                        if any(y_err_up):
-                            low_err = np.clip(y_err_low, 0, np.array(y_avg) * 0.99)
-                            plt.errorbar(x_radii, y_avg, yerr=[low_err, y_err_up], marker='o', capsize=5, color='b')
-                        else:
-                            plt.plot(x_radii, y_avg, marker='o', color='b')
-            
-                        plt.xscale(x_scale)
-                        plt.yscale(y_scale)
-                        if plotting_cfg.get("show_title", False):
-                            plt.title(f"Scaling Law (L2-25) | {group_titles[group_key]}")
-                        plt.xlabel("Perturbation")
-                        plt.ylabel("Average Distance")
-                        plt.grid(True, alpha=0.3, which="both")
-                        plt.tight_layout()
-                        plt.savefig(os.path.join(plots_dir, f"{info_key}_scaling_{current_metric}_xscale-{x_scale}_yscale-{y_scale}.png"), dpi=dpi)
-                        plt.close()
+                        # STRICT FILTER: Skip regular scaling plot if scaling_prompts_separate is true
+                        if not plotting_cfg.get("scaling_prompts_separate", False):
+                            plt.figure(figsize=(8, 6))
+                            if any(y_err_up):
+                                low_err = np.clip(y_err_low, 0, np.array(y_avg) * 0.99)
+                                plt.errorbar(x_radii, y_avg, yerr=[low_err, y_err_up], marker='o', capsize=5, color='b')
+                            else:
+                                plt.plot(x_radii, y_avg, marker='o', color='b')
+                
+                            plt.xscale(x_scale)
+                            plt.yscale(y_scale)
+                            if plotting_cfg.get("show_title", False):
+                                plt.title(f"Scaling Law (L2-25) | {group_titles[group_key]}")
+                            plt.xlabel("Perturbation")
+                            plt.ylabel("Average Distance")
+                            plt.grid(True, alpha=0.3, which="both")
+                            plt.tight_layout()
+                            plt.savefig(os.path.join(plots_dir, f"{info_key}_scaling_{current_metric}_xscale-{x_scale}_yscale-{y_scale}.png"), dpi=dpi)
+                            plt.close()
 
                         # --- Rainbow Scaling Law Plot (Individual Prompt Trajectories) ---
                         if plotting_cfg.get("scaling_prompts_separate", False) and group_key.endswith("_aggregated"):
+                            # STRICT FILTER: Only plot median in log-log scale
+                            # Target plot: single_token_perturb_all_All_Prompts_Aggregated_aggregated_scaling_rainbow_median_xscale-log_yscale-log.png
+                            if current_metric != "median" or x_scale != "log" or y_scale != "log":
+                                continue
+                                
                             setup_name = group_key.replace("_aggregated", "")
                             prompt_keys = [k for k in data.keys() if k.startswith(setup_name) and not k.endswith("_aggregated")]
                             
@@ -346,6 +257,10 @@ def plot_perturbations(base_results_dir, plotting_cfg):
                                 plt.figure(figsize=(8, 6))
                                 cmap = plt.cm.rainbow(np.linspace(0, 1, len(prompt_keys)))
                                 
+                                fit_rows = []
+                                individual_slopes = []
+                                
+                                # Fit and save curves for individual prompts
                                 for p_idx, p_key in enumerate(prompt_keys):
                                     p_radii_data = data[p_key]
                                     p_sorted_radii = sorted(p_radii_data.keys())
@@ -363,9 +278,73 @@ def plot_perturbations(base_results_dir, plotting_cfg):
                                         py_avg.append(np.mean(p_m_arr[p_mask]))
                                         
                                     if px_radii:
+                                        # Render curve
                                         plt.plot(px_radii, py_avg, color=cmap[p_idx], alpha=0.3, linewidth=1.5, linestyle='-')
+                                        
+                                        # Linear Fit on the last 8 values (or all if fewer than 8)
+                                        px_arr = np.array(px_radii)
+                                        py_arr = np.array(py_avg)
+                                        x_fit = px_arr[-8:]
+                                        y_fit = py_arr[-8:]
+                                        
+                                        # Avoid log(<=0)
+                                        valid = (x_fit > 0) & (y_fit > 0)
+                                        if np.sum(valid) >= 2:
+                                            log_x = np.log10(x_fit[valid])
+                                            log_y = np.log10(y_fit[valid])
+                                            slope, constant = np.polyfit(log_x, log_y, 1)
+                                            individual_slopes.append(slope)
+                                        else:
+                                            slope, constant = None, None
+                                            
+                                        smallest_pert_dist = py_arr[0] if len(py_arr) > 0 else None
+                                        fit_rows.append({
+                                            "Curve": f"Prompt {p_idx}",
+                                            "Slope": slope,
+                                            "Constant": constant,
+                                            "Smallest_Perturbation_Distance": smallest_pert_dist
+                                        })
                                 
-                                # Overlay aggregated mean
+                                # Fit and save curves for aggregated mean
+                                ax_arr = np.array(x_radii)
+                                ay_arr = np.array(y_avg)
+                                x_fit = ax_arr[-8:]
+                                y_fit = ay_arr[-8:]
+                                
+                                valid = (x_fit > 0) & (y_fit > 0)
+                                if np.sum(valid) >= 2:
+                                    log_x = np.log10(x_fit[valid])
+                                    log_y = np.log10(y_fit[valid])
+                                    slope, constant = np.polyfit(log_x, log_y, 1)
+                                else:
+                                    slope, constant = None, None
+                                    
+                                smallest_pert_dist = ay_arr[0] if len(ay_arr) > 0 else None
+                                fit_rows.append({
+                                    "Curve": "Aggregated Mean",
+                                    "Slope": slope,
+                                    "Constant": constant,
+                                    "Smallest_Perturbation_Distance": smallest_pert_dist
+                                })
+                                
+                                # Calculate stats on individual slopes
+                                avg_slope = np.mean(individual_slopes) if individual_slopes else None
+                                std_slope = np.std(individual_slopes) if individual_slopes else None
+                                
+                                # Save results to CSV
+                                csv_path = os.path.join(plots_dir, f"scaling_fit_results_{info_key}_{current_metric}.csv")
+                                with open(csv_path, mode="w", newline="") as f_csv:
+                                    writer = csv.writer(f_csv)
+                                    writer.writerow(["Curve", "Slope", "Constant", "Smallest_Perturbation_Distance"])
+                                    for row in fit_rows:
+                                        writer.writerow([row["Curve"], row["Slope"], row["Constant"], row["Smallest_Perturbation_Distance"]])
+                                    writer.writerow([])
+                                    writer.writerow(["Average of Individual Slopes", avg_slope, "", ""])
+                                    writer.writerow(["Std of Individual Slopes", std_slope, "", ""])
+                                
+                                print(f"Saved linear fit results CSV to {csv_path}")
+                                
+                                # Overlay aggregated mean curve
                                 plt.plot(x_radii, y_avg, marker='o', color='black', linewidth=3, markersize=6)
                                 
                                 plt.xscale(x_scale)
