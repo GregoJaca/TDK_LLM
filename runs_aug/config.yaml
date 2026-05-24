@@ -7,7 +7,7 @@ model:
   dtype: "bfloat16"
 
 experiment:
-  results_dir: "./results_perturbations"
+  results_dir: "./results_perturbations_OLD"
   # seed: [420, 69, 42, 10]  # Can be a single integer or a list of integers
   seed: [69]  # Can be a single integer or a list of integers
   n_conditions: 1000
