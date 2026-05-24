@@ -122,7 +122,7 @@ def main():
                 attn_module.forward = make_custom_forward(i, original_forwards[i])
                 
             with torch.no_grad():
-                _ = model(input_ids=input_ids_sliced, attention_mask=attention_mask_sliced)
+                _ = model(input_ids=input_ids_sliced, attention_mask=attention_mask_sliced, use_cache=False)
                 
             # Restore original forward methods
             for i in range(num_layers):

@@ -362,6 +362,9 @@ def compute_attn_jacobian_metrics(model, layer_idx, captured_args, captured_kwar
                     sliced_kwargs[k] = x_3d
                 else:
                     sliced_kwargs[k] = to_device(to_float32(slice_arg(v, n, M)), device)
+            # Force cache to be disabled during Jacobian computations
+            sliced_kwargs["use_cache"] = False
+            sliced_kwargs["past_key_value"] = None
                     
             # Call self_attn
             out_tuple = attn(*sliced_args, **sliced_kwargs)
@@ -412,6 +415,9 @@ def compute_attn_jacobian_metrics(model, layer_idx, captured_args, captured_kwar
                 else:
                     sliced_kwargs[k] = to_device(to_float32(slice_arg(v, n, M)), device)
             sliced_kwargs["output_attentions"] = True
+            # Force cache to be disabled during Jacobian computations
+            sliced_kwargs["use_cache"] = False
+            sliced_kwargs["past_key_value"] = None
             
             out_tuple = attn(*sliced_args, **sliced_kwargs)
             attn_weights = out_tuple[1]
