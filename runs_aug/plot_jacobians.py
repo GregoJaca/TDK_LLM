@@ -172,7 +172,7 @@ class JacobianPlotter:
         
         metric_names = ["spectral_norms", "lambda_true"]
         pretty_labels = {
-            "spectral_norms": r"$\| J \|_2$",
+            "spectral_norms": r"$\| \mathbf{J} \|_2$",
             "lambda_true": r"$\bar{\lambda}_{true}$"
         }
         colors = {
@@ -229,7 +229,7 @@ class JacobianPlotter:
                     plt.yscale(y_scale)
                     plt.grid(True, alpha=0.3)
                     
-                    plt.legend(loc='upper left', bbox_to_anchor=(1, 1))
+                    plt.legend(loc='upper left', bbox_to_anchor=(1, 1), fontsize=self.plotting_cfg.get("legend_size", 11) + 2)
                     plt.tight_layout()
                     
                     metric_str = "-".join(current_metric_list)
@@ -426,7 +426,7 @@ class JacobianPlotter:
                 
                 # Clean up heatmap y axis label
                 if m_name == "spectral_norms":
-                    simple_ylabel = r"$\| J \|_2$"
+                    simple_ylabel = r"$\| \mathbf{J} \|_2$"
                 elif m_name == "lambda_true":
                     simple_ylabel = r"$\bar{\lambda}_{true}$"
                 else:
@@ -498,7 +498,7 @@ class JacobianPlotter:
                         plt.xlabel("Layer")
                         
                         if m_name == "spectral_norms":
-                            simple_ylabel = r"$\| J \|_2$"
+                            simple_ylabel = r"$\| \mathbf{J} \|_2$"
                         elif m_name == "lambda_true":
                             simple_ylabel = r"$\bar{\lambda}_{true}$"
                         elif m_name == "S_x_sq_mean":
@@ -537,7 +537,7 @@ class JacobianPlotter:
             
             # Individual plots
             if self.plotting_cfg.get("plot_spectral_norms", True):
-                self._plot_metric_across_layers(group_key, ["spectral_norms"], r"Jacobian Spectral Norm $\|J_{MLP}\|_2$", r"$\|J\|_2$", "spectral_norms", labels=["Spectral Norm"], colors=['darkred'], hlines=[{'y': 1.0, 'label': 'Neutral Boundary'}])
+                self._plot_metric_across_layers(group_key, ["spectral_norms"], r"Jacobian Spectral Norm $\| \mathbf{J}_{MLP} \|_2$", r"$\| \mathbf{J} \|_2$", "spectral_norms", labels=["Spectral Norm"], colors=['darkred'], hlines=[{'y': 1.0, 'label': 'Neutral Boundary'}])
             if self.plotting_cfg.get("plot_lambda_true", True):
                 self._plot_metric_across_layers(group_key, ["lambda_true"], r"Mean Squared Singular Value $\bar{\lambda}_{true}$", r"$\bar{\lambda}_{true}$", "lambda_true", labels=[r"$\bar{\lambda}_{true}$"], colors=['navy'], hlines=[{'y': 1.0, 'label': 'Neutral Boundary'}])
             
