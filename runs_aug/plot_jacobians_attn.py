@@ -366,14 +366,15 @@ class AttentionJacobianPlotter:
         """Plot 5: Spatial Sensitivity Profile (Token-Wise) at Peak Instability Layer"""
         group_data = self.data[group_key]
         
-        # 1. Dynamically find the layer where spectral norm for max N is maximized
-        max_n = max(self.found_N_list)
-        norm_metric = f"attn_spectral_norm_N-{max_n}"
-        
-        if norm_metric not in group_data:
-            print(f"Warning: Could not find norm metric {norm_metric} to identify peak layer.")
+        # 1. Dynamically find the layer where spectral norm for the maximum completed N is maximized
+        completed_Ns = [n for n in self.found_N_list if f"attn_spectral_norm_N-{n}" in group_data]
+        if not completed_Ns:
+            print(f"Warning: Could not find any completed norm metrics to identify peak layer.")
             return
             
+        max_completed_n = max(completed_Ns)
+        norm_metric = f"attn_spectral_norm_N-{max_completed_n}"
+        
         layers = group_data[norm_metric]["layers"]
         stat_metric = self.metric_list[0]
         norm_vals = group_data[norm_metric][stat_metric]
@@ -382,12 +383,12 @@ class AttentionJacobianPlotter:
         
         print(f"Dynamic peak layer for sensitivity profile: Layer {peak_layer} (index {peak_idx})")
         
-        # 2. Setup a figure with vertically stacked subplots for each N
-        fig, axes = plt.subplots(len(self.found_N_list), 1, figsize=(10, 3 * len(self.found_N_list)), sharex=False)
-        if len(self.found_N_list) == 1:
+        # 2. Setup a figure with vertically stacked subplots for each completed N
+        fig, axes = plt.subplots(len(completed_Ns), 1, figsize=(10, 3 * len(completed_Ns)), sharex=False)
+        if len(completed_Ns) == 1:
             axes = [axes]
             
-        for idx, n in enumerate(self.found_N_list):
+        for idx, n in enumerate(completed_Ns):
             ax = axes[idx]
             prof_metric = f"token_sensitivity_profile_N-{n}"
             if prof_metric not in group_data:
