@@ -634,6 +634,8 @@ class AttentionJacobianPlotter:
         
         for stat_metrics in metrics_to_process:
             stat_metric = stat_metrics[0] # Heatmap only shows 1 metric at a time
+            # Fallback to mean because harmonic mode is not computed for vectors
+            plot_metric = stat_metric if stat_metric in ["mean", "median"] else "mean"
             for n in self.found_N_list:
                 m_name = f"token_sensitivity_profile_N-{n}"
                 if m_name not in group_data:
@@ -641,13 +643,18 @@ class AttentionJacobianPlotter:
                     
                 layers = group_data[m_name]["layers"]
                 # Shape is (num_layers, n)
-                profile_matrix = np.array(group_data[m_name][stat_metric])
+                profile_matrix = np.array(group_data[m_name][plot_metric])
+                
+                # Double-check that it successfully loaded a 2D matrix
+                if profile_matrix.ndim != 2:
+                    print(f"Warning: Expected 2D matrix for heatmap, got {profile_matrix.shape}. Skipping.")
+                    continue
                 
                 plt.figure(figsize=(12, 8))
                 extent = [-0.5, n - 0.5, layers[-1] + 0.5, layers[0] - 0.5]
                 
                 im = plt.imshow(profile_matrix, aspect='auto', cmap='magma', extent=extent, interpolation='nearest')
-                plt.colorbar(im, label=f"Sensitivity ({stat_metric.capitalize()})")
+                plt.colorbar(im, label=f"Sensitivity ({plot_metric.capitalize()})")
                 
                 if self.plotting_cfg.get("show_title", False):
                     plt.title(f"Token Sensitivity Heatmap N={n}\n{self.group_titles[group_key]}")
@@ -675,6 +682,7 @@ class AttentionJacobianPlotter:
             for y_scale in y_scales:
                 for stat_metrics in metrics_to_process:
                     stat_metric = stat_metrics[0]
+                    plot_metric = stat_metric if stat_metric in ["mean", "median"] else "mean"
                     for n in self.found_N_list:
                         m_name = f"token_sensitivity_profile_N-{n}"
                         if m_name not in group_data or "raw" not in group_data[m_name]:
@@ -682,8 +690,13 @@ class AttentionJacobianPlotter:
                             
                         layers = group_data[m_name]["layers"]
                         raw_data = group_data[m_name]["raw"] # List of shape (P, n) arrays
-                        profile_matrix = np.array(group_data[m_name][stat_metric])
-                        layer_means = profile_matrix.mean(axis=1) if profile_matrix.ndim == 2 else profile_matrix
+                        profile_matrix = np.array(group_data[m_name][plot_metric])
+                        
+                        if profile_matrix.ndim == 1 and profile_matrix.size > 0 and not isinstance(profile_matrix[0], (list, np.ndarray)):
+                            # Safety check for invalid fallback
+                            layer_means = np.zeros(len(layers))
+                        else:
+                            layer_means = profile_matrix.mean(axis=1) if profile_matrix.ndim == 2 else profile_matrix
                         
                         plt.figure(figsize=(12, 6))
                         
@@ -699,7 +712,7 @@ class AttentionJacobianPlotter:
                             
                             plt.scatter(x_jitter, layer_data, s=2.5, alpha=0.5, color='teal')
                         
-                        plt.plot(layers, layer_means, color='red', marker='D', markersize=5, linestyle='-', linewidth=2, label=f"{stat_metric.capitalize()} Sensitivity", zorder=10)
+                        plt.plot(layers, layer_means, color='red', marker='D', markersize=5, linestyle='-', linewidth=2, label=f"{plot_metric.capitalize()} Sensitivity", zorder=10)
                         
                         if self.plotting_cfg.get("show_title", False):
                             plt.title(f"Token Sensitivity Distribution N={n}\n{self.group_titles[group_key]}")
