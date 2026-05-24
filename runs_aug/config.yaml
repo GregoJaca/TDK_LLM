@@ -68,6 +68,8 @@ plotting:
   plot_magnitude_separated: true
   x_scales: ["linear"]
   y_scales: ["linear", "log"]
+  plot_heatmap: false
+  plot_scaling_law: true
   show_title: false
   font_size: 14
   label_size: 14

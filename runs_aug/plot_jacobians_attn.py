@@ -437,11 +437,16 @@ class AttentionJacobianPlotter:
             if not self._should_plot(group_key): 
                 continue
             print(f"Plotting for group: {group_key}")
-            self.plot_spectral_norms(group_key)
-            self.plot_attention_entropy(group_key)
-            self.plot_static_weights(group_key)
-            self.plot_spectral_gaps(group_key)
-            self.plot_token_sensitivity(group_key)
+            if self.plotting_cfg.get("plot_spectral_norms", True):
+                self.plot_spectral_norms(group_key)
+            if self.plotting_cfg.get("plot_attention_entropy", True):
+                self.plot_attention_entropy(group_key)
+            if self.plotting_cfg.get("plot_static_weights", True):
+                self.plot_static_weights(group_key)
+            if self.plotting_cfg.get("plot_spectral_gaps", True):
+                self.plot_spectral_gaps(group_key)
+            if self.plotting_cfg.get("plot_token_sensitivity", True):
+                self.plot_token_sensitivity(group_key)
         print("-" * 50)
 
 def main():

@@ -87,9 +87,19 @@ plotting:
   separate_figure_metrics: true
   x_scales: ["linear"]
   y_scales: ["linear", "log"]
+  plot_heatmap: false
   plot_swarm: true
+  plot_spectral_norms: true
+  plot_lambda_true: true
+  plot_weight_svds: true
+  plot_scaled_frobenius: true
+  plot_activation_densities: true
+  plot_attention_entropy: true
+  plot_static_weights: true
+  plot_spectral_gaps: true
+  plot_token_sensitivity: true
   show_title: false
-  font_size: 14
+  font_size: 16
   label_size: 14
   tick_size: 12
   legend_size: 11

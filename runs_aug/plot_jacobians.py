@@ -226,7 +226,7 @@ class JacobianPlotter:
         for setup_name, prompt_keys in setups.items():
             if not prompt_keys: continue
             
-            for m_name in ["spectral_norms", "lambda_true"]:
+            for m_name in ["spectral_norms", "lambda_true", "S_x_sq_mean", "D_x_sq_mean"]:
                 x_scales = self.plotting_cfg.get("x_scales", ["linear"])
                 y_scales = self.plotting_cfg.get("y_scales", ["linear"])
                 
@@ -258,6 +258,10 @@ class JacobianPlotter:
                             plt.scatter(all_x, all_y, color=color, s=8, alpha=0.3, edgecolors='none')
                             plt.plot(layers, medians, color=color, linewidth=1.5, alpha=0.8)
                             
+                        # Add Neutral Boundary baseline at y = 1.0 for spectral_norms and lambda_true
+                        if m_name in ["spectral_norms", "lambda_true"]:
+                            plt.axhline(y=1.0, color='red', linestyle='--', linewidth=1.5)
+
                         if self.plotting_cfg.get("show_title", False):
                             plt.title(f"Jacobian {m_name} Layer-wise Swarm | Setup: {setup_name}")
                         plt.xlabel("Layer")
@@ -266,6 +270,10 @@ class JacobianPlotter:
                             simple_ylabel = r"$\|J\|_2$"
                         elif m_name == "lambda_true":
                             simple_ylabel = r"$\bar{\lambda}_{true}$"
+                        elif m_name == "S_x_sq_mean":
+                            simple_ylabel = r"$S(x)^2$"
+                        elif m_name == "D_x_sq_mean":
+                            simple_ylabel = r"$D(x)^2$"
                         else:
                             simple_ylabel = m_name.replace("_", " ").title()
                         plt.ylabel(simple_ylabel)
@@ -278,6 +286,9 @@ class JacobianPlotter:
                             Line2D([0], [0], marker='o', color='gray', linestyle='none', markersize=5, label='Token Values (individual)'),
                             Line2D([0], [0], color='gray', linewidth=1.5, label='Prompt Medians')
                         ]
+                        if m_name in ["spectral_norms", "lambda_true"]:
+                            legend_elements.append(Line2D([0], [0], color='red', linestyle='--', linewidth=1.5, label='Neutral Boundary'))
+                        
                         plt.legend(handles=legend_elements, loc='upper left')
                         plt.tight_layout()
                         
@@ -289,13 +300,19 @@ class JacobianPlotter:
         print("--- Generating Jacobian Plots ---")
         for group_key in self.data.keys():
             if not self._should_plot(group_key): continue
-            self._plot_metric_across_layers(group_key, ["spectral_norms"], r"Jacobian Spectral Norm $\|J_{MLP}\|_2$", r"$\|J\|_2$", "spectral_norms", labels=["Spectral Norm"], colors=['darkred'], hlines=[{'y': 1.0, 'label': 'Neutral Boundary'}])
-            self._plot_metric_across_layers(group_key, ["lambda_true"], r"Mean Squared Singular Value $\bar{\lambda}_{true}$", r"$\bar{\lambda}_{true}$", "lambda_true", labels=[r"$\bar{\lambda}_{true}$"], colors=['navy'], hlines=[{'y': 1.0, 'label': 'Neutral Boundary'}])
-            self._plot_metric_across_layers(group_key, ["W_gate_max_SVD", "W_up_max_SVD", "W_down_max_SVD"], "Weight Matrix Spectral Norms", "Weight Spectral Norm", "weight_svds", labels=[r'$W_{gate}$', r'$W_{up}$', r'$W_{down}$'], hlines=[{'y': 1.0, 'label': 'Neutral Boundary'}])
-            self._plot_metric_across_layers(group_key, ["W_gate_scaled_F2", "W_up_scaled_F2", "W_down_scaled_F2"], "Scaled Frobenius Norms", "Scaled Frobenius Norm", "scaled_frobenius", labels=[r'$W_{gate}$', r'$W_{up}$', r'$W_{down}$'], hlines=[{'y': 1.0, 'label': 'Neutral Boundary'}])
-            self._plot_metric_across_layers(group_key, ["S_x_sq_mean", "D_x_sq_mean"], "Activation Densities", "Activation Density", "activation_densities", labels=[r'$S(x)^2$', r'$D(x)^2$'], colors=['teal', 'orange'])
+            if self.plotting_cfg.get("plot_spectral_norms", True):
+                self._plot_metric_across_layers(group_key, ["spectral_norms"], r"Jacobian Spectral Norm $\|J_{MLP}\|_2$", r"$\|J\|_2$", "spectral_norms", labels=["Spectral Norm"], colors=['darkred'], hlines=[{'y': 1.0, 'label': 'Neutral Boundary'}])
+            if self.plotting_cfg.get("plot_lambda_true", True):
+                self._plot_metric_across_layers(group_key, ["lambda_true"], r"Mean Squared Singular Value $\bar{\lambda}_{true}$", r"$\bar{\lambda}_{true}$", "lambda_true", labels=[r"$\bar{\lambda}_{true}$"], colors=['navy'], hlines=[{'y': 1.0, 'label': 'Neutral Boundary'}])
+            if self.plotting_cfg.get("plot_weight_svds", True):
+                self._plot_metric_across_layers(group_key, ["W_gate_max_SVD", "W_up_max_SVD", "W_down_max_SVD"], "Weight Matrix Spectral Norms", "Weight Spectral Norm", "weight_svds", labels=[r'$W_{gate}$', r'$W_{up}$', r'$W_{down}$'], hlines=[{'y': 1.0, 'label': 'Neutral Boundary'}])
+            if self.plotting_cfg.get("plot_scaled_frobenius", True):
+                self._plot_metric_across_layers(group_key, ["W_gate_scaled_F2", "W_up_scaled_F2", "W_down_scaled_F2"], "Scaled Frobenius Norms", "Scaled Frobenius Norm", "scaled_frobenius", labels=[r'$W_{gate}$', r'$W_{up}$', r'$W_{down}$'], hlines=[{'y': 1.0, 'label': 'Neutral Boundary'}])
+            if self.plotting_cfg.get("plot_activation_densities", True):
+                self._plot_metric_across_layers(group_key, ["S_x_sq_mean", "D_x_sq_mean"], "Activation Densities", "Activation Density", "activation_densities", labels=[r'$S(x)^2$', r'$D(x)^2$'], colors=['teal', 'orange'])
         
-        self.plot_distribution_heatmaps()
+        if self.plotting_cfg.get("plot_heatmap", True):
+            self.plot_distribution_heatmaps()
         if self.plotting_cfg.get("plot_swarm", False):
             self.plot_swarm_plots()
         print("-" * 50)

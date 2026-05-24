@@ -215,119 +215,121 @@ def plot_perturbations(base_results_dir, plotting_cfg):
                             plt.close()
  
     # 2. Distribution Heatmaps (One per Radius per Group)
-    for group_key, radii_data in data.items():
-        if group_key.endswith("_aggregated") and not plot_prompt_together:
-            continue
-        if not group_key.endswith("_aggregated") and not plot_prompt_separated:
-            continue
-            
-        info_key = get_safe_filename_info(group_key, group_titles)
-        for radius, metrics_dict in radii_data.items():
-            if "hist" not in metrics_dict:
+    if plotting_cfg.get("plot_heatmap", True):
+        for group_key, radii_data in data.items():
+            if group_key.endswith("_aggregated") and not plot_prompt_together:
+                continue
+            if not group_key.endswith("_aggregated") and not plot_prompt_separated:
                 continue
                 
-            layers = metrics_dict["layers"]
-            hists = metrics_dict["hist"]
-            bins = metrics_dict["hist_bins"]
-            
-            # Combine histograms into a 2D array
-            # Safely handle potential NaNs/infs and verify bounds for LogNorm
-            all_hists = np.stack(hists, axis=1) # [bins, layers]
-            all_hists = np.nan_to_num(all_hists, nan=0.0, posinf=0.0, neginf=0.0)
-            
-            vmax = float(all_hists.max())
-            vmin = 1e-3
-            if not np.isfinite(vmax) or vmax <= vmin:
-                vmax = vmin * 10.0  # Ensure vmax is strictly greater than vmin
-            
-            plt.figure(figsize=(12, 8))
-            # Use the first bin edges for Y axis
-            y_bins = bins[0]
-            extent = [layers[0], layers[-1], y_bins[0], y_bins[-1]]
-            
-            plt.imshow(all_hists, aspect='auto', origin='lower', extent=extent, cmap='magma', norm=LogNorm(vmin=vmin, vmax=vmax))
-            plt.colorbar(label='Density')
-            
-            # Overlay median line
-            plt.plot(layers, metrics_dict["median"], color='cyan', linewidth=2, label='Median')
-            plt.plot(layers, metrics_dict["p10"], color='cyan', linestyle='--', alpha=0.5, label='10th/90th P')
-            plt.plot(layers, metrics_dict["p90"], color='cyan', linestyle='--', alpha=0.5)
-            
-            if plotting_cfg.get("show_title", False):
-                plt.title(f"Distribution Evolution | {group_titles[group_key]} | R={radius}")
-            plt.xlabel("Layer")
-            plt.ylabel("Distance")
-            plt.legend()
-            
-            plot_filename = f"{info_key}_heatmap_R{radius}.png"
-            plt.savefig(os.path.join(plots_dir, plot_filename), dpi=dpi)
-            plt.close()
+            info_key = get_safe_filename_info(group_key, group_titles)
+            for radius, metrics_dict in radii_data.items():
+                if "hist" not in metrics_dict:
+                    continue
+                    
+                layers = metrics_dict["layers"]
+                hists = metrics_dict["hist"]
+                bins = metrics_dict["hist_bins"]
+                
+                # Combine histograms into a 2D array
+                # Safely handle potential NaNs/infs and verify bounds for LogNorm
+                all_hists = np.stack(hists, axis=1) # [bins, layers]
+                all_hists = np.nan_to_num(all_hists, nan=0.0, posinf=0.0, neginf=0.0)
+                
+                vmax = float(all_hists.max())
+                vmin = 1e-3
+                if not np.isfinite(vmax) or vmax <= vmin:
+                    vmax = vmin * 10.0  # Ensure vmax is strictly greater than vmin
+                
+                plt.figure(figsize=(12, 8))
+                # Use the first bin edges for Y axis
+                y_bins = bins[0]
+                extent = [layers[0], layers[-1], y_bins[0], y_bins[-1]]
+                
+                plt.imshow(all_hists, aspect='auto', origin='lower', extent=extent, cmap='magma', norm=LogNorm(vmin=vmin, vmax=vmax))
+                plt.colorbar(label='Density')
+                
+                # Overlay median line
+                plt.plot(layers, metrics_dict["median"], color='cyan', linewidth=2, label='Median')
+                plt.plot(layers, metrics_dict["p10"], color='cyan', linestyle='--', alpha=0.5, label='10th/90th P')
+                plt.plot(layers, metrics_dict["p90"], color='cyan', linestyle='--', alpha=0.5)
+                
+                if plotting_cfg.get("show_title", False):
+                    plt.title(f"Distribution Evolution | {group_titles[group_key]} | R={radius}")
+                plt.xlabel("Layer")
+                plt.ylabel("Distance")
+                plt.legend()
+                
+                plot_filename = f"{info_key}_heatmap_R{radius}.png"
+                plt.savefig(os.path.join(plots_dir, plot_filename), dpi=dpi)
+                plt.close()
  
     # 3. Average over Layers 2-25 vs Perturbation Magnitude Plot (using robust error and config scales)
-    for x_scale in x_scales:
-        for y_scale in y_scales:
-            for current_metric in metric_list:
-                for group_key, radii_data in data.items():
-                    if group_key.endswith("_aggregated") and not plot_prompt_together:
-                        continue
-                    if not group_key.endswith("_aggregated") and not plot_prompt_separated:
-                        continue
-        
-                    sorted_radii = sorted(radii_data.keys())
-                    x_radii = []
-                    y_avg = []
-                    y_err_up = []
-                    y_err_low = []
-        
-                    for radius in sorted_radii:
-                        metrics_dict = radii_data[radius]
-                        layer_arr = metrics_dict["layers"]
-                        m_arr = metrics_dict[current_metric]
-                        mask = (layer_arr >= 2) & (layer_arr <= 25)
-                        if not np.any(mask): continue
+    if plotting_cfg.get("plot_scaling_law", True):
+        for x_scale in x_scales:
+            for y_scale in y_scales:
+                for current_metric in metric_list:
+                    for group_key, radii_data in data.items():
+                        if group_key.endswith("_aggregated") and not plot_prompt_together:
+                            continue
+                        if not group_key.endswith("_aggregated") and not plot_prompt_separated:
+                            continue
+            
+                        sorted_radii = sorted(radii_data.keys())
+                        x_radii = []
+                        y_avg = []
+                        y_err_up = []
+                        y_err_low = []
+            
+                        for radius in sorted_radii:
+                            metrics_dict = radii_data[radius]
+                            layer_arr = metrics_dict["layers"]
+                            m_arr = metrics_dict[current_metric]
+                            mask = (layer_arr >= 2) & (layer_arr <= 25)
+                            if not np.any(mask): continue
+                                
+                            selected_vals = m_arr[mask]
+                            x_radii.append(radius)
+                            y_avg.append(np.mean(selected_vals))
                             
-                        selected_vals = m_arr[mask]
-                        x_radii.append(radius)
-                        y_avg.append(np.mean(selected_vals))
-                        
-                        metric_var_key = f"{current_metric}_var" if f"{current_metric}_var" in metrics_dict else "var"
-                        
-                        if error_bars in ["std", "var"]:
-                            var_arr = metrics_dict[metric_var_key]
-                            overall_var = np.mean(var_arr[mask]) + np.var(selected_vals)
-                            err = np.sqrt(overall_var) if error_bars == "std" else overall_var
-                            y_err_low.append(err)
-                            y_err_up.append(err)
-                        elif error_bars == "fan" or error_bars == "percentiles":
-                            # Use p10-p90 spread as error bounds
-                            low_spread = np.mean(metrics_dict["p10"][mask])
-                            high_spread = np.mean(metrics_dict["p90"][mask])
-                            y_err_low.append(np.mean(selected_vals) - low_spread)
-                            y_err_up.append(high_spread - np.mean(selected_vals))
+                            metric_var_key = f"{current_metric}_var" if f"{current_metric}_var" in metrics_dict else "var"
+                            
+                            if error_bars in ["std", "var"]:
+                                var_arr = metrics_dict[metric_var_key]
+                                overall_var = np.mean(var_arr[mask]) + np.var(selected_vals)
+                                err = np.sqrt(overall_var) if error_bars == "std" else overall_var
+                                y_err_low.append(err)
+                                y_err_up.append(err)
+                            elif error_bars == "fan" or error_bars == "percentiles":
+                                # Use p10-p90 spread as error bounds
+                                low_spread = np.mean(metrics_dict["p10"][mask])
+                                high_spread = np.mean(metrics_dict["p90"][mask])
+                                y_err_low.append(np.mean(selected_vals) - low_spread)
+                                y_err_up.append(high_spread - np.mean(selected_vals))
+                            else:
+                                y_err_low.append(0); y_err_up.append(0)
+            
+                        if not x_radii: continue
+                        info_key = get_safe_filename_info(group_key, group_titles)
+            
+                        plt.figure(figsize=(8, 6))
+                        if any(y_err_up):
+                            # Prevent log(negative)
+                            low_err = np.clip(y_err_low, 0, np.array(y_avg) * 0.99)
+                            plt.errorbar(x_radii, y_avg, yerr=[low_err, y_err_up], marker='o', capsize=5, color='b')
                         else:
-                            y_err_low.append(0); y_err_up.append(0)
-        
-                    if not x_radii: continue
-                    info_key = get_safe_filename_info(group_key, group_titles)
-        
-                    plt.figure(figsize=(8, 6))
-                    if any(y_err_up):
-                        # Prevent log(negative)
-                        low_err = np.clip(y_err_low, 0, np.array(y_avg) * 0.99)
-                        plt.errorbar(x_radii, y_avg, yerr=[low_err, y_err_up], marker='o', capsize=5, color='b')
-                    else:
-                        plt.plot(x_radii, y_avg, marker='o', color='b')
-        
-                    plt.xscale(x_scale)
-                    plt.yscale(y_scale)
-                    if plotting_cfg.get("show_title", False):
-                        plt.title(f"Scaling Law (L2-25) | {group_titles[group_key]}")
-                    plt.xlabel("Radius")
-                    plt.ylabel("Average Distance")
-                    plt.grid(True, alpha=0.3, which="both")
-                    plt.tight_layout()
-                    plt.savefig(os.path.join(plots_dir, f"{info_key}_scaling_{current_metric}_xscale-{x_scale}_yscale-{y_scale}.png"), dpi=dpi)
-                    plt.close()
+                            plt.plot(x_radii, y_avg, marker='o', color='b')
+            
+                        plt.xscale(x_scale)
+                        plt.yscale(y_scale)
+                        if plotting_cfg.get("show_title", False):
+                            plt.title(f"Scaling Law (L2-25) | {group_titles[group_key]}")
+                        plt.xlabel("Radius")
+                        plt.ylabel("Average Distance")
+                        plt.grid(True, alpha=0.3, which="both")
+                        plt.tight_layout()
+                        plt.savefig(os.path.join(plots_dir, f"{info_key}_scaling_{current_metric}_xscale-{x_scale}_yscale-{y_scale}.png"), dpi=dpi)
+                        plt.close()
 
 def main():
     config_path = "config.yaml"
