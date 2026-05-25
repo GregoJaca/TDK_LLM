@@ -446,14 +446,6 @@ def plot_extracted_jacobians(data, group_titles, plots_dir, plotting_cfg):
             A_with_input, layer_jac = compute_gain_for_key(current_metric)
             layer_arr_with_input = np.insert(layer_arr, 0, layer_arr[0] - 1)
             
-            # Compute fan error bounds if requested
-            has_fan = (error_bars in ["fan", "percentiles"]) and ("p10" in radii_data[first_radius])
-            if has_fan:
-                A_p10, layer_jac_p10 = compute_gain_for_key("p10")
-                A_p25, layer_jac_p25 = compute_gain_for_key("p25")
-                A_p75, layer_jac_p75 = compute_gain_for_key("p75")
-                A_p90, layer_jac_p90 = compute_gain_for_key("p90")
-                
             # Compute individual prompt trajectories for the swarm
             swarm_data = []
             if group_key.endswith("_aggregated") and prompt_keys:
@@ -475,6 +467,33 @@ def plot_extracted_jacobians(data, group_titles, plots_dir, plotting_cfg):
                     for i in range(num_layers):
                         p_layer_jac[i] = p_A_with_input[i+1] / np.maximum(p_A_with_input[i], 1e-12)
                     swarm_data.append((p_A_with_input, p_layer_jac))
+            
+            # Compute fan error bounds if requested
+            has_fan = (error_bars in ["fan", "percentiles"])
+            if has_fan:
+                if swarm_data:
+                    # Mathematically exact error propagation using individual prompt trajectories
+                    all_p_A = np.stack([item[0] for item in swarm_data], axis=0) # [num_prompts, num_layers + 1]
+                    all_p_lj = np.stack([item[1] for item in swarm_data], axis=0) # [num_prompts, num_layers]
+                    
+                    A_p10 = np.percentile(all_p_A, 10, axis=0)
+                    A_p25 = np.percentile(all_p_A, 25, axis=0)
+                    A_p75 = np.percentile(all_p_A, 75, axis=0)
+                    A_p90 = np.percentile(all_p_A, 90, axis=0)
+                    
+                    layer_jac_p10 = np.percentile(all_p_lj, 10, axis=0)
+                    layer_jac_p25 = np.percentile(all_p_lj, 25, axis=0)
+                    layer_jac_p75 = np.percentile(all_p_lj, 75, axis=0)
+                    layer_jac_p90 = np.percentile(all_p_lj, 90, axis=0)
+                else:
+                    # Fallback to historical behavior using pre-aggregated percentiles
+                    if "p10" in radii_data[first_radius]:
+                        A_p10, layer_jac_p10 = compute_gain_for_key("p10")
+                        A_p25, layer_jac_p25 = compute_gain_for_key("p25")
+                        A_p75, layer_jac_p75 = compute_gain_for_key("p75")
+                        A_p90, layer_jac_p90 = compute_gain_for_key("p90")
+                    else:
+                        has_fan = False
             
             # Now plot for each combination of scale
             for x_scale in x_scales:
