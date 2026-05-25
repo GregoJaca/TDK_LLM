@@ -43,6 +43,9 @@ plotting:
   plot_prompt_together: true
   plot_prompt_separated: false
   separate_figure_metrics: true
+  plot_extracted_cumulative_jacobian: true
+  plot_extracted_layer_jacobian: true
+  plot_extracted_jacobians_together: true
   plot_magnitude_together: true
   plot_magnitude_separated: false
   x_scales: ["linear", "log"]
