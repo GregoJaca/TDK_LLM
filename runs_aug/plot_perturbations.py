@@ -412,10 +412,9 @@ def plot_extracted_jacobians(data, group_titles, plots_dir, plotting_cfg):
         setup_name = group_key.replace("_aggregated", "")
         prompt_keys = [k for k in data.keys() if k.startswith(setup_name) and not k.endswith("_aggregated")]
         
-        # Identify the linear regime: smallest radii where perturbation is linear
-        linear_radii = [r for r in sorted_radii if r <= 0.001]
-        if not linear_radii:
-            linear_radii = sorted_radii[:3] if len(sorted_radii) >= 3 else sorted_radii
+        # Identify the linear regime: use the 8 largest perturbation magnitudes
+        # (This matches the selection used in the scaling law linear fit)
+        linear_radii = sorted_radii[-8:]
             
         for current_metric in metric_list:
             # Extract layer array from the first radius
@@ -461,9 +460,7 @@ def plot_extracted_jacobians(data, group_titles, plots_dir, plotting_cfg):
                 for p_key in prompt_keys:
                     p_radii_data = data[p_key]
                     p_sorted_radii = sorted(p_radii_data.keys())
-                    p_linear_radii = [r for r in p_sorted_radii if r <= 0.001]
-                    if not p_linear_radii:
-                        p_linear_radii = p_sorted_radii[:3] if len(p_sorted_radii) >= 3 else p_sorted_radii
+                    p_linear_radii = p_sorted_radii[-8:]
                         
                     p_A = np.zeros(num_layers)
                     for i in range(num_layers):
