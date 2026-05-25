@@ -435,13 +435,17 @@ def plot_extracted_jacobians(data, group_titles, plots_dir, plotting_cfg):
                             ratios.append(radii_data[r][metric_name][i] / r)
                     A_arr[i] = np.mean(ratios) if ratios else 1.0
                 
-                layer_jac_arr = np.zeros(num_layers - 1)
-                for i in range(num_layers - 1):
-                    layer_jac_arr[i] = A_arr[i+1] / np.maximum(A_arr[i], 1e-12)
-                return A_arr, layer_jac_arr
+                # Prepend 1.0 for the virtual input layer
+                A_with_input = np.insert(A_arr, 0, 1.0)
+                
+                layer_jac_arr = np.zeros(num_layers)
+                for i in range(num_layers):
+                    layer_jac_arr[i] = A_with_input[i+1] / np.maximum(A_with_input[i], 1e-12)
+                return A_with_input, layer_jac_arr
             
             # Compute main aggregated metric
-            A, layer_jac = compute_gain_for_key(current_metric)
+            A_with_input, layer_jac = compute_gain_for_key(current_metric)
+            layer_arr_with_input = np.insert(layer_arr, 0, layer_arr[0] - 1)
             
             # Compute fan error bounds if requested
             has_fan = (error_bars in ["fan", "percentiles"]) and ("p10" in radii_data[first_radius])
@@ -469,10 +473,11 @@ def plot_extracted_jacobians(data, group_titles, plots_dir, plotting_cfg):
                                 ratios.append(p_radii_data[r][current_metric][i] / r)
                         p_A[i] = np.mean(ratios) if ratios else 1.0
                         
-                    p_layer_jac = np.zeros(num_layers - 1)
-                    for i in range(num_layers - 1):
-                        p_layer_jac[i] = p_A[i+1] / np.maximum(p_A[i], 1e-12)
-                    swarm_data.append((p_A, p_layer_jac))
+                    p_A_with_input = np.insert(p_A, 0, 1.0)
+                    p_layer_jac = np.zeros(num_layers)
+                    for i in range(num_layers):
+                        p_layer_jac[i] = p_A_with_input[i+1] / np.maximum(p_A_with_input[i], 1e-12)
+                    swarm_data.append((p_A_with_input, p_layer_jac))
             
             # Now plot for each combination of scale
             for x_scale in x_scales:
@@ -481,19 +486,19 @@ def plot_extracted_jacobians(data, group_titles, plots_dir, plotting_cfg):
                     if plot_cum:
                         plt.figure(figsize=(8, 6))
                         # Plot swarm (individual prompts) in background
-                        for p_A, _ in swarm_data:
-                            plt.plot(layer_arr, p_A, color='gray', alpha=0.15, linewidth=1, marker='o', markersize=2)
+                        for p_A_in, _ in swarm_data:
+                            plt.plot(layer_arr_with_input, p_A_in, color='gray', alpha=0.15, linewidth=1, marker='o', markersize=2)
                         
                         # Plot baseline
                         plt.axhline(1.0, color='gray', linestyle='--', linewidth=1.5, zorder=1)
                         
                         # Plot main line
-                        plt.plot(layer_arr, A, marker='o', color='b', linewidth=2, markersize=4, zorder=3)
+                        plt.plot(layer_arr_with_input, A_with_input, marker='o', color='b', linewidth=2, markersize=4, zorder=3)
                         
                         # Fan shading
                         if has_fan:
-                            plt.fill_between(layer_arr, np.maximum(1e-12, A_p10), A_p90, color='b', alpha=0.1, zorder=2)
-                            plt.fill_between(layer_arr, np.maximum(1e-12, A_p25), A_p75, color='b', alpha=0.2, zorder=2)
+                            plt.fill_between(layer_arr_with_input, np.maximum(1e-12, A_p10), A_p90, color='b', alpha=0.1, zorder=2)
+                            plt.fill_between(layer_arr_with_input, np.maximum(1e-12, A_p25), A_p75, color='b', alpha=0.2, zorder=2)
                             
                         plt.xlabel("Layer")
                         plt.ylabel("Linearized Perturbation Gain")
@@ -512,18 +517,18 @@ def plot_extracted_jacobians(data, group_titles, plots_dir, plotting_cfg):
                         plt.figure(figsize=(8, 6))
                         # Plot swarm (individual prompts) in background
                         for _, p_lj in swarm_data:
-                            plt.plot(layer_arr[1:], p_lj, color='gray', alpha=0.15, linewidth=1, marker='s', markersize=2)
+                            plt.plot(layer_arr, p_lj, color='gray', alpha=0.15, linewidth=1, marker='s', markersize=2)
                             
                         # Plot baseline
                         plt.axhline(1.0, color='gray', linestyle='--', linewidth=1.5, zorder=1)
                         
                         # Plot main line
-                        plt.plot(layer_arr[1:], layer_jac, marker='s', color='r', linewidth=2, markersize=4, zorder=3)
+                        plt.plot(layer_arr, layer_jac, marker='s', color='r', linewidth=2, markersize=4, zorder=3)
                         
                         # Fan shading
                         if has_fan:
-                            plt.fill_between(layer_arr[1:], np.maximum(1e-12, layer_jac_p10), layer_jac_p90, color='r', alpha=0.1, zorder=2)
-                            plt.fill_between(layer_arr[1:], np.maximum(1e-12, layer_jac_p25), layer_jac_p75, color='r', alpha=0.2, zorder=2)
+                            plt.fill_between(layer_arr, np.maximum(1e-12, layer_jac_p10), layer_jac_p90, color='r', alpha=0.1, zorder=2)
+                            plt.fill_between(layer_arr, np.maximum(1e-12, layer_jac_p25), layer_jac_p75, color='r', alpha=0.2, zorder=2)
                             
                         plt.xlabel("Layer")
                         plt.ylabel("Linearized Perturbation Gain")
@@ -541,23 +546,23 @@ def plot_extracted_jacobians(data, group_titles, plots_dir, plotting_cfg):
                     if plot_tog:
                         plt.figure(figsize=(8, 6))
                         # Plot swarm in background
-                        for p_A, p_lj in swarm_data:
-                            plt.plot(layer_arr, p_A, color='blue', alpha=0.08, linewidth=0.8)
-                            plt.plot(layer_arr[1:], p_lj, color='red', alpha=0.08, linewidth=0.8) 
+                        for p_A_in, p_lj in swarm_data:
+                            plt.plot(layer_arr_with_input, p_A_in, color='blue', alpha=0.08, linewidth=0.8)
+                            plt.plot(layer_arr, p_lj, color='red', alpha=0.08, linewidth=0.8) 
                             
                         # Plot baseline
                         plt.axhline(1.0, color='gray', linestyle='--', linewidth=1.5, zorder=1, label="Baseline")
                         
                         # Plot main lines
-                        plt.plot(layer_arr, A, marker='o', color='b', linewidth=2, markersize=4, label="Aggregate Jacobian", zorder=4)
-                        plt.plot(layer_arr[1:], layer_jac, marker='s', color='r', linewidth=2, markersize=4, label="Layer Jacobian", zorder=4)
+                        plt.plot(layer_arr_with_input, A_with_input, marker='o', color='b', linewidth=2, markersize=4, label="Aggregate Jacobian", zorder=4)
+                        plt.plot(layer_arr, layer_jac, marker='s', color='r', linewidth=2, markersize=4, label="Layer Jacobian", zorder=4)
                         
                         # Fan shading
                         if has_fan:
-                            plt.fill_between(layer_arr, np.maximum(1e-12, A_p10), A_p90, color='b', alpha=0.08, zorder=2)
-                            plt.fill_between(layer_arr, np.maximum(1e-12, A_p25), A_p75, color='b', alpha=0.15, zorder=2)
-                            plt.fill_between(layer_arr[1:], np.maximum(1e-12, layer_jac_p10), layer_jac_p90, color='r', alpha=0.08, zorder=2)
-                            plt.fill_between(layer_arr[1:], np.maximum(1e-12, layer_jac_p25), layer_jac_p75, color='r', alpha=0.15, zorder=2)
+                            plt.fill_between(layer_arr_with_input, np.maximum(1e-12, A_p10), A_p90, color='b', alpha=0.08, zorder=2)
+                            plt.fill_between(layer_arr_with_input, np.maximum(1e-12, A_p25), A_p75, color='b', alpha=0.15, zorder=2)
+                            plt.fill_between(layer_arr, np.maximum(1e-12, layer_jac_p10), layer_jac_p90, color='r', alpha=0.08, zorder=2)
+                            plt.fill_between(layer_arr, np.maximum(1e-12, layer_jac_p25), layer_jac_p75, color='r', alpha=0.15, zorder=2)
                             
                         plt.xlabel("Layer")
                         plt.ylabel("Linearized Perturbation Gain")
