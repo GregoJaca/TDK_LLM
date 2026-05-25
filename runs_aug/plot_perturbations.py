@@ -542,11 +542,11 @@ def plot_extracted_jacobians(data, group_titles, plots_dir, plotting_cfg):
                         plt.figure(figsize=(8, 6))
                         # Plot swarm in background
                         for p_A, p_lj in swarm_data:
-                            plt.plot(layer_arr, p_A, color='blue', alpha=0.04, linewidth=0.8)
-                            plt.plot(layer_arr[1:], p_lj, color='red', alpha=0.04, linewidth=0.8)
+                            plt.plot(layer_arr, p_A, color='blue', alpha=0.08, linewidth=0.8)
+                            plt.plot(layer_arr[1:], p_lj, color='red', alpha=0.08, linewidth=0.8) 
                             
                         # Plot baseline
-                        plt.axhline(1.0, color='gray', linestyle='--', linewidth=1.5, zorder=1)
+                        plt.axhline(1.0, color='gray', linestyle='--', linewidth=1.5, zorder=1, label="Baseline")
                         
                         # Plot main lines
                         plt.plot(layer_arr, A, marker='o', color='b', linewidth=2, markersize=4, label="Aggregate Jacobian", zorder=4)
