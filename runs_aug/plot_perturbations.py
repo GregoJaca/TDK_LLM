@@ -373,6 +373,7 @@ def plot_extracted_jacobians(data, group_titles, plots_dir, plotting_cfg):
     """
     Extracts the cumulative Jacobian A(l) and the layer-by-layer Jacobian J(l -> l+1)
     from the linear regime of the perturbation propagation data, and plots them.
+    Supports fan error shading and individual prompt swarms.
     """
     plot_cum = plotting_cfg.get("plot_extracted_cumulative_jacobian", False)
     plot_lay = plotting_cfg.get("plot_extracted_layer_jacobian", False)
@@ -394,6 +395,7 @@ def plot_extracted_jacobians(data, group_titles, plots_dir, plotting_cfg):
         
     plot_prompt_together = plotting_cfg.get("plot_prompt_together", False)
     plot_prompt_separated = plotting_cfg.get("plot_prompt_separated", True)
+    error_bars = plotting_cfg.get("error_bars", "none")
     dpi = plotting_cfg.get("dpi", 300)
     
     for group_key, radii_data in data.items():
@@ -407,11 +409,12 @@ def plot_extracted_jacobians(data, group_titles, plots_dir, plotting_cfg):
             continue
             
         info_key = get_safe_filename_info(group_key, group_titles)
+        setup_name = group_key.replace("_aggregated", "")
+        prompt_keys = [k for k in data.keys() if k.startswith(setup_name) and not k.endswith("_aggregated")]
         
         # Identify the linear regime: smallest radii where perturbation is linear
         linear_radii = [r for r in sorted_radii if r <= 0.001]
         if not linear_radii:
-            # Fallback to the first few radii if all are > 0.001
             linear_radii = sorted_radii[:3] if len(sorted_radii) >= 3 else sorted_radii
             
         for current_metric in metric_list:
@@ -422,33 +425,78 @@ def plot_extracted_jacobians(data, group_titles, plots_dir, plotting_cfg):
             layer_arr = np.array(radii_data[first_radius]["layers"])
             num_layers = len(layer_arr)
             
-            # Compute cumulative gain A(l) for each layer index
-            A = np.zeros(num_layers)
-            for i in range(num_layers):
-                ratios = []
-                for r in linear_radii:
-                    if current_metric in radii_data[r] and len(radii_data[r][current_metric]) > i:
-                        d_val = radii_data[r][current_metric][i]
-                        ratios.append(d_val / r)
-                if ratios:
-                    A[i] = np.mean(ratios)
-                else:
-                    A[i] = 1.0 # fallback
-                    
-            # Compute layer-by-layer step gain J(l -> l+1)
-            layer_jac = np.zeros(num_layers - 1)
-            for i in range(num_layers - 1):
-                layer_jac[i] = A[i+1] / np.maximum(A[i], 1e-12)
+            # Helper to compute gain array for a given key in radii_data
+            def compute_gain_for_key(metric_name):
+                A_arr = np.zeros(num_layers)
+                for i in range(num_layers):
+                    ratios = []
+                    for r in linear_radii:
+                        if metric_name in radii_data[r] and len(radii_data[r][metric_name]) > i:
+                            ratios.append(radii_data[r][metric_name][i] / r)
+                    A_arr[i] = np.mean(ratios) if ratios else 1.0
                 
+                layer_jac_arr = np.zeros(num_layers - 1)
+                for i in range(num_layers - 1):
+                    layer_jac_arr[i] = A_arr[i+1] / np.maximum(A_arr[i], 1e-12)
+                return A_arr, layer_jac_arr
+            
+            # Compute main aggregated metric
+            A, layer_jac = compute_gain_for_key(current_metric)
+            
+            # Compute fan error bounds if requested
+            has_fan = (error_bars in ["fan", "percentiles"]) and ("p10" in radii_data[first_radius])
+            if has_fan:
+                A_p10, layer_jac_p10 = compute_gain_for_key("p10")
+                A_p25, layer_jac_p25 = compute_gain_for_key("p25")
+                A_p75, layer_jac_p75 = compute_gain_for_key("p75")
+                A_p90, layer_jac_p90 = compute_gain_for_key("p90")
+                
+            # Compute individual prompt trajectories for the swarm
+            swarm_data = []
+            if group_key.endswith("_aggregated") and prompt_keys:
+                for p_key in prompt_keys:
+                    p_radii_data = data[p_key]
+                    p_sorted_radii = sorted(p_radii_data.keys())
+                    p_linear_radii = [r for r in p_sorted_radii if r <= 0.001]
+                    if not p_linear_radii:
+                        p_linear_radii = p_sorted_radii[:3] if len(p_sorted_radii) >= 3 else p_sorted_radii
+                        
+                    p_A = np.zeros(num_layers)
+                    for i in range(num_layers):
+                        ratios = []
+                        for r in p_linear_radii:
+                            if current_metric in p_radii_data[r] and len(p_radii_data[r][current_metric]) > i:
+                                ratios.append(p_radii_data[r][current_metric][i] / r)
+                        p_A[i] = np.mean(ratios) if ratios else 1.0
+                        
+                    p_layer_jac = np.zeros(num_layers - 1)
+                    for i in range(num_layers - 1):
+                        p_layer_jac[i] = p_A[i+1] / np.maximum(p_A[i], 1e-12)
+                    swarm_data.append((p_A, p_layer_jac))
+            
             # Now plot for each combination of scale
             for x_scale in x_scales:
                 for y_scale in y_scales:
                     # 1. Plot Cumulative Aggregate Jacobian
                     if plot_cum:
                         plt.figure(figsize=(8, 6))
-                        plt.plot(layer_arr, A, marker='o', color='b', linewidth=2, markersize=4)
+                        # Plot swarm (individual prompts) in background
+                        for p_A, _ in swarm_data:
+                            plt.plot(layer_arr, p_A, color='gray', alpha=0.15, linewidth=1, marker='o', markersize=2)
+                        
+                        # Plot baseline
+                        plt.axhline(1.0, color='gray', linestyle='--', linewidth=1.5, zorder=1)
+                        
+                        # Plot main line
+                        plt.plot(layer_arr, A, marker='o', color='b', linewidth=2, markersize=4, zorder=3)
+                        
+                        # Fan shading
+                        if has_fan:
+                            plt.fill_between(layer_arr, np.maximum(1e-12, A_p10), A_p90, color='b', alpha=0.1, zorder=2)
+                            plt.fill_between(layer_arr, np.maximum(1e-12, A_p25), A_p75, color='b', alpha=0.2, zorder=2)
+                            
                         plt.xlabel("Layer")
-                        plt.ylabel("Aggregate Jacobian")
+                        plt.ylabel("Linearized Perturbation Gain")
                         plt.xscale(x_scale)
                         plt.yscale(y_scale)
                         plt.grid(True, alpha=0.3, which="both")
@@ -462,9 +510,23 @@ def plot_extracted_jacobians(data, group_titles, plots_dir, plotting_cfg):
                     # 2. Plot Layer Jacobian
                     if plot_lay:
                         plt.figure(figsize=(8, 6))
-                        plt.plot(layer_arr[1:], layer_jac, marker='s', color='r', linewidth=2, markersize=4)
+                        # Plot swarm (individual prompts) in background
+                        for _, p_lj in swarm_data:
+                            plt.plot(layer_arr[1:], p_lj, color='gray', alpha=0.15, linewidth=1, marker='s', markersize=2)
+                            
+                        # Plot baseline
+                        plt.axhline(1.0, color='gray', linestyle='--', linewidth=1.5, zorder=1)
+                        
+                        # Plot main line
+                        plt.plot(layer_arr[1:], layer_jac, marker='s', color='r', linewidth=2, markersize=4, zorder=3)
+                        
+                        # Fan shading
+                        if has_fan:
+                            plt.fill_between(layer_arr[1:], np.maximum(1e-12, layer_jac_p10), layer_jac_p90, color='r', alpha=0.1, zorder=2)
+                            plt.fill_between(layer_arr[1:], np.maximum(1e-12, layer_jac_p25), layer_jac_p75, color='r', alpha=0.2, zorder=2)
+                            
                         plt.xlabel("Layer")
-                        plt.ylabel("Layer Jacobian")
+                        plt.ylabel("Linearized Perturbation Gain")
                         plt.xscale(x_scale)
                         plt.yscale(y_scale)
                         plt.grid(True, alpha=0.3, which="both")
@@ -478,10 +540,27 @@ def plot_extracted_jacobians(data, group_titles, plots_dir, plotting_cfg):
                     # 3. Plot both together
                     if plot_tog:
                         plt.figure(figsize=(8, 6))
-                        plt.plot(layer_arr, A, marker='o', color='b', linewidth=2, markersize=4, label="Aggregate Jacobian")
-                        plt.plot(layer_arr[1:], layer_jac, marker='s', color='r', linewidth=2, markersize=4, label="Layer Jacobian")
+                        # Plot swarm in background
+                        for p_A, p_lj in swarm_data:
+                            plt.plot(layer_arr, p_A, color='blue', alpha=0.04, linewidth=0.8)
+                            plt.plot(layer_arr[1:], p_lj, color='red', alpha=0.04, linewidth=0.8)
+                            
+                        # Plot baseline
+                        plt.axhline(1.0, color='gray', linestyle='--', linewidth=1.5, zorder=1)
+                        
+                        # Plot main lines
+                        plt.plot(layer_arr, A, marker='o', color='b', linewidth=2, markersize=4, label="Aggregate Jacobian", zorder=4)
+                        plt.plot(layer_arr[1:], layer_jac, marker='s', color='r', linewidth=2, markersize=4, label="Layer Jacobian", zorder=4)
+                        
+                        # Fan shading
+                        if has_fan:
+                            plt.fill_between(layer_arr, np.maximum(1e-12, A_p10), A_p90, color='b', alpha=0.08, zorder=2)
+                            plt.fill_between(layer_arr, np.maximum(1e-12, A_p25), A_p75, color='b', alpha=0.15, zorder=2)
+                            plt.fill_between(layer_arr[1:], np.maximum(1e-12, layer_jac_p10), layer_jac_p90, color='r', alpha=0.08, zorder=2)
+                            plt.fill_between(layer_arr[1:], np.maximum(1e-12, layer_jac_p25), layer_jac_p75, color='r', alpha=0.15, zorder=2)
+                            
                         plt.xlabel("Layer")
-                        plt.ylabel("Jacobian Gain")
+                        plt.ylabel("Linearized Perturbation Gain")
                         plt.xscale(x_scale)
                         plt.yscale(y_scale)
                         plt.grid(True, alpha=0.3, which="both")
