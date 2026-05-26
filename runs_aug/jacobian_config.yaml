@@ -1412,3 +1412,11 @@ plotting:
   tick_size: 12
   legend_size: 11
   dpi: 300
+
+mft_validation:
+  metrics_filename: "mft_metrics.json"
+  plot_filename: "mft_validation_plot.png"
+  y_limit_cv: 0.25
+  ratio_tolerance_low: 0.90
+  ratio_tolerance_high: 1.10
+
