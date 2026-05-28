@@ -126,6 +126,15 @@ def main():
                 fit_x.append(np.log10(r))
                 fit_y.append(np.log10(val))
                 
+        # Fallback if too few points in range
+        if len(fit_x) < 2:
+            fit_x = []
+            fit_y = []
+            for r, val in zip(sweep_radii, sweep_emp_medians):
+                if val > 0:
+                    fit_x.append(np.log10(r))
+                    fit_y.append(np.log10(val))
+                
         exponent = None
         intercept = None
         if len(fit_x) >= 2:
@@ -230,7 +239,9 @@ def main():
     # Print printout summary for user
     print("\n--- Summary of Power Law Exponents ---")
     for combo_key, pl in power_laws.items():
-        print(f"  {combo_key}: Exponent = {pl['exponent']:.4f} (expected: ~1.0000)")
+        exp_val = pl['exponent']
+        exp_str = f"{exp_val:.4f}" if exp_val is not None else "N/A (insufficient data)"
+        print(f"  {combo_key}: Exponent = {exp_str} (expected: ~1.0000)")
         
     print("\n--- Summary of Linearity Boundaries ---")
     for combo_key, boundary in linearity_boundaries.items():
