@@ -1378,7 +1378,7 @@ analysis:
   error_bars: "fan"    # Options: none, std, var, fan
 
 plotting:
-  metric: ["harmonic"]  # Options: mean, median, mode, harmonic
+  metric: ["mean", "harmonic"]  # Options: mean, median, mode, harmonic
   error_bars: "fan"    # "none" "var" "std" "fan"
   plot_prompt_together: true
   plot_prompt_separated: false
