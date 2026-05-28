@@ -1,12 +1,12 @@
 model:
-  # name: "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"
+  name: "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"
   # local_dir: "."
-  name: "microsoft/Phi-4-mini-instruct" # Qwen/Qwen2.5-3B-Instruct
+  # name: "microsoft/Phi-4-mini-instruct" # Qwen/Qwen2.5-3B-Instruct
   local_dir: "../../"
   torch_dtype: "bfloat16" # options: "auto", "bfloat16", "float16", "float32" (use bfloat16/float32 for eager attention stability)
 
 experiment:
-  results_dir: "./results_jacobians_microsoft"
+  results_dir: "./results_jacobians"
   attn_seq_lengths: [10, 50, 100, 500, 1000, 2500]
   attn_power_iterations: 30
   
