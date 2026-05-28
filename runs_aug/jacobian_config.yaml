@@ -1378,7 +1378,7 @@ analysis:
   error_bars: "fan"    # Options: none, std, var, fan
 
 plotting:
-  metric: ["mean", "harmonic"]  # Options: mean, median, mode, harmonic
+  metric: ["median", "harmonic"]  # Options: mean, median, mode, harmonic
   error_bars: "fan"    # "none" "var" "std" "fan"
   plot_prompt_together: true
   plot_prompt_separated: false
@@ -1424,6 +1424,7 @@ normalization:
   use_rms: true
   use_layernorm: false
   results_dir: "./results_normalization"
-  radii: [1e-6, 1e-5, 1e-1]
-  num_sampled_tokens: 50
+  # radii: [1e-6, 1e-5, 1e-1]
+  radii: [1e-8, 1e-7, 1e-6, 1e-5, 1e-4, 1e-3, 2e-1, 1e-1, 1]
+  num_sampled_tokens: 200
 
