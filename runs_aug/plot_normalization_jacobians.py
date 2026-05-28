@@ -231,7 +231,7 @@ def main():
                      label=f"Empirical Scaling Ratio ($\epsilon$={target_radius:.1e})")
                      
             plt.xlabel("Layer Index")
-            plt.ylabel(r"Scaling Gain $\|\delta y\|_2 / \|\delta x_{\perp}\|_2$ ({})".format(metric_name.capitalize()))
+            plt.ylabel(r"Scaling Gain $\|\delta y\|_2 / \|\delta x_{{\perp}}\|_2$ ({})".format(metric_name.capitalize()))
             plt.grid(True, alpha=0.3)
             plt.legend(loc="best")
             plt.tight_layout()
