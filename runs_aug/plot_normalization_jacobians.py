@@ -32,7 +32,6 @@ def main():
     target_radius = analysis_results["target_radius"]
     aggregated_sweep = analysis_results["aggregated_sweep"]
     power_laws = analysis_results["power_laws"]
-    linearity_boundaries = analysis_results["linearity_boundaries"]
     layer_metrics = analysis_results["layer_metrics"]
     
     plots_dir = os.path.join(results_dir, "aggregated_plots")
@@ -44,7 +43,13 @@ def main():
     label_size = plotting_cfg.get("label_size", 20)
     tick_size = plotting_cfg.get("tick_size", 16)
     legend_size = plotting_cfg.get("legend_size", 16)
+    error_bars = plotting_cfg.get("error_bars", "fan")
     
+    # Get active aggregation metrics to plot
+    metric_list = plotting_cfg.get("metric", ["mean", "harmonic"])
+    if isinstance(metric_list, str):
+        metric_list = [metric_list]
+        
     plt.rcParams.update({
         "figure.dpi": dpi,
         "savefig.dpi": dpi,
@@ -56,162 +61,117 @@ def main():
         "font.family": "DejaVu Serif",
     })
     
-    unique_norm_names = sorted(list(set(k.split("_")[0] + "_" + k.split("_")[1] for k in layer_metrics.keys())))
-    
-    # 1. Figure 1: Linearity Sweep (Log-Log Plot)
-    # We plot this for each norm name
-    for norm_name in ["rms_actual", "rms_pure", "layernorm_pure"]:
-        # Find active combinations for this norm name
-        has_orth = any(k[0] == norm_name and k[1] == "orthogonal" for k in aggregated_sweep.keys())
-        if not has_orth:
-            # Try to match the key
-            matched = any(k[0] == norm_name for k in aggregated_sweep.keys())
-            if not matched:
+    for metric_name in metric_list:
+        print(f"Generating plots for aggregation metric: {metric_name} (error bars: {error_bars})...")
+        
+        # 1. Figure 1: Linearity Sweep (Log-Log Plot)
+        for norm_name in ["rms_actual", "rms_pure", "layernorm_pure"]:
+            # Find active combinations for this norm name
+            has_orth = any(k[0] == norm_name and k[1] == "orthogonal" for k in aggregated_sweep.keys())
+            if not has_orth:
                 continue
                 
-        plt.figure(figsize=(10, 8))
-        
-        # Radii and output norms
-        sweep_radii = sorted(radii)
-        
-        for pert_type, color, marker, label_name in [
-            ("orthogonal", "navy", "o", "Orthogonal"), 
-            ("radial", "crimson", "s", "Radial")
-        ]:
-            emp_medians = []
-            jvp_medians = []
-            theory_medians = []
+            plt.figure(figsize=(10, 8))
+            sweep_radii = sorted(radii)
             
-            p10_emp = []
-            p90_emp = []
-            
-            for r in sweep_radii:
-                key = (norm_name, pert_type, r)
-                if key in aggregated_sweep:
-                    item = aggregated_sweep[key]
-                    emp_medians.append(item["emp_norm"]["median"])
-                    jvp_medians.append(item["jvp_norm"]["median"])
-                    theory_medians.append(item["theory_norm"]["median"])
-                    p10_emp.append(item["emp_norm"]["p10"])
-                    p90_emp.append(item["emp_norm"]["p90"])
-                else:
-                    emp_medians.append(np.nan)
-                    jvp_medians.append(np.nan)
-                    theory_medians.append(np.nan)
-                    p10_emp.append(np.nan)
-                    p90_emp.append(np.nan)
-                    
-            emp_medians = np.array(emp_medians)
-            jvp_medians = np.array(jvp_medians)
-            theory_medians = np.array(theory_medians)
-            p10_emp = np.array(p10_emp)
-            p90_emp = np.array(p90_emp)
-            
-            combo_key = f"{norm_name}_{pert_type}"
-            exponent = power_laws.get(combo_key, {}).get("exponent", None)
-            exp_label = f" (k={exponent:.3f})" if exponent is not None else ""
-            
-            # Plot empirical finite difference
-            plt.plot(sweep_radii, emp_medians, marker=marker, color=color, linewidth=2.5, 
-                     label=f"Empirical {label_name}{exp_label}")
-            # Shading for token spread
-            valid_mask = ~np.isnan(p10_emp) & ~np.isnan(p90_emp)
-            plt.fill_between(np.array(sweep_radii)[valid_mask], np.array(p10_emp)[valid_mask], np.array(p90_emp)[valid_mask], 
-                             color=color, alpha=0.1)
-                             
-            # Plot JVP (Option 2 - Linear baseline)
-            # JVP should be a perfect straight line on log-log
-            plt.plot(sweep_radii, jvp_medians, linestyle="--", color=color, alpha=0.6, 
-                     label=f"JVP {label_name}")
-                     
-        # Guide line representing slope of 1.0 (perfect linear scaling)
-        guide_x = np.array([1e-8, 1.0])
-        # scale guide line to match the orthogonal response at 1e-4
-        ref_idx = sweep_radii.index(target_radius)
-        ref_y = aggregated_sweep[(norm_name, "orthogonal", target_radius)]["emp_norm"]["median"]
-        guide_y = guide_x * (ref_y / target_radius)
-        plt.plot(guide_x, guide_y, color="gray", linestyle=":", label="Slope = 1.0")
-        
-        # Mark the linearity boundary if it exists
-        boundary_rad_orth = linearity_boundaries.get(f"{norm_name}_orthogonal")
-        if boundary_rad_orth:
-            plt.axvline(boundary_rad_orth, color="black", linestyle="-.", alpha=0.5, 
-                        label=f"Orth. Non-Linearity Limit ({boundary_rad_orth:.1e})")
+            for pert_type, color, marker, label_name in [
+                ("orthogonal", "navy", "o", "Orthogonal"), 
+                ("radial", "crimson", "s", "Radial")
+            ]:
+                emp_vals = []
+                jvp_vals = []
+                theory_vals = []
+                
+                # Percentiles for fan shading
+                p10_vals, p25_vals, p75_vals, p90_vals = [], [], [], []
+                # Error values for standard deviation propagation
+                err_vals = []
+                
+                # Identify proper error propagation key
+                err_key = "std" if metric_name == "mean" else "harmonic_std"
+                
+                for r in sweep_radii:
+                    key = (norm_name, pert_type, r)
+                    if key in aggregated_sweep:
+                        item = aggregated_sweep[key]
+                        emp_vals.append(item["emp_norm"][metric_name])
+                        jvp_vals.append(item["jvp_norm"][metric_name])
+                        theory_vals.append(item["theory_norm"][metric_name])
                         
-        plt.xscale("log")
-        plt.yscale("log")
-        plt.xlabel("Perturbation Magnitude $\epsilon = \|\delta x\|_2$")
-        plt.ylabel("Output Perturbation Norm $\|\delta y\|_2$")
-        plt.grid(True, which="both", alpha=0.3)
-        plt.legend(loc="lower right")
-        plt.tight_layout()
-        
-        plot_name = f"normalization_sweep_{norm_name}.png"
-        plt.savefig(os.path.join(plots_dir, plot_name), dpi=dpi)
-        plt.close()
-        print(f"Saved linearity sweep plot to {os.path.join(plots_dir, plot_name)}")
-        
-    # 2. Figure 2: Radial Scaling Verification (Ratio vs Layer)
-    for norm_name in ["rms_actual", "rms_pure", "layernorm_pure"]:
-        combo_key = f"{norm_name}_orthogonal"
-        if combo_key not in layer_metrics:
-            continue
+                        p10_vals.append(item["emp_norm"]["p10"])
+                        p25_vals.append(item["emp_norm"]["p25"])
+                        p75_vals.append(item["emp_norm"]["p75"])
+                        p90_vals.append(item["emp_norm"]["p90"])
+                        
+                        err_vals.append(item["emp_norm"][err_key])
+                    else:
+                        emp_vals.append(np.nan)
+                        jvp_vals.append(np.nan)
+                        theory_vals.append(np.nan)
+                        p10_vals.append(np.nan)
+                        p25_vals.append(np.nan)
+                        p75_vals.append(np.nan)
+                        p90_vals.append(np.nan)
+                        err_vals.append(np.nan)
+                        
+                emp_vals = np.array(emp_vals)
+                jvp_vals = np.array(jvp_vals)
+                theory_vals = np.array(theory_vals)
+                p10_vals = np.array(p10_vals)
+                p25_vals = np.array(p25_vals)
+                p75_vals = np.array(p75_vals)
+                p90_vals = np.array(p90_vals)
+                err_vals = np.array(err_vals)
+                
+                combo_key = f"{norm_name}_{pert_type}_{metric_name}"
+                exponent = power_laws.get(combo_key, {}).get("exponent", None)
+                exp_label = f" (k={exponent:.3f})" if exponent is not None else ""
+                
+                # Plot empirical finite difference
+                plt.plot(sweep_radii, emp_vals, marker=marker, color=color, linewidth=2.5, 
+                         label=f"Empirical {label_name}{exp_label}")
+                
+                # Proper error propagation shading
+                valid_mask = ~np.isnan(emp_vals)
+                if error_bars in ["fan", "percentiles"]:
+                    valid_fan = ~np.isnan(p10_vals) & ~np.isnan(p90_vals)
+                    plt.fill_between(np.array(sweep_radii)[valid_fan], p10_vals[valid_fan], p90_vals[valid_fan], 
+                                     color=color, alpha=0.1)
+                    plt.fill_between(np.array(sweep_radii)[valid_fan], p25_vals[valid_fan], p75_vals[valid_fan], 
+                                     color=color, alpha=0.2)
+                elif error_bars == "std":
+                    valid_err = valid_mask & ~np.isnan(err_vals)
+                    lower = np.maximum(1e-15, emp_vals - err_vals)
+                    plt.fill_between(np.array(sweep_radii)[valid_err], lower[valid_err], (emp_vals + err_vals)[valid_err], 
+                                     color=color, alpha=0.15)
+                                 
+                # Plot JVP (Option 2 - Linear baseline)
+                plt.plot(sweep_radii, jvp_vals, linestyle="--", color=color, alpha=0.6, 
+                         label=f"JVP {label_name}")
+                         
+            # Guide line representing slope of 1.0 (perfect linear scaling)
+            guide_x = np.array([1e-8, 1.0])
+            ref_key = (norm_name, "orthogonal", target_radius)
+            ref_y = aggregated_sweep[ref_key]["emp_norm"][metric_name]
+            guide_y = guide_x * (ref_y / target_radius)
+            plt.plot(guide_x, guide_y, color="gray", linestyle=":", label="Slope = 1.0")
             
-        metrics_dict = layer_metrics[combo_key]
-        sorted_layers = sorted(metrics_dict.keys())
-        layers_arr = np.array(sorted_layers)
-        
-        theory_medians = []
-        jvp_medians = []
-        emp_medians = []
-        
-        jvp_p10 = []
-        jvp_p90 = []
-        
-        for l in sorted_layers:
-            stats = metrics_dict[l]
-            theory_medians.append(stats["theory_ratio"]["median"])
-            jvp_medians.append(stats["jvp_ratio"]["median"])
-            emp_medians.append(stats["emp_ratio"]["median"])
-            jvp_p10.append(stats["jvp_ratio"]["p10"])
-            jvp_p90.append(stats["jvp_ratio"]["p90"])
+            plt.xscale("log")
+            plt.yscale("log")
+            plt.xlabel("Perturbation Magnitude $\epsilon = \|\delta x\|_2$")
+            plt.ylabel(f"Output Perturbation Norm $\|\delta y\|_2$ ({metric_name.capitalize()})")
+            plt.grid(True, which="both", alpha=0.3)
+            plt.legend(loc="lower right")
+            plt.tight_layout()
             
-        plt.figure(figsize=(10, 6))
-        
-        # Plot theoretical 1/S (or scale/S)
-        plt.plot(layers_arr, theory_medians, marker="^", color="crimson", linewidth=2.5, 
-                 label=r"Analytical Theory $1/S$")
-                 
-        # Plot JVP ratio
-        plt.plot(layers_arr, jvp_medians, marker="o", color="navy", linewidth=2, linestyle="--", 
-                 label="JVP Scaling Ratio")
-        plt.fill_between(layers_arr, jvp_p10, jvp_p90, color="navy", alpha=0.15)
-        
-        # Plot Empirical ratio
-        plt.plot(layers_arr, emp_medians, marker="s", color="darkorange", linewidth=1.5, linestyle=":", 
-                 label=f"Empirical Scaling Ratio ($\epsilon$={target_radius:.1e})")
-                 
-        plt.xlabel("Layer Index")
-        plt.ylabel(r"Scaling Gain $\|\delta y\|_2 / \|\delta x_{\perp}\|_2$")
-        plt.grid(True, alpha=0.3)
-        plt.legend(loc="best")
-        plt.tight_layout()
-        
-        plot_name = f"normalization_scaling_verification_{norm_name}.png"
-        plt.savefig(os.path.join(plots_dir, plot_name), dpi=dpi)
-        plt.close()
-        print(f"Saved radial scaling verification to {os.path.join(plots_dir, plot_name)}")
-        
-    # 3. Figure 3: Orthogonal Annihilation Verification (Cosine Similarity vs Layer)
-    for norm_name in ["rms_actual", "rms_pure", "layernorm_pure"]:
-        plt.figure(figsize=(10, 6))
-        
-        plotted = False
-        for pert_type, color, marker, label_name in [
-            ("orthogonal", "navy", "o", "Orthogonal Perturbation"), 
-            ("radial", "crimson", "s", "Radial Perturbation")
-        ]:
-            combo_key = f"{norm_name}_{pert_type}"
+            plot_name = f"normalization_sweep_{norm_name}_{metric_name}.png"
+            plt.savefig(os.path.join(plots_dir, plot_name), dpi=dpi)
+            plt.close()
+            print(f"Saved linearity sweep plot to {os.path.join(plots_dir, plot_name)}")
+            
+        # 2. Figure 2: Radial Scaling Verification (Ratio vs Layer)
+        for norm_name in ["rms_actual", "rms_pure", "layernorm_pure"]:
+            combo_key = f"{norm_name}_orthogonal"
             if combo_key not in layer_metrics:
                 continue
                 
@@ -219,39 +179,136 @@ def main():
             sorted_layers = sorted(metrics_dict.keys())
             layers_arr = np.array(sorted_layers)
             
-            cos_sim_medians = []
-            cos_sim_p10 = []
-            cos_sim_p90 = []
+            theory_vals = []
+            jvp_vals = []
+            emp_vals = []
+            
+            jvp_p10, jvp_p25, jvp_p75, jvp_p90 = [], [], [], []
+            jvp_errs = []
+            err_key = "std" if metric_name == "mean" else "harmonic_std"
             
             for l in sorted_layers:
                 stats = metrics_dict[l]
-                cos_sim_medians.append(stats["cos_sim_jvp_x"]["median"])
-                cos_sim_p10.append(stats["cos_sim_jvp_x"]["p10"])
-                cos_sim_p90.append(stats["cos_sim_jvp_x"]["p90"])
+                theory_vals.append(stats["theory_ratio"][metric_name])
+                jvp_vals.append(stats["jvp_ratio"][metric_name])
+                emp_vals.append(stats["emp_ratio"][metric_name])
                 
-            plt.plot(layers_arr, cos_sim_medians, marker=marker, color=color, linewidth=2.5, 
-                     label=label_name)
-            plt.fill_between(layers_arr, cos_sim_p10, cos_sim_p90, color=color, alpha=0.1)
-            plotted = True
+                jvp_p10.append(stats["jvp_ratio"]["p10"])
+                jvp_p25.append(stats["jvp_ratio"]["p25"])
+                jvp_p75.append(stats["jvp_ratio"]["p75"])
+                jvp_p90.append(stats["jvp_ratio"]["p90"])
+                jvp_errs.append(stats["jvp_ratio"][err_key])
+                
+            theory_vals = np.array(theory_vals)
+            jvp_vals = np.array(jvp_vals)
+            emp_vals = np.array(emp_vals)
+            jvp_p10 = np.array(jvp_p10)
+            jvp_p25 = np.array(jvp_p25)
+            jvp_p75 = np.array(jvp_p75)
+            jvp_p90 = np.array(jvp_p90)
+            jvp_errs = np.array(jvp_errs)
             
-        if not plotted:
+            plt.figure(figsize=(10, 6))
+            
+            # Plot theoretical 1/S (or scale/S)
+            plt.plot(layers_arr, theory_vals, marker="^", color="crimson", linewidth=2.5, 
+                     label=r"Analytical Theory $1/S$")
+                     
+            # Plot JVP ratio
+            plt.plot(layers_arr, jvp_vals, marker="o", color="navy", linewidth=2, linestyle="--", 
+                     label=f"JVP Scaling Ratio ({metric_name.capitalize()})")
+            
+            # Error propagation shading
+            if error_bars in ["fan", "percentiles"]:
+                plt.fill_between(layers_arr, jvp_p10, jvp_p90, color="navy", alpha=0.1)
+                plt.fill_between(layers_arr, jvp_p25, jvp_p75, color="navy", alpha=0.2)
+            elif error_bars == "std":
+                lower = np.maximum(0.0, jvp_vals - jvp_errs)
+                plt.fill_between(layers_arr, lower, jvp_vals + jvp_errs, color="navy", alpha=0.15)
+            
+            # Plot Empirical ratio
+            plt.plot(layers_arr, emp_vals, marker="s", color="darkorange", linewidth=1.5, linestyle=":", 
+                     label=f"Empirical Scaling Ratio ($\epsilon$={target_radius:.1e})")
+                     
+            plt.xlabel("Layer Index")
+            plt.ylabel(f"Scaling Gain $\|\delta y\|_2 / \|\delta x_{\perp}\|_2$ ({metric_name.capitalize()})")
+            plt.grid(True, alpha=0.3)
+            plt.legend(loc="best")
+            plt.tight_layout()
+            
+            plot_name = f"normalization_scaling_verification_{norm_name}_{metric_name}.png"
+            plt.savefig(os.path.join(plots_dir, plot_name), dpi=dpi)
             plt.close()
-            continue
+            print(f"Saved radial scaling verification to {os.path.join(plots_dir, plot_name)}")
             
-        # Draw target line of zero alignment (perfect orthogonality)
-        plt.axhline(0.0, color="black", linestyle="-", linewidth=1.5)
-        
-        plt.xlabel("Layer Index")
-        plt.ylabel(r"Alignment $\cos(\theta) = \frac{x^T \delta y}{\|x\|_2 \|\delta y\|_2}$")
-        plt.ylim(-0.2, 0.2) # zoom in on zero alignment
-        plt.grid(True, alpha=0.3)
-        plt.legend(loc="best")
-        plt.tight_layout()
-        
-        plot_name = f"normalization_orthogonal_annihilation_{norm_name}.png"
-        plt.savefig(os.path.join(plots_dir, plot_name), dpi=dpi)
-        plt.close()
-        print(f"Saved orthogonal annihilation verification to {os.path.join(plots_dir, plot_name)}")
+        # 3. Figure 3: Orthogonal Annihilation Verification (Cosine Similarity vs Layer)
+        for norm_name in ["rms_actual", "rms_pure", "layernorm_pure"]:
+            plt.figure(figsize=(10, 6))
+            
+            plotted = False
+            for pert_type, color, marker, label_name in [
+                ("orthogonal", "navy", "o", "Orthogonal Perturbation"), 
+                ("radial", "crimson", "s", "Radial Perturbation")
+            ]:
+                combo_key = f"{norm_name}_{pert_type}"
+                if combo_key not in layer_metrics:
+                    continue
+                    
+                metrics_dict = layer_metrics[combo_key]
+                sorted_layers = sorted(metrics_dict.keys())
+                layers_arr = np.array(sorted_layers)
+                
+                cos_sim_vals = []
+                p10_vals, p25_vals, p75_vals, p90_vals = [], [], [], []
+                err_vals = []
+                
+                err_key = "std" if metric_name == "mean" else "harmonic_std"
+                
+                for l in sorted_layers:
+                    stats = metrics_dict[l]
+                    cos_sim_vals.append(stats["cos_sim_jvp_x"][metric_name])
+                    
+                    p10_vals.append(stats["cos_sim_jvp_x"]["p10"])
+                    p25_vals.append(stats["cos_sim_jvp_x"]["p25"])
+                    p75_vals.append(stats["cos_sim_jvp_x"]["p75"])
+                    p90_vals.append(stats["cos_sim_jvp_x"]["p90"])
+                    err_vals.append(stats["cos_sim_jvp_x"][err_key])
+                    
+                cos_sim_vals = np.array(cos_sim_vals)
+                p10_vals = np.array(p10_vals)
+                p25_vals = np.array(p25_vals)
+                p75_vals = np.array(p75_vals)
+                p90_vals = np.array(p90_vals)
+                err_vals = np.array(err_vals)
+                
+                plt.plot(layers_arr, cos_sim_vals, marker=marker, color=color, linewidth=2.5, 
+                         label=f"{label_name} ({metric_name.capitalize()})")
+                
+                if error_bars in ["fan", "percentiles"]:
+                    plt.fill_between(layers_arr, p10_vals, p90_vals, color=color, alpha=0.1)
+                    plt.fill_between(layers_arr, p25_vals, p75_vals, color=color, alpha=0.2)
+                elif error_bars == "std":
+                    plt.fill_between(layers_arr, cos_sim_vals - err_vals, cos_sim_vals + err_vals, color=color, alpha=0.15)
+                    
+                plotted = True
+                
+            if not plotted:
+                plt.close()
+                continue
+                
+            plt.axhline(0.0, color="black", linestyle="-", linewidth=1.5)
+            
+            plt.xlabel("Layer Index")
+            plt.ylabel(r"Alignment $\cos(\theta) = \frac{x^T \delta y}{\|x\|_2 \|\delta y\|_2}$")
+            plt.ylim(-0.2, 0.2)
+            plt.grid(True, alpha=0.3)
+            plt.legend(loc="best")
+            plt.tight_layout()
+            
+            plot_name = f"normalization_orthogonal_annihilation_{norm_name}_{metric_name}.png"
+            plt.savefig(os.path.join(plots_dir, plot_name), dpi=dpi)
+            plt.close()
+            print(f"Saved orthogonal annihilation verification to {os.path.join(plots_dir, plot_name)}")
 
 if __name__ == "__main__":
     main()
