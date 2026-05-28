@@ -1,7 +1,7 @@
 model:
-  name: "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"
+  # name: "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"
   # local_dir: "."
-  # name: "microsoft/Phi-4-mini-instruct" # Qwen/Qwen2.5-3B-Instruct
+  name: "microsoft/Phi-4-mini-instruct" # Qwen/Qwen2.5-3B-Instruct
   local_dir: "../../"
   torch_dtype: "bfloat16" # options: "auto", "bfloat16", "float16", "float32" (use bfloat16/float32 for eager attention stability)
 
@@ -1423,7 +1423,7 @@ mft_validation:
 normalization:
   use_rms: true
   use_layernorm: false
-  results_dir: "./results_normalization"
+  results_dir: "./results_normalization_microsoft"
   radii: [1e-11, 1e-10, 1e-9, 1e-8, 1e-7, 1e-6, 1e-5, 1e-4, 1e-3, 2e-1, 1e-1, 1,  10, 100]
   num_sampled_tokens: 200
 
