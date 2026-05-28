@@ -54,8 +54,8 @@ plotting:
   plot_scaling_law: true
   scaling_prompts_separate: true
   show_title: false
-  font_size: 16
-  label_size: 18
-  tick_size: 12
-  legend_size: 11
+  font_size: 20
+  label_size: 20
+  tick_size: 16
+  legend_size: 16
   dpi: 300

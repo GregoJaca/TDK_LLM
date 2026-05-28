@@ -158,9 +158,9 @@ def main():
             N_up = (W_up_32 ** 2).sum(dim=1)
             N_down = (W_down_32 ** 2).sum(dim=0)
             
-            CV_gate = (N_gate.std() / N_gate.mean()).item()
-            CV_up = (N_up.std() / N_up.mean()).item()
-            CV_down = (N_down.std() / N_down.mean()).item()
+            CV_gate = (torch.sqrt(N_gate).std() / torch.sqrt(N_gate).mean()).item()
+            CV_up = (torch.sqrt(N_up).std() / torch.sqrt(N_up).mean()).item()
+            CV_down = (torch.sqrt(N_down).std() / torch.sqrt(N_down).mean()).item()
             
             # --- Assumption 1: Vanishing Off-Diagonals (Dynamic Check) ---
             # Retrieve activation vectors S_x and D_x

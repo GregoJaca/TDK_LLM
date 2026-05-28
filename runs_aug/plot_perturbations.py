@@ -158,7 +158,7 @@ def plot_perturbations(base_results_dir, plotting_cfg):
                         plt.grid(True, alpha=0.3)
                         
                         if len(combinations) > 1:
-                            plt.legend(title="Perturbation", loc='upper left', bbox_to_anchor=(1, 1))
+                            plt.legend(title="Perturbation", loc='best')
                         plt.tight_layout()
                         
                         metric_str = "-".join(current_metric_list)

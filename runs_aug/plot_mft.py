@@ -116,12 +116,20 @@ def main():
         print(f"No {metrics_filename} files found in run directories of {base_results_dir}. Did you run validate_mft.py first?")
         return
         
-    print(f"Plotting MFT Validation for {len(grouped_metrics)} groups...")
+    # Retrieve prompt plotting preferences
+    plot_prompt_together = plotting_cfg.get("plot_prompt_together", True)
+    plot_prompt_separated = plotting_cfg.get("plot_prompt_separated", False)
     
-    # Generate the dual-panel plots for each group key
+    print(f"Plotting MFT Validation for groups (together={plot_prompt_together}, separated={plot_prompt_separated})...")
+    
     for group_key, layer_dict in grouped_metrics.items():
+        is_tog = group_key.endswith("_aggregated")
+        if is_tog and not plot_prompt_together:
+            continue
+        if not is_tog and not plot_prompt_separated:
+            continue
+            
         sorted_layers = sorted(layer_dict.keys())
-        
         layers_arr = np.array(sorted_layers)
         
         cv_gate_mean = []
@@ -138,7 +146,7 @@ def main():
         for l_idx in sorted_layers:
             run_metrics = layer_dict[l_idx]
             
-            # Static metrics are identical per run, but average in case of minor floats
+            # Static metrics
             cv_gate_mean.append(np.mean([m["CV_gate"] for m in run_metrics]))
             cv_up_mean.append(np.mean([m["CV_up"] for m in run_metrics]))
             cv_down_mean.append(np.mean([m["CV_down"] for m in run_metrics]))
@@ -151,53 +159,57 @@ def main():
             r_t_p90_mean.append(np.mean([m["R_t_p90"] for m in run_metrics]))
             r_t_median_mean.append(np.mean([m["R_t_median"] for m in run_metrics]))
             
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
+        info_key = get_safe_filename_info(group_key, group_titles)
         
-        # --- Subplot 1 (Assumption 2): CV of Weight Norms ---
-        ax1.plot(layers_arr, cv_gate_mean, marker='o', color='teal', label=r'$W_{gate}$', linewidth=2, markersize=4)
-        ax1.plot(layers_arr, cv_up_mean, marker='s', color='darkorange', label=r'$W_{up}$', linewidth=2, markersize=4)
-        ax1.plot(layers_arr, cv_down_mean, marker='^', color='purple', label=r'$W_{down}$', linewidth=2, markersize=4)
+        # --- Figure 1: Assumption 2 (Uniform Row/Column Norms) ---
+        plt.figure(figsize=(10, 6))
+        plt.plot(layers_arr, cv_gate_mean, marker='o', color='teal', label=r'$W_{gate}$', linewidth=2, markersize=4)
+        plt.plot(layers_arr, cv_up_mean, marker='s', color='darkorange', label=r'$W_{up}$', linewidth=2, markersize=4)
+        plt.plot(layers_arr, cv_down_mean, marker='^', color='purple', label=r'$W_{down}$', linewidth=2, markersize=4)
         
-        ax1.axhline(y=y_limit_cv, color='red', linestyle='--', linewidth=1.5, label=f'Safety Bound ({y_limit_cv})')
-        ax1.set_xlabel("Layer Index")
-        ax1.set_ylabel("Coefficient of Variation (CV)")
-        ax1.set_title("Assumption 2: Uniform Row/Column Norms")
-        ax1.grid(True, alpha=0.3)
-        ax1.legend(loc="upper left")
-        
-        # --- Subplot 2 (Assumption 1): Diagonal Ratio R ---
-        # Main line represents the sequence-averaged ratio (Option B)
-        ax2.plot(layers_arr, r_option_b_mean, marker='o', color='navy', label=r'Diagonal Ratio $R$ (Option B)', linewidth=2, markersize=4)
-        
-        # Fan shading for token-level errors
-        ax2.fill_between(layers_arr, r_t_p10_mean, r_t_p90_mean, color='navy', alpha=0.08, label='10th-90th percentile')
-        ax2.fill_between(layers_arr, r_t_p25_mean, r_t_p75_mean, color='navy', alpha=0.15, label='25th-75th percentile')
-        
-        # Perfect Diagonal Isolation (y = 1.0)
-        ax2.axhline(y=1.0, color='black', linestyle='-', linewidth=1.5, label='Perfect Isolation (1.0)')
-        
-        # Tolerance band [0.90, 1.10]
-        ax2.axhspan(ratio_tolerance_low, ratio_tolerance_high, color='green', alpha=0.1, label='Tolerance Band')
-        
-        ax2.set_xlabel("Layer Index")
-        ax2.set_ylabel(r"Stretching Ratio $R = \lambda_{diagonal} / \lambda_{true}$")
-        ax2.set_title("Assumption 1: Vanishing Off-Diagonals")
-        ax2.grid(True, alpha=0.3)
-        ax2.legend(loc="upper left")
-        
+        plt.axhline(y=y_limit_cv, color='red', linestyle='--', linewidth=1.5, label=f'Safety Bound ({y_limit_cv})')
+        plt.xlabel("Layer Index")
+        plt.ylabel("Coefficient of Variation (CV)")
         if plotting_cfg.get("show_title", False):
-            plt.suptitle(group_titles[group_key], y=0.98, fontsize=font_size + 2)
-            
+            plt.title(f"Assumption 2: Uniform Row/Column Norms\n{group_titles[group_key]}")
+        plt.grid(True, alpha=0.3)
+        plt.legend(loc="best")
         plt.tight_layout()
         
-        info_key = get_safe_filename_info(group_key, group_titles)
-        output_plot_name = plot_filename_base.replace(".png", f"_{info_key}.png")
-        output_plot_path = os.path.join(plots_dir, output_plot_name)
-        
-        plt.savefig(output_plot_path, dpi=dpi)
+        output_plot_name_a2 = plot_filename_base.replace(".png", f"_assumption2_{info_key}.png")
+        output_plot_path_a2 = os.path.join(plots_dir, output_plot_name_a2)
+        plt.savefig(output_plot_path_a2, dpi=dpi)
         plt.close()
+        print(f"  Saved Assumption 2 plot to {output_plot_path_a2}")
         
-        print(f"  Saved plot to {output_plot_path}")
+        # --- Figure 2: Assumption 1 (Vanishing Off-Diagonals) ---
+        plt.figure(figsize=(10, 6))
+        # Main line represents the sequence-averaged ratio (Option B)
+        plt.plot(layers_arr, r_option_b_mean, marker='o', color='navy', label=r'Diagonal Ratio $R$ (Option B)', linewidth=2, markersize=4)
+        
+        # Fan shading for token-level errors
+        plt.fill_between(layers_arr, r_t_p10_mean, r_t_p90_mean, color='navy', alpha=0.08, label='10th-90th percentile')
+        plt.fill_between(layers_arr, r_t_p25_mean, r_t_p75_mean, color='navy', alpha=0.15, label='25th-75th percentile')
+        
+        # Perfect Diagonal Isolation (y = 1.0)
+        plt.axhline(y=1.0, color='black', linestyle='-', linewidth=1.5, label='Perfect Isolation (1.0)')
+        
+        # Tolerance band [0.90, 1.10]
+        plt.axhspan(ratio_tolerance_low, ratio_tolerance_high, color='green', alpha=0.1, label='Tolerance Band')
+        
+        plt.xlabel("Layer Index")
+        plt.ylabel(r"Stretching Ratio $R = \lambda_{diagonal} / \lambda_{true}$")
+        if plotting_cfg.get("show_title", False):
+            plt.title(f"Assumption 1: Vanishing Off-Diagonals\n{group_titles[group_key]}")
+        plt.grid(True, alpha=0.3)
+        plt.legend(loc="lower left")
+        plt.tight_layout()
+        
+        output_plot_name_a1 = plot_filename_base.replace(".png", f"_assumption1_{info_key}.png")
+        output_plot_path_a1 = os.path.join(plots_dir, output_plot_name_a1)
+        plt.savefig(output_plot_path_a1, dpi=dpi)
+        plt.close()
+        print(f"  Saved Assumption 1 plot to {output_plot_path_a1}")
 
 if __name__ == "__main__":
     main()

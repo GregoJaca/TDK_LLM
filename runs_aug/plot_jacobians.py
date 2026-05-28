@@ -150,7 +150,7 @@ class JacobianPlotter:
                     
                     # Suppress legend if a single curve is plotted
                     if total_curves * len(current_metric_list) > 1:
-                        plt.legend(title="Metric", loc='upper left', bbox_to_anchor=(1, 1))
+                        plt.legend(title="Metric", loc='best')
                     plt.tight_layout()
                     
                     metric_str = "-".join(current_metric_list)
@@ -229,7 +229,7 @@ class JacobianPlotter:
                     plt.yscale(y_scale)
                     plt.grid(True, alpha=0.3)
                     
-                    plt.legend(loc='upper left', bbox_to_anchor=(1, 1), fontsize=self.plotting_cfg.get("legend_size", 11) + 2)
+                    plt.legend(loc='best')
                     plt.tight_layout()
                     
                     metric_str = "-".join(current_metric_list)
@@ -348,7 +348,7 @@ class JacobianPlotter:
                 plt.yscale(y_scale)
                 plt.grid(True, which="both", alpha=0.3)
                 
-                plt.legend(loc='upper left', bbox_to_anchor=(1, 1))
+                plt.legend(loc='lower left')
                 plt.tight_layout()
                 
                 filename = f"mft_comparison_{info_key}_xscale-{x_scale}_yscale-{y_scale}.png"

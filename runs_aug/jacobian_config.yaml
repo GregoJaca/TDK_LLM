@@ -1381,7 +1381,7 @@ plotting:
   metric: ["harmonic"]  # Options: mean, median, mode, harmonic
   error_bars: "fan"    # "none" "var" "std" "fan"
   plot_prompt_together: true
-  plot_prompt_separated: false
+  plot_prompt_separated: true
   separate_figure_metrics: true
   x_scales: ["linear"]
   y_scales: ["log"]
