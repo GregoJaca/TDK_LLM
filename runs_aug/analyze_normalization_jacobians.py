@@ -37,19 +37,10 @@ def get_metrics_and_errors(data_array):
             sum_inv = np.sum(inv_data)
             if sum_inv > 0 and np.isfinite(sum_inv):
                 harmonic_val = n_h / sum_inv
-                var_x = np.var(data_positive)
-                inv_data_4 = inv_data ** 4
-                sum_inv4 = np.sum(inv_data_4)
-                if np.isfinite(sum_inv4):
-                    harmonic_var = (harmonic_val ** 4 / (n_h ** 2)) * var_x * sum_inv4
-                    if np.isfinite(harmonic_var) and harmonic_var >= 0:
-                        harmonic_std = np.sqrt(harmonic_var)
-                    else:
-                        harmonic_var = 0.0
-                        harmonic_std = 0.0
-                else:
-                    harmonic_var = 0.0
-                    harmonic_std = 0.0
+                # Numerically stable, mathematically correct population standard deviation
+                std_inv = np.std(inv_data)
+                harmonic_std = (harmonic_val ** 2) * std_inv
+                harmonic_var = harmonic_std ** 2
             else:
                 harmonic_val = 0.0
                 harmonic_std = 0.0

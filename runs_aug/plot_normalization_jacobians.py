@@ -135,14 +135,25 @@ def main():
                 valid_mask = ~np.isnan(emp_vals)
                 if error_bars in ["fan", "percentiles"]:
                     valid_fan = ~np.isnan(p10_vals) & ~np.isnan(p90_vals)
-                    plt.fill_between(np.array(sweep_radii)[valid_fan], p10_vals[valid_fan], p90_vals[valid_fan], 
+                    eps_safe = 1e-15
+                    p10_clean = np.maximum(eps_safe, np.array(p10_vals))
+                    p25_clean = np.maximum(eps_safe, np.array(p25_vals))
+                    p75_clean = np.maximum(eps_safe, np.array(p75_vals))
+                    p90_clean = np.maximum(eps_safe, np.array(p90_vals))
+                    plt.fill_between(np.array(sweep_radii)[valid_fan], p10_clean[valid_fan], p90_clean[valid_fan], 
                                      color=color, alpha=0.1)
-                    plt.fill_between(np.array(sweep_radii)[valid_fan], p25_vals[valid_fan], p75_vals[valid_fan], 
+                    plt.fill_between(np.array(sweep_radii)[valid_fan], p25_clean[valid_fan], p75_clean[valid_fan], 
                                      color=color, alpha=0.2)
                 elif error_bars == "std":
                     valid_err = valid_mask & ~np.isnan(err_vals)
-                    lower = np.maximum(1e-15, emp_vals - err_vals)
-                    plt.fill_between(np.array(sweep_radii)[valid_err], lower[valid_err], (emp_vals + err_vals)[valid_err], 
+                    eps_safe = 1e-15
+                    with np.errstate(divide='ignore', invalid='ignore'):
+                        std_log = err_vals / np.maximum(emp_vals, eps_safe)
+                        lower = emp_vals * np.exp(-std_log)
+                        upper = emp_vals * np.exp(std_log)
+                    lower = np.maximum(eps_safe, np.where(np.isnan(lower) | np.isinf(lower), eps_safe, lower))
+                    upper = np.where(np.isnan(upper) | np.isinf(upper), emp_vals, upper)
+                    plt.fill_between(np.array(sweep_radii)[valid_err], lower[valid_err], upper[valid_err], 
                                      color=color, alpha=0.15)
                                  
                 # Plot JVP (Option 2 - Linear baseline)

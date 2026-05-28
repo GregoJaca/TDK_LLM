@@ -116,10 +116,22 @@ class JacobianPlotter:
                             
                             # Fan Shading / Error Bars
                             if self.error_bars == "fan" or self.error_bars == "percentiles":
-                                if "p10" in group_data[m_name] and "p90" in group_data[m_name]:
-                                    plt.fill_between(layer_arr, group_data[m_name]["p10"], group_data[m_name]["p90"], color=color, alpha=0.1)
-                                if "p25" in group_data[m_name] and "p75" in group_data[m_name]:
-                                    plt.fill_between(layer_arr, group_data[m_name]["p25"], group_data[m_name]["p75"], color=color, alpha=0.2)
+                                p10 = np.array(group_data[m_name]["p10"]) if "p10" in group_data[m_name] else None
+                                p90 = np.array(group_data[m_name]["p90"]) if "p90" in group_data[m_name] else None
+                                p25 = np.array(group_data[m_name]["p25"]) if "p25" in group_data[m_name] else None
+                                p75 = np.array(group_data[m_name]["p75"]) if "p75" in group_data[m_name] else None
+                                
+                                if y_scale == "log":
+                                    eps_safe = 1e-15
+                                    if p10 is not None: p10 = np.maximum(eps_safe, p10)
+                                    if p90 is not None: p90 = np.maximum(eps_safe, p90)
+                                    if p25 is not None: p25 = np.maximum(eps_safe, p25)
+                                    if p75 is not None: p75 = np.maximum(eps_safe, p75)
+                                    
+                                if p10 is not None and p90 is not None:
+                                    plt.fill_between(layer_arr, p10, p90, color=color, alpha=0.1)
+                                if p25 is not None and p75 is not None:
+                                    plt.fill_between(layer_arr, p25, p75, color=color, alpha=0.2)
                             else:
                                 err_key = f"{stat_metric}_{self.error_bars}"
                                 if err_key in group_data[m_name]:
@@ -130,10 +142,18 @@ class JacobianPlotter:
                                     e_arr = None
                                     
                                 if e_arr is not None:
-                                    lower = np.maximum(0, m_arr - e_arr) if self.error_bars in ["std", "var"] else m_arr - e_arr
                                     if y_scale == "log":
-                                        lower = np.maximum(1e-12, lower)
-                                    plt.fill_between(layer_arr, lower, m_arr + e_arr, color=color, alpha=0.2)
+                                        eps_safe = 1e-15
+                                        with np.errstate(divide='ignore', invalid='ignore'):
+                                            std_log = e_arr / np.maximum(m_arr, eps_safe)
+                                            lower = m_arr * np.exp(-std_log)
+                                            upper = m_arr * np.exp(std_log)
+                                        lower = np.maximum(eps_safe, np.where(np.isnan(lower) | np.isinf(lower), eps_safe, lower))
+                                        upper = np.where(np.isnan(upper) | np.isinf(upper), m_arr, upper)
+                                    else:
+                                        lower = np.maximum(0, m_arr - e_arr) if self.error_bars in ["std", "var"] else m_arr - e_arr
+                                        upper = m_arr + e_arr
+                                    plt.fill_between(layer_arr, lower, upper, color=color, alpha=0.2)
                     
                     if hlines:
                         for h in hlines:
@@ -199,10 +219,22 @@ class JacobianPlotter:
                             
                             # Fan Shading / Error Bars
                             if self.error_bars == "fan" or self.error_bars == "percentiles":
-                                if "p10" in group_data[m_name] and "p90" in group_data[m_name]:
-                                    plt.fill_between(layer_arr, group_data[m_name]["p10"], group_data[m_name]["p90"], color=color, alpha=0.1)
-                                if "p25" in group_data[m_name] and "p75" in group_data[m_name]:
-                                    plt.fill_between(layer_arr, group_data[m_name]["p25"], group_data[m_name]["p75"], color=color, alpha=0.2)
+                                p10 = np.array(group_data[m_name]["p10"]) if "p10" in group_data[m_name] else None
+                                p90 = np.array(group_data[m_name]["p90"]) if "p90" in group_data[m_name] else None
+                                p25 = np.array(group_data[m_name]["p25"]) if "p25" in group_data[m_name] else None
+                                p75 = np.array(group_data[m_name]["p75"]) if "p75" in group_data[m_name] else None
+                                
+                                if y_scale == "log":
+                                    eps_safe = 1e-15
+                                    if p10 is not None: p10 = np.maximum(eps_safe, p10)
+                                    if p90 is not None: p90 = np.maximum(eps_safe, p90)
+                                    if p25 is not None: p25 = np.maximum(eps_safe, p25)
+                                    if p75 is not None: p75 = np.maximum(eps_safe, p75)
+                                    
+                                if p10 is not None and p90 is not None:
+                                    plt.fill_between(layer_arr, p10, p90, color=color, alpha=0.1)
+                                if p25 is not None and p75 is not None:
+                                    plt.fill_between(layer_arr, p25, p75, color=color, alpha=0.2)
                             else:
                                 err_key = f"{stat_metric}_{self.error_bars}"
                                 if err_key in group_data[m_name]:
@@ -213,10 +245,18 @@ class JacobianPlotter:
                                     e_arr = None
                                     
                                 if e_arr is not None:
-                                    lower = np.maximum(0, m_arr - e_arr) if self.error_bars in ["std", "var"] else m_arr - e_arr
                                     if y_scale == "log":
-                                        lower = np.maximum(1e-12, lower)
-                                    plt.fill_between(layer_arr, lower, m_arr + e_arr, color=color, alpha=0.2)
+                                        eps_safe = 1e-15
+                                        with np.errstate(divide='ignore', invalid='ignore'):
+                                            std_log = e_arr / np.maximum(m_arr, eps_safe)
+                                            lower = m_arr * np.exp(-std_log)
+                                            upper = m_arr * np.exp(std_log)
+                                        lower = np.maximum(eps_safe, np.where(np.isnan(lower) | np.isinf(lower), eps_safe, lower))
+                                        upper = np.where(np.isnan(upper) | np.isinf(upper), m_arr, upper)
+                                    else:
+                                        lower = np.maximum(0, m_arr - e_arr) if self.error_bars in ["std", "var"] else m_arr - e_arr
+                                        upper = m_arr + e_arr
+                                    plt.fill_between(layer_arr, lower, upper, color=color, alpha=0.2)
                                     
                     # Critical Baseline y = 1.0
                     plt.axhline(y=1.0, color='black', linestyle='--', linewidth=1.5, label='Neutral Boundary')
