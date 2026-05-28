@@ -136,12 +136,11 @@ def main():
         cv_up_mean = []
         cv_down_mean = []
         
-        r_option_b_mean = []
-        r_t_p10_mean = []
-        r_t_p25_mean = []
-        r_t_p75_mean = []
-        r_t_p90_mean = []
-        r_t_median_mean = []
+        r_t_p10_median = []
+        r_t_p25_median = []
+        r_t_p75_median = []
+        r_t_p90_median = []
+        r_t_median_median = []
         
         for l_idx in sorted_layers:
             run_metrics = layer_dict[l_idx]
@@ -152,12 +151,11 @@ def main():
             cv_down_mean.append(np.mean([m["CV_down"] for m in run_metrics]))
             
             # Dynamic metrics
-            r_option_b_mean.append(np.mean([m["R_option_b"] for m in run_metrics]))
-            r_t_p10_mean.append(np.mean([m["R_t_p10"] for m in run_metrics]))
-            r_t_p25_mean.append(np.mean([m["R_t_p25"] for m in run_metrics]))
-            r_t_p75_mean.append(np.mean([m["R_t_p75"] for m in run_metrics]))
-            r_t_p90_mean.append(np.mean([m["R_t_p90"] for m in run_metrics]))
-            r_t_median_mean.append(np.mean([m["R_t_median"] for m in run_metrics]))
+            r_t_p10_median.append(np.median([m["R_t_p10"] for m in run_metrics]))
+            r_t_p25_median.append(np.median([m["R_t_p25"] for m in run_metrics]))
+            r_t_p75_median.append(np.median([m["R_t_p75"] for m in run_metrics]))
+            r_t_p90_median.append(np.median([m["R_t_p90"] for m in run_metrics]))
+            r_t_median_median.append(np.median([m["R_t_median"] for m in run_metrics]))
             
         info_key = get_safe_filename_info(group_key, group_titles)
         
@@ -184,12 +182,12 @@ def main():
         
         # --- Figure 2: Assumption 1 (Vanishing Off-Diagonals) ---
         plt.figure(figsize=(10, 6))
-        # Main line represents the sequence-averaged ratio (Option B)
-        plt.plot(layers_arr, r_option_b_mean, marker='o', color='navy', label=r'Diagonal Ratio $R$ (Option B)', linewidth=2, markersize=4)
+        # Main line represents the sequence-median ratio
+        plt.plot(layers_arr, r_t_median_median, marker='o', color='navy', label=r'Diagonal Ratio $R$ (Median)', linewidth=2, markersize=4)
         
         # Fan shading for token-level errors
-        plt.fill_between(layers_arr, r_t_p10_mean, r_t_p90_mean, color='navy', alpha=0.08)
-        plt.fill_between(layers_arr, r_t_p25_mean, r_t_p75_mean, color='navy', alpha=0.15)
+        plt.fill_between(layers_arr, r_t_p10_median, r_t_p90_median, color='navy', alpha=0.08)
+        plt.fill_between(layers_arr, r_t_p25_median, r_t_p75_median, color='navy', alpha=0.15)
         
         # Perfect Diagonal Isolation (y = 1.0)
         plt.axhline(y=1.0, color='black', linestyle='-', linewidth=1.5)
