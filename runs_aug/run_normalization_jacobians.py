@@ -343,6 +343,31 @@ def main():
                         })
 
     raw_data_path = os.path.join(results_dir, "raw_normalization_data.pkl")
+    
+    # Merge with existing data if it exists
+    if os.path.exists(raw_data_path):
+        try:
+            with open(raw_data_path, "rb") as f:
+                old_results = pickle.load(f)
+            
+            existing_data = old_results.get("data", [])
+            existing_radii = set(old_results.get("radii", []))
+            
+            merged = {}
+            for item in existing_data:
+                k = (item["norm_name"], item["pert_type"], item["radius"], item["layer"], item["token_idx"])
+                merged[k] = item
+                
+            for item in results["data"]:
+                k = (item["norm_name"], item["pert_type"], item["radius"], item["layer"], item["token_idx"])
+                merged[k] = item
+                
+            results["data"] = list(merged.values())
+            results["radii"] = sorted(list(existing_radii.union(set(radii))))
+            print(f"Aggregated results: merged new runs with existing runs. Total data items: {len(results['data'])}, all radii: {results['radii']}")
+        except Exception as e:
+            print(f"Warning during data aggregation: {e}. Saving fresh results.")
+
     with open(raw_data_path, "wb") as f:
         pickle.dump(results, f)
         
