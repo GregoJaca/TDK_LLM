@@ -183,7 +183,7 @@ def main():
         # --- Figure 2: Assumption 1 (Vanishing Off-Diagonals) ---
         plt.figure(figsize=(10, 6))
         # Main line represents the sequence-median ratio
-        plt.plot(layers_arr, r_t_median_median, marker='o', color='navy', label=r'Diagonal Ratio $R$ (Median)', linewidth=2, markersize=4)
+        plt.plot(layers_arr, r_t_median_median, marker='o', color='navy', label=r'$R$', linewidth=2, markersize=4)
         
         # Fan shading for token-level errors
         plt.fill_between(layers_arr, r_t_p10_median, r_t_p90_median, color='navy', alpha=0.08)
