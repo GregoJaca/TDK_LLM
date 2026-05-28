@@ -1381,7 +1381,7 @@ plotting:
   metric: ["harmonic"]  # Options: mean, median, mode, harmonic
   error_bars: "fan"    # "none" "var" "std" "fan"
   plot_prompt_together: true
-  plot_prompt_separated: true
+  plot_prompt_separated: false
   separate_figure_metrics: true
   x_scales: ["linear"]
   y_scales: ["log"]
@@ -1407,10 +1407,10 @@ plotting:
   spectral_norm_lambda_true_together: true
   plot_mft_comparison: true
   show_title: false
-  font_size: 16
-  label_size: 18
-  tick_size: 12
-  legend_size: 11
+  font_size: 20
+  label_size: 20
+  tick_size: 16
+  legend_size: 16
   dpi: 300
 
 mft_validation:

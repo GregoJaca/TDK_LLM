@@ -169,7 +169,7 @@ def main():
         
         plt.axhline(y=y_limit_cv, color='red', linestyle='--', linewidth=1.5, label=f'Safety Bound ({y_limit_cv})')
         plt.xlabel("Layer Index")
-        plt.ylabel("Coefficient of Variation (CV)")
+        plt.ylabel("$\text{CV} = \sigma / \mu$")
         if plotting_cfg.get("show_title", False):
             plt.title(f"Assumption 2: Uniform Row/Column Norms\n{group_titles[group_key]}")
         plt.grid(True, alpha=0.3)
@@ -188,17 +188,17 @@ def main():
         plt.plot(layers_arr, r_option_b_mean, marker='o', color='navy', label=r'Diagonal Ratio $R$ (Option B)', linewidth=2, markersize=4)
         
         # Fan shading for token-level errors
-        plt.fill_between(layers_arr, r_t_p10_mean, r_t_p90_mean, color='navy', alpha=0.08, label='10th-90th percentile')
-        plt.fill_between(layers_arr, r_t_p25_mean, r_t_p75_mean, color='navy', alpha=0.15, label='25th-75th percentile')
+        plt.fill_between(layers_arr, r_t_p10_mean, r_t_p90_mean, color='navy', alpha=0.08)
+        plt.fill_between(layers_arr, r_t_p25_mean, r_t_p75_mean, color='navy', alpha=0.15)
         
         # Perfect Diagonal Isolation (y = 1.0)
-        plt.axhline(y=1.0, color='black', linestyle='-', linewidth=1.5, label='Perfect Isolation (1.0)')
+        plt.axhline(y=1.0, color='black', linestyle='-', linewidth=1.5)
         
         # Tolerance band [0.90, 1.10]
         plt.axhspan(ratio_tolerance_low, ratio_tolerance_high, color='green', alpha=0.1, label='Tolerance Band')
         
         plt.xlabel("Layer Index")
-        plt.ylabel(r"Stretching Ratio $R = \lambda_{diagonal} / \lambda_{true}$")
+        plt.ylabel(r"$R = \lambda_{diagonal} / \lambda_{true}$")
         if plotting_cfg.get("show_title", False):
             plt.title(f"Assumption 1: Vanishing Off-Diagonals\n{group_titles[group_key]}")
         plt.grid(True, alpha=0.3)
