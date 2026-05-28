@@ -43,6 +43,14 @@ def main():
     use_layernorm = norm_config.get("use_layernorm", True)
     results_dir = norm_config.get("results_dir", "./results_normalization")
     radii = norm_config.get("radii", [1e-8, 1e-7, 1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1.0])
+    if isinstance(radii, str):
+        cleaned = radii.replace("[", "").replace("]", "").strip()
+        radii = [float(x.strip()) for x in cleaned.split(",") if x.strip()]
+    elif isinstance(radii, list):
+        radii = [float(x) for x in radii]
+    else:
+        radii = [float(radii)]
+        
     num_sampled_tokens = norm_config.get("num_sampled_tokens", 50)
     
     ensure_dir(results_dir)

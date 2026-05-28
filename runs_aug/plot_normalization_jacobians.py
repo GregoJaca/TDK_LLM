@@ -62,14 +62,10 @@ def main():
     # We plot this for each norm name
     for norm_name in ["rms_actual", "rms_pure", "layernorm_pure"]:
         # Find active combinations for this norm name
-        has_orth = f"{norm_name}_orthogonal_1e-08" in aggregated_sweep or f"{norm_name}_orthogonal_1e-8" in aggregated_sweep
+        has_orth = any(k[0] == norm_name and k[1] == "orthogonal" for k in aggregated_sweep.keys())
         if not has_orth:
             # Try to match the key
-            matched = False
-            for k in aggregated_sweep.keys():
-                if k.startswith(norm_name):
-                    matched = True
-                    break
+            matched = any(k[0] == norm_name for k in aggregated_sweep.keys())
             if not matched:
                 continue
                 
@@ -90,10 +86,7 @@ def main():
             p90_emp = []
             
             for r in sweep_radii:
-                key = f"{norm_name}_{pert_type}_{r}"
-                if key not in aggregated_sweep:
-                    # check with float formatting
-                    key = f"{norm_name}_{pert_type}_{float(r)}"
+                key = (norm_name, pert_type, r)
                 if key in aggregated_sweep:
                     item = aggregated_sweep[key]
                     emp_medians.append(item["emp_norm"]["median"])
@@ -135,7 +128,7 @@ def main():
         guide_x = np.array([1e-8, 1.0])
         # scale guide line to match the orthogonal response at 1e-4
         ref_idx = sweep_radii.index(target_radius)
-        ref_y = aggregated_sweep[f"{norm_name}_orthogonal_{target_radius}"]["emp_norm"]["median"]
+        ref_y = aggregated_sweep[(norm_name, "orthogonal", target_radius)]["emp_norm"]["median"]
         guide_y = guide_x * (ref_y / target_radius)
         plt.plot(guide_x, guide_y, color="gray", linestyle=":", label="Slope = 1.0")
         

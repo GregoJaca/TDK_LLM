@@ -68,7 +68,7 @@ def main():
             else:
                 rel_errors_jvp.append(0.0)
                 
-        key = f"{norm_name}_{pert_type}_{radius}"
+        key = (norm_name, pert_type, radius)
         
         # Helper to compute statistics
         def get_stats(arr):
@@ -111,7 +111,7 @@ def main():
         sweep_rel_err_medians = []
         
         for radius in sorted(radii):
-            key = f"{norm_name}_{pert_type}_{radius}"
+            key = (norm_name, pert_type, radius)
             if key in aggregated_sweep:
                 sweep_radii.append(radius)
                 sweep_emp_medians.append(aggregated_sweep[key]["emp_norm"]["median"])
