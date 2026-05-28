@@ -1424,7 +1424,7 @@ normalization:
   use_rms: true
   use_layernorm: false
   results_dir: "./results_normalization"
-  # radii: [1e-6, 1e-5, 1e-1]
-  radii: [1e-8, 1e-7, 1e-6, 1e-5, 1e-4, 1e-3, 2e-1, 1e-1, 1]
+  # radii: [1e-8, 1e-7, 1e-6, 1e-5, 1e-4, 1e-3, 2e-1, 1e-1, 1]
+  radii: [1e-11, 1e-10, 1e-9, 10, 100]
   num_sampled_tokens: 200
 
