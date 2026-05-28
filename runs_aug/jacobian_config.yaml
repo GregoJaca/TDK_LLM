@@ -1371,7 +1371,7 @@ experiment:
 
   setups:
     - name: "jacobian_base"
-      prompt_id: "internet_long_prompts"
+      prompt_id: "long_prompts"
 
 analysis:
   metric: ["median", "harmonic", "p10", "p25", "p75", "p90", "min", "max"]
@@ -1419,4 +1419,11 @@ mft_validation:
   y_limit_cv: 0.25
   ratio_tolerance_low: 0.90
   ratio_tolerance_high: 1.10
+
+normalization:
+  use_rms: true
+  use_layernorm: false
+  results_dir: "./results_normalization"
+  radii: [1e-6, 1e-5, 1e-1]
+  num_sampled_tokens: 50
 
