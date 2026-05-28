@@ -167,9 +167,9 @@ def main():
         plt.plot(layers_arr, cv_up_mean, marker='s', color='darkorange', label=r'$W_{up}$', linewidth=2, markersize=4)
         plt.plot(layers_arr, cv_down_mean, marker='^', color='purple', label=r'$W_{down}$', linewidth=2, markersize=4)
         
-        plt.axhline(y=y_limit_cv, color='red', linestyle='--', linewidth=1.5, label=f'Safety Bound ({y_limit_cv})')
+        plt.axhline(y=y_limit_cv, color='red', linestyle='--', linewidth=1.5, label=f'Tolerance limit ({y_limit_cv})')
         plt.xlabel("Layer Index")
-        plt.ylabel("$\text{CV} = \sigma / \mu$")
+        plt.ylabel("CV $ = \sigma / \mu$")
         if plotting_cfg.get("show_title", False):
             plt.title(f"Assumption 2: Uniform Row/Column Norms\n{group_titles[group_key]}")
         plt.grid(True, alpha=0.3)
