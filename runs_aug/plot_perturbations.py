@@ -7,6 +7,65 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
 
+def find_best_linear_regime(x_raw, y_raw, min_points=5):
+    """
+    Finds the contiguous subset of (x_raw, y_raw) of length >= min_points
+    that has the best linear fit on the log-log scale with a slope closest to 1.0
+    (preferably between 0.97 and 1.03).
+    """
+    x_raw = np.array(x_raw)
+    y_raw = np.array(y_raw)
+    
+    # Sort by x
+    sort_idx = np.argsort(x_raw)
+    x_raw = x_raw[sort_idx]
+    y_raw = y_raw[sort_idx]
+    
+    # Keep only positive values for log-log
+    valid = (x_raw > 0) & (y_raw > 0)
+    x_clean = x_raw[valid]
+    y_clean = y_raw[valid]
+    
+    n = len(x_clean)
+    if n < min_points:
+        if n >= 2:
+            slope, intercept = np.polyfit(np.log10(x_clean), np.log10(y_clean), 1)
+            return float(slope), float(intercept), list(x_clean)
+        else:
+            return 1.0, 0.0, list(x_raw)
+            
+    log_x = np.log10(x_clean)
+    log_y = np.log10(y_clean)
+    
+    best_subset = None
+    best_score = float('inf')
+    best_slope = None
+    best_intercept = None
+    
+    for length in range(min_points, n + 1):
+        for start in range(n - length + 1):
+            sub_x = log_x[start:start+length]
+            sub_y = log_y[start:start+length]
+            
+            slope, intercept = np.polyfit(sub_x, sub_y, 1)
+            preds = slope * sub_x + intercept
+            mse = np.mean((sub_y - preds) ** 2)
+            slope_deviation = abs(slope - 1.0)
+            
+            # Score penalty: prefer slopes in [0.97, 1.03]
+            if 0.97 <= slope <= 1.03:
+                score = mse + 0.01 * slope_deviation
+            else:
+                score = 1.0 + slope_deviation + mse
+                
+            if score < best_score:
+                best_score = score
+                best_slope = float(slope)
+                best_intercept = float(intercept)
+                best_subset = x_clean[start:start+length]
+                
+    return best_slope, best_intercept, list(best_subset)
+
 def get_safe_filename_info(group_key, group_titles):
     title = group_titles.get(group_key, group_key)
     setup_match = re.search(r"Setup:\s*([^|]+)", title)
@@ -428,11 +487,19 @@ def plot_extracted_jacobians(data, group_titles, plots_dir, plotting_cfg):
             def compute_gain_for_key(metric_name):
                 A_arr = np.zeros(num_layers)
                 for i in range(num_layers):
-                    ratios = []
-                    for r in linear_radii:
+                    layer_radii = []
+                    layer_vals = []
+                    for r in sorted_radii:
                         if metric_name in radii_data[r] and len(radii_data[r][metric_name]) > i:
-                            ratios.append(radii_data[r][metric_name][i] / r)
-                    A_arr[i] = np.mean(ratios) if ratios else 1.0
+                            layer_radii.append(r)
+                            layer_vals.append(radii_data[r][metric_name][i])
+                    
+                    slope, constant, best_subset = find_best_linear_regime(layer_radii, layer_vals, min_points=5)
+                    A_arr[i] = 10**constant if constant is not None else 1.0
+                    
+                    # Print to terminal the exact slope and fit for every layer
+                    if metric_name == current_metric:
+                        print(f"Perturbations [Extract J] | Setup={group_key} | Layer {layer_arr[i]} | Slope (Exponent) = {slope:.6f} | Constant (Log-Gain) = {constant:.6f} | Gain = {10**constant:.6e} | Range = [{min(best_subset):.1e}, {max(best_subset):.1e}]")
                 
                 # Prepend 1.0 for the virtual input layer
                 A_with_input = np.insert(A_arr, 0, 1.0)
@@ -452,15 +519,18 @@ def plot_extracted_jacobians(data, group_titles, plots_dir, plotting_cfg):
                 for p_key in prompt_keys:
                     p_radii_data = data[p_key]
                     p_sorted_radii = sorted(p_radii_data.keys())
-                    p_linear_radii = p_sorted_radii[-8:]
                         
                     p_A = np.zeros(num_layers)
                     for i in range(num_layers):
-                        ratios = []
-                        for r in p_linear_radii:
+                        layer_radii = []
+                        layer_vals = []
+                        for r in p_sorted_radii:
                             if current_metric in p_radii_data[r] and len(p_radii_data[r][current_metric]) > i:
-                                ratios.append(p_radii_data[r][current_metric][i] / r)
-                        p_A[i] = np.mean(ratios) if ratios else 1.0
+                                layer_radii.append(r)
+                                layer_vals.append(p_radii_data[r][current_metric][i])
+                        
+                        slope, constant, best_subset = find_best_linear_regime(layer_radii, layer_vals, min_points=5)
+                        p_A[i] = 10**constant if constant is not None else 1.0
                         
                     p_A_with_input = np.insert(p_A, 0, 1.0)
                     p_layer_jac = np.zeros(num_layers)

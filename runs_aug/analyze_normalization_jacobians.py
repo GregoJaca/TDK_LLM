@@ -76,6 +76,65 @@ def get_metrics_and_errors(data_array):
         "none": 0.0
     }
 
+def find_best_linear_regime(x_raw, y_raw, min_points=5):
+    """
+    Finds the contiguous subset of (x_raw, y_raw) of length >= min_points
+    that has the best linear fit on the log-log scale with a slope closest to 1.0
+    (preferably between 0.97 and 1.03).
+    """
+    x_raw = np.array(x_raw)
+    y_raw = np.array(y_raw)
+    
+    # Sort by x
+    sort_idx = np.argsort(x_raw)
+    x_raw = x_raw[sort_idx]
+    y_raw = y_raw[sort_idx]
+    
+    # Keep only positive values for log-log
+    valid = (x_raw > 0) & (y_raw > 0)
+    x_clean = x_raw[valid]
+    y_clean = y_raw[valid]
+    
+    n = len(x_clean)
+    if n < min_points:
+        if n >= 2:
+            slope, intercept = np.polyfit(np.log10(x_clean), np.log10(y_clean), 1)
+            return float(slope), float(intercept), list(x_clean)
+        else:
+            return 1.0, 0.0, list(x_raw)
+            
+    log_x = np.log10(x_clean)
+    log_y = np.log10(y_clean)
+    
+    best_subset = None
+    best_score = float('inf')
+    best_slope = None
+    best_intercept = None
+    
+    for length in range(min_points, n + 1):
+        for start in range(n - length + 1):
+            sub_x = log_x[start:start+length]
+            sub_y = log_y[start:start+length]
+            
+            slope, intercept = np.polyfit(sub_x, sub_y, 1)
+            preds = slope * sub_x + intercept
+            mse = np.mean((sub_y - preds) ** 2)
+            slope_deviation = abs(slope - 1.0)
+            
+            # Score penalty: prefer slopes in [0.97, 1.03]
+            if 0.97 <= slope <= 1.03:
+                score = mse + 0.01 * slope_deviation
+            else:
+                score = 1.0 + slope_deviation + mse
+                
+            if score < best_score:
+                best_score = score
+                best_slope = float(slope)
+                best_intercept = float(intercept)
+                best_subset = x_clean[start:start+length]
+                
+    return best_slope, best_intercept, list(best_subset)
+
 def main():
     config_path = "jacobian_config.yaml"
     if not os.path.exists(config_path):
@@ -167,27 +226,9 @@ def main():
                     sweep_emp_vals.append(aggregated_sweep[key]["emp_norm"][metric_name])
                     sweep_rel_err_vals.append(aggregated_sweep[key]["rel_err_jvp"][metric_name])
                     
-            fit_x = []
-            fit_y = []
-            for r, val in zip(sweep_radii, sweep_emp_vals):
-                if 1e-7 <= r <= 1e-2 and val > 0:
-                    fit_x.append(np.log10(r))
-                    fit_y.append(np.log10(val))
-                    
-            # Fallback if too few points in range
-            if len(fit_x) < 2:
-                fit_x = []
-                fit_y = []
-                for r, val in zip(sweep_radii, sweep_emp_vals):
-                    if val > 0:
-                        fit_x.append(np.log10(r))
-                        fit_y.append(np.log10(val))
-                    
-            exponent = None
-            intercept = None
-            if len(fit_x) >= 2:
-                slope, intercept = np.polyfit(fit_x, fit_y, 1)
-                exponent = float(slope)
+            exponent, intercept, best_subset = find_best_linear_regime(sweep_radii, sweep_emp_vals, min_points=5)
+            print(f"Sweep Fit: Norm={norm_name}, Perturbation={pert_type}, Metric={metric_name} | "
+                  f"Slope of fit = {exponent:.6f} | Selected range = [{min(best_subset):.1e}, {max(best_subset):.1e}]")
                 
             boundary_radius = None
             for r, err in zip(sweep_radii, sweep_rel_err_vals):
@@ -241,6 +282,40 @@ def main():
             "cos_sim_jvp_x": get_metrics_and_errors(cos_sims_jvp_x)
         }
         
+    # 5. Layer-wise sweep metrics across all radii (for extracting Jacobians)
+    layer_sweep_data = defaultdict(lambda: defaultdict(dict))
+    subgrouped = defaultdict(lambda: defaultdict(list))
+    for item in data_list:
+        norm_name = item["norm_name"]
+        pert_type = item["pert_type"]
+        radius = item["radius"]
+        layer = item["layer"]
+        subgrouped[(norm_name, pert_type, radius)][layer].append(item)
+        
+    for (norm_name, pert_type, radius), layer_dict in subgrouped.items():
+        sorted_layers = sorted(layer_dict.keys())
+        layer_arr = np.array(sorted_layers)
+        
+        metrics_per_layer = {
+            "mean": [], "median": [], "mode": [], "harmonic": [], "std": [], "var": [], 
+            "harmonic_std": [], "harmonic_var": [],
+            "min": [], "max": [], "p10": [], "p25": [], "p50": [], "p75": [], "p90": [],
+            "none": []
+        }
+        
+        for l in sorted_layers:
+            items = layer_dict[l]
+            emp_norms = np.array([i["emp_norm"] for i in items])
+            metrics = get_metrics_and_errors(emp_norms)
+            for k in metrics_per_layer.keys():
+                metrics_per_layer[k].append(metrics[k])
+                
+        metrics_per_layer_converted = {k: np.array(v) for k, v in metrics_per_layer.items()}
+        metrics_per_layer_converted["layers"] = layer_arr
+        
+        group_key = f"{norm_name}_{pert_type}"
+        layer_sweep_data[group_key][radius] = metrics_per_layer_converted
+
     analysis_results = {
         "model_name": raw_data["model_name"],
         "prompt_hash": raw_data["prompt_hash"],
@@ -250,7 +325,8 @@ def main():
         "aggregated_sweep": aggregated_sweep,
         "power_laws": power_laws,
         "linearity_boundaries": linearity_boundaries,
-        "layer_metrics": dict(layer_metrics)
+        "layer_metrics": dict(layer_metrics),
+        "layer_sweep_data": {k: dict(v) for k, v in layer_sweep_data.items()}
     }
     
     analyzed_path = os.path.join(results_dir, "analyzed_normalization_data.pkl")
