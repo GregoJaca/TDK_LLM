@@ -336,6 +336,7 @@ def main():
             print(f"Saved radial scaling verification to {os.path.join(plots_dir, plot_name)}")
             
         # 3. Figure 3: Orthogonal Annihilation Verification (Cosine Similarity vs Layer)
+        ann_yscale = norm_config.get("annihilation_yscale", "linear")
         for norm_name in ["rms_actual", "rms_pure", "layernorm_pure"]:
             for version_name, perts, filename_suffix in versions_to_plot_ann:
                 plt.figure(figsize=(10, 6))
@@ -390,6 +391,7 @@ def main():
                     
                 plt.axhline(0.0, color="black", linestyle="-", linewidth=1.5)
                 
+                plt.yscale(ann_yscale)
                 plt.xlabel("Layer Index")
                 plt.ylabel(r"Alignment $\cos(\theta) = \frac{x^T \delta y}{\|x\|_2 \|\delta y\|_2}$")
                 plt.grid(True, alpha=0.3)
