@@ -393,7 +393,7 @@ def main():
                 
                 plt.yscale(ann_yscale)
                 plt.xlabel("Layer Index")
-                plt.ylabel(r"Alignment")
+                plt.ylabel(r"Survival")
                 plt.grid(True, alpha=0.3)
                 plt.legend(loc="best")
                 plt.tight_layout()
