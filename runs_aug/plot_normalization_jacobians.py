@@ -252,8 +252,8 @@ def main():
                              
                 plt.xscale("log")
                 plt.yscale("log")
-                plt.xlabel(r"Perturbation Magnitude $\epsilon = \|\delta x\|_2$")
-                plt.ylabel(r"Output Perturbation Norm $\|\delta y\|_2$")
+                plt.xlabel(r"Perturbation Magnitude")
+                plt.ylabel(r"Output Perturbation")
                 plt.grid(True, which="both", alpha=0.3)
                 plt.legend(loc="lower right")
                 plt.tight_layout()
@@ -325,7 +325,7 @@ def main():
                      label=fr"Empirical Scaling Ratio ($\epsilon$={target_radius:.1e})")
                      
             plt.xlabel("Layer Index")
-            plt.ylabel(r"Scaling Gain $\|\delta y\|_2 / \|\delta x_{{\perp}}\|_2$")
+            plt.ylabel(r"Scaling Gain")
             plt.grid(True, alpha=0.3)
             plt.legend(loc="best")
             plt.tight_layout()
@@ -393,7 +393,7 @@ def main():
                 
                 plt.yscale(ann_yscale)
                 plt.xlabel("Layer Index")
-                plt.ylabel(r"Alignment $\cos(\theta) = \frac{x^T \delta y}{\|x\|_2 \|\delta y\|_2}$")
+                plt.ylabel(r"Alignment")
                 plt.grid(True, alpha=0.3)
                 plt.legend(loc="best")
                 plt.tight_layout()
