@@ -1,22 +1,20 @@
+# Large data / checkpoints (keep out of git)
 *.pt
-*.pyc
-*.png
-*.json
-*summary.txt
-*.bat
-*.csv
-autoencoder_trying.py
-.gitignore
-
-*Guidelines.md
-*writing_plan.md
-*description_and_dump_results.txt
+*.pkl
 *.npz
-# *runs_aug/
-
-*exp_fit*
-*launch_sep*
 *.npy
-uj_plotter.py
-plotter_rp.py
-sweep_analysis.py
+*.safetensors
+*.bin
+*.h5
+*.pth
+models--*/
+results_perturbations*/
+results_jacobians*/
+results_normalization*/
+runs_aug/results_*/
+# Python
+*.pyc
+__pycache__/
+.venv/
+# Local scratch
+*.log
